@@ -1,0 +1,32 @@
+tools:
+  - name: search_web
+    description: "Search the internet for current information"
+    parameters:
+      query:
+        type: string
+        description: "The search query to execute"
+      max_results:
+        type: integer
+        default: 5
+        description: "Maximum number of results to return"
+
+  - name: read_file
+    description: "Read contents of a file from the filesystem"
+    parameters:
+      path:
+        type: string
+        description: "Path to the file to read"
+
+  - name: write_file
+    description: "Write content to a file"
+    parameters:
+      path:
+        type: string
+        description: "Path where to write the file"
+      content:
+        type: string
+        description: "Content to write to the file"
+
+  - name: get_current_time
+    description: "Get the current timestamp"
+    parameters: {} 
