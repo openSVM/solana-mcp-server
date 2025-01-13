@@ -1,63 +1,13 @@
 use anyhow::Result;
-use async_trait::async_trait;
-use log::{error, info, warn};
+use log::info;
 use mcp_sdk::{
-    transport::{StdioTransport, JsonRpcMessage, Transport, JsonRpcResponse, JsonRpcVersion},
-    types::{
-        CallToolRequest, CallToolResponse, ToolResponseContent,
-        ResourceContents, ReadResourceRequest,
-    },
+    transport::StdioTransport,
     server::{Server, ServerOptions},
     protocol::ProtocolBuilder,
 };
-// ... (rest of the imports remain the same)
-
-// ... (rest of the code remains the same until Transport impl)
-
-#[async_trait]
-impl Transport for SolanaMcpServer {
-    async fn send<'life0, 'async_trait>(
-        &'life0 self,
-        _message: &'life0 JsonRpcMessage,
-    ) -> Result<()>
-    where
-        'life0: 'async_trait,
-    {
-        Ok(())
-    }
-
-    async fn receive<'life0, 'async_trait>(
-        &'life0 self,
-    ) -> Result<JsonRpcMessage>
-    where
-        'life0: 'async_trait,
-    {
-        Ok(JsonRpcMessage::Response(JsonRpcResponse {
-            jsonrpc: JsonRpcVersion::Version2,
-            id: 0,
-            result: Some(serde_json::Value::Null),
-            error: None,
-        }))
-    }
-
-    async fn open<'life0, 'async_trait>(
-        &'life0 self,
-    ) -> Result<()>
-    where
-        'life0: 'async_trait,
-    {
-        Ok(())
-    }
-
-    async fn close<'life0, 'async_trait>(
-        &'life0 self,
-    ) -> Result<()>
-    where
-        'life0: 'async_trait,
-    {
-        Ok(())
-    }
-}
+use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_sdk::commitment_config::CommitmentConfig;
+use solana_mcp_server::SolanaMcpServer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -71,13 +21,13 @@ async fn main() -> Result<()> {
         CommitmentConfig::confirmed(),
     );
     
-    let server = SolanaMcpServer::new(client);
+    let _server = SolanaMcpServer::new(client);
     let transport = StdioTransport::default();
-    let protocol = ProtocolBuilder::new(server);
+    let protocol = ProtocolBuilder::new(transport);
     let options = ServerOptions::default();
     
     info!("Starting Solana MCP server...");
-    Server::new(protocol, options).execute(transport).await?;
+    Server::new(protocol, options).listen().await?;
     
     Ok(())
 }
