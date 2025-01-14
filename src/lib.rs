@@ -1,13 +1,17 @@
 use anyhow::Result;
 use mcp_sdk::types::{CallToolRequest, CallToolResponse, ToolResponseContent, ToolsListResponse, Tool};
 use serde_json::json;
-use solana_client::{
-    nonblocking::rpc_client::RpcClient,
-    rpc_request::TokenAccountsFilter,
+use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    hash::Hash,
+    message::Message,
+    pubkey::Pubkey,
+    transaction::Transaction,
 };
-use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::UiTransactionEncoding;
 use std::{str::FromStr, sync::Arc, collections::HashMap};
+use base64::{Engine as _, engine::general_purpose::STANDARD as base64};
 
 pub struct SolanaMcpServer {
     client: Arc<RpcClient>,
@@ -149,36 +153,145 @@ impl SolanaMcpServer {
 
     pub fn list_tools(&self) -> Result<ToolsListResponse> {
         let tools = vec![
+            // Account Methods
             Tool {
-                name: "get_slot".to_string(),
-                description: Some("Get current slot".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_account_info".to_string(),
+                description: Some("Returns all information associated with the account of provided Pubkey".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "pubkey": {
+                            "type": "string",
+                            "description": "Pubkey of account to query, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["pubkey"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_multiple_accounts".to_string(),
+                description: Some("Returns account information for a list of Pubkeys".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "pubkeys": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "description": "Pubkey as base-58 encoded string"
+                            }
+                        }
+                    },
+                    "required": ["pubkeys"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_program_accounts".to_string(),
+                description: Some("Returns all accounts owned by the provided program Pubkey".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "programId": {
+                            "type": "string",
+                            "description": "Pubkey of program to query, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["programId"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_balance".to_string(),
+                description: Some("Returns the balance of the account of provided Pubkey".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "pubkey": {
+                            "type": "string",
+                            "description": "Pubkey of account to query, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["pubkey"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_largest_accounts".to_string(),
+                description: Some("Returns the 20 largest accounts, by lamport balance".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
                     "additionalProperties": false
                 }),
             },
+
+            // Block Methods
             Tool {
-                name: "get_slot_leaders".to_string(),
-                description: Some("Get slot leaders".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_block".to_string(),
+                description: Some("Returns identity and transaction information about a confirmed block".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {
-                        "start_slot": {"type": "integer"},
-                        "limit": {"type": "integer"}
+                        "slot": {
+                            "type": "integer",
+                            "description": "Slot number"
+                        }
+                    },
+                    "required": ["slot"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_blocks".to_string(),
+                description: Some("Returns a list of confirmed blocks between two slots".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "start_slot": {
+                            "type": "integer",
+                            "description": "Start slot"
+                        },
+                        "end_slot": {
+                            "type": "integer",
+                            "description": "End slot"
+                        }
+                    },
+                    "required": ["start_slot", "end_slot"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_blocks_with_limit".to_string(),
+                description: Some("Returns a list of confirmed blocks starting at given slot".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "start_slot": {
+                            "type": "integer",
+                            "description": "Start slot"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of blocks to return"
+                        }
                     },
                     "required": ["start_slot", "limit"],
                     "additionalProperties": false
                 }),
             },
             Tool {
-                name: "get_block".to_string(),
-                description: Some("Get block information".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_block_time".to_string(),
+                description: Some("Returns estimated production time of a block".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {
-                        "slot": {"type": "integer"}
+                        "slot": {
+                            "type": "integer",
+                            "description": "Slot number"
+                        }
                     },
                     "required": ["slot"],
                     "additionalProperties": false
@@ -186,8 +299,8 @@ impl SolanaMcpServer {
             },
             Tool {
                 name: "get_block_height".to_string(),
-                description: Some("Get current block height".to_string()),
-                input_schema: serde_json::json!({
+                description: Some("Returns the current block height".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
@@ -195,45 +308,46 @@ impl SolanaMcpServer {
                 }),
             },
             Tool {
-                name: "get_balance".to_string(),
-                description: Some("Get account balance".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_block_commitment".to_string(),
+                description: Some("Returns commitment for particular block".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {
-                        "pubkey": {"type": "string"}
+                        "slot": {
+                            "type": "integer",
+                            "description": "Slot number"
+                        }
                     },
-                    "required": ["pubkey"],
+                    "required": ["slot"],
                     "additionalProperties": false
                 }),
             },
             Tool {
-                name: "get_account_info".to_string(),
-                description: Some("Get detailed account information".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_block_production".to_string(),
+                description: Some("Returns recent block production information".to_string()),
+                input_schema: json!({
                     "type": "object",
-                    "properties": {
-                        "pubkey": {"type": "string"}
-                    },
-                    "required": ["pubkey"],
+                    "properties": {},
+                    "required": [],
                     "additionalProperties": false
                 }),
             },
             Tool {
-                name: "get_transaction".to_string(),
-                description: Some("Get transaction details".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_first_available_block".to_string(),
+                description: Some("Returns the slot of the lowest confirmed block that has not been purged from the ledger".to_string()),
+                input_schema: json!({
                     "type": "object",
-                    "properties": {
-                        "signature": {"type": "string"}
-                    },
-                    "required": ["signature"],
+                    "properties": {},
+                    "required": [],
                     "additionalProperties": false
                 }),
             },
+
+            // System Methods
             Tool {
                 name: "get_health".to_string(),
-                description: Some("Get node health status".to_string()),
-                input_schema: serde_json::json!({
+                description: Some("Returns the current health of the node".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
@@ -242,8 +356,8 @@ impl SolanaMcpServer {
             },
             Tool {
                 name: "get_version".to_string(),
-                description: Some("Get node version information".to_string()),
-                input_schema: serde_json::json!({
+                description: Some("Returns the current solana version running on the node".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
@@ -252,8 +366,8 @@ impl SolanaMcpServer {
             },
             Tool {
                 name: "get_identity".to_string(),
-                description: Some("Get node identity".to_string()),
-                input_schema: serde_json::json!({
+                description: Some("Returns the identity pubkey for the current node".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
@@ -261,9 +375,100 @@ impl SolanaMcpServer {
                 }),
             },
             Tool {
+                name: "get_genesis_hash".to_string(),
+                description: Some("Returns the genesis hash".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_slot".to_string(),
+                description: Some("Returns the current slot the node is processing".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_slot_leader".to_string(),
+                description: Some("Returns the current slot leader".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_slot_leaders".to_string(),
+                description: Some("Returns the slot leaders for a slot range".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "start_slot": {
+                            "type": "integer",
+                            "description": "Start slot"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of slots to return"
+                        }
+                    },
+                    "required": ["start_slot", "limit"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_cluster_nodes".to_string(),
+                description: Some("Returns information about all the nodes participating in the cluster".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_vote_accounts".to_string(),
+                description: Some("Returns the account info and associated stake for all the voting accounts".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+
+            // Epoch and Inflation Methods
+            Tool {
                 name: "get_epoch_info".to_string(),
-                description: Some("Get current epoch information".to_string()),
-                input_schema: serde_json::json!({
+                description: Some("Returns information about the current epoch".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_epoch_schedule".to_string(),
+                description: Some("Returns epoch schedule information".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_inflation_governor".to_string(),
+                description: Some("Returns the current inflation governor".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
@@ -272,8 +477,8 @@ impl SolanaMcpServer {
             },
             Tool {
                 name: "get_inflation_rate".to_string(),
-                description: Some("Get current inflation rate".to_string()),
-                input_schema: serde_json::json!({
+                description: Some("Returns the specific inflation values for the current epoch".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {},
                     "required": [],
@@ -281,40 +486,276 @@ impl SolanaMcpServer {
                 }),
             },
             Tool {
-                name: "get_token_accounts_by_owner".to_string(),
-                description: Some("Get token accounts owned by an address".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_inflation_reward".to_string(),
+                description: Some("Returns the inflation reward for a list of addresses for an epoch".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {
-                        "owner": {"type": "string"}
+                        "addresses": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "description": "Pubkey as base-58 encoded string"
+                            }
+                        },
+                        "epoch": {
+                            "type": "integer",
+                            "description": "Epoch for which to calculate rewards"
+                        }
                     },
-                    "required": ["owner"],
+                    "required": ["addresses"],
+                    "additionalProperties": false
+                }),
+            },
+
+            // Token Methods
+            Tool {
+                name: "get_token_account_balance".to_string(),
+                description: Some("Returns the token balance of an SPL Token account".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "accountAddress": {
+                            "type": "string",
+                            "description": "Pubkey of token account to query"
+                        }
+                    },
+                    "required": ["accountAddress"],
                     "additionalProperties": false
                 }),
             },
             Tool {
-                name: "process_sequential_thinking".to_string(),
-                description: Some("Process a sequence of thinking steps with dependencies".to_string()),
-                input_schema: serde_json::json!({
+                name: "get_token_accounts_by_delegate".to_string(),
+                description: Some("Returns all SPL Token accounts by approved Delegate".to_string()),
+                input_schema: json!({
                     "type": "object",
                     "properties": {
-                        "steps": {
+                        "delegateAddress": {
+                            "type": "string",
+                            "description": "Pubkey of delegate to query"
+                        }
+                    },
+                    "required": ["delegateAddress"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_token_accounts_by_owner".to_string(),
+                description: Some("Returns all SPL Token accounts by token owner".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "ownerAddress": {
+                            "type": "string",
+                            "description": "Pubkey of token account owner to query"
+                        }
+                    },
+                    "required": ["ownerAddress"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_token_largest_accounts".to_string(),
+                description: Some("Returns the 20 largest accounts of a particular SPL Token type".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "mint": {
+                            "type": "string",
+                            "description": "Pubkey of token mint to query"
+                        }
+                    },
+                    "required": ["mint"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_token_supply".to_string(),
+                description: Some("Returns the total supply of an SPL Token type".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "mint": {
+                            "type": "string",
+                            "description": "Pubkey of token mint to query"
+                        }
+                    },
+                    "required": ["mint"],
+                    "additionalProperties": false
+                }),
+            },
+
+            // Transaction Methods
+            Tool {
+                name: "get_transaction".to_string(),
+                description: Some("Returns transaction details for confirmed transaction".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "signature": {
+                            "type": "string",
+                            "description": "Transaction signature as base-58 encoded string"
+                        }
+                    },
+                    "required": ["signature"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_signatures_for_address".to_string(),
+                description: Some("Returns signatures for confirmed transactions that include the given address in their accountKeys list".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "address": {
+                            "type": "string",
+                            "description": "Account address as base-58 encoded string"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of signatures to return"
+                        }
+                    },
+                    "required": ["address"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_signature_statuses".to_string(),
+                description: Some("Returns the statuses of a list of signatures".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "signatures": {
                             "type": "array",
                             "items": {
-                                "type": "object",
-                                "properties": {
-                                    "id": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "dependencies": {
-                                        "type": "array",
-                                        "items": {"type": "string"}
-                                    }
-                                },
-                                "required": ["id", "description"]
+                                "type": "string",
+                                "description": "Transaction signature as base-58 encoded string"
                             }
                         }
                     },
-                    "required": ["steps"],
+                    "required": ["signatures"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_transaction_count".to_string(),
+                description: Some("Returns the current Transaction count from the ledger".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "simulate_transaction".to_string(),
+                description: Some("Simulate sending a transaction".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "transaction": {
+                            "type": "string",
+                            "description": "Transaction, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["transaction"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "send_transaction".to_string(),
+                description: Some("Send a transaction".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "transaction": {
+                            "type": "string",
+                            "description": "Fully-signed transaction, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["transaction"],
+                    "additionalProperties": false
+                }),
+            },
+
+            // Other Methods
+            Tool {
+                name: "get_fee_for_message".to_string(),
+                description: Some("Get the fee the network will charge for a message".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Message, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["message"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_latest_blockhash".to_string(),
+                description: Some("Returns the latest blockhash".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "is_blockhash_valid".to_string(),
+                description: Some("Returns whether a blockhash is still valid or not".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "blockhash": {
+                            "type": "string",
+                            "description": "Blockhash to validate, as base-58 encoded string"
+                        }
+                    },
+                    "required": ["blockhash"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_stake_minimum_delegation".to_string(),
+                description: Some("Returns the stake minimum delegation, in lamports".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_supply".to_string(),
+                description: Some("Returns information about the current supply".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "request_airdrop".to_string(),
+                description: Some("Requests an airdrop of lamports to a Pubkey".to_string()),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "pubkey": {
+                            "type": "string",
+                            "description": "Pubkey of account to receive lamports, as base-58 encoded string"
+                        },
+                        "lamports": {
+                            "type": "integer",
+                            "description": "Amount of lamports to airdrop"
+                        }
+                    },
+                    "required": ["pubkey", "lamports"],
                     "additionalProperties": false
                 }),
             }
@@ -457,120 +898,158 @@ impl SolanaMcpServer {
                     meta: None,
                 })
             }
-            // System Information
-            "get_health" => {
-                self.client.get_health().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: json!({
-                        "result": "ok"
-                    }).to_string() }],
-                    is_error: None,
-                    meta: None,
-                })
-            }
-            "get_version" => {
-                let version = self.client.get_version().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: json!({
-                        "result": version
-                    }).to_string() }],
-                    is_error: None,
-                    meta: None,
-                })
-            }
-            "get_identity" => {
-                let identity = self.client.get_identity().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: json!({
-                        "result": identity.to_string()
-                    }).to_string() }],
-                    is_error: None,
-                    meta: None,
-                })
-            }
-            // Epoch and Inflation
-            "get_epoch_info" => {
-                let epoch_info = self.client.get_epoch_info().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: json!({
-                        "result": epoch_info
-                    }).to_string() }],
-                    is_error: None,
-                    meta: None,
-                })
-            }
-            "get_inflation_rate" => {
-                let inflation = self.client.get_inflation_rate().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: json!({
-                        "result": inflation
-                    }).to_string() }],
-                    is_error: None,
-                    meta: None,
-                })
-            }
-            // Token Information
-            "get_token_accounts_by_owner" => {
+            "get_signatures_for_address" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let owner_str = params.get("owner")
+                let address_str = params.get("address")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing owner parameter"))?;
-                let owner = Pubkey::from_str(owner_str)?;
-                let accounts = self.client.get_token_accounts_by_owner(
-                    &owner,
-                    TokenAccountsFilter::ProgramId(spl_token::id()),
-                ).await?;
+                    .ok_or_else(|| anyhow::anyhow!("Missing address parameter"))?;
+                let address = Pubkey::from_str(address_str)?;
+                let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(1000);
+                let signatures = self.client.get_signatures_for_address(&address).await?;
+                let signatures = signatures.into_iter().take(limit as usize).collect::<Vec<_>>();
                 Ok(CallToolResponse {
                     content: vec![ToolResponseContent::Text { text: json!({
-                        "result": accounts
+                        "result": signatures
                     }).to_string() }],
                     is_error: None,
                     meta: None,
                 })
             }
-            "process_sequential_thinking" => {
+            "get_signature_statuses" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let steps = params.get("steps")
-                    .and_then(|s| s.as_array())
-                    .ok_or_else(|| anyhow::anyhow!("Missing steps parameter"))?;
-
-                // Build dependency graph and process steps
-                let mut completed_steps = Vec::new();
-                let mut remaining_steps: Vec<_> = steps.iter().collect();
-
-                while !remaining_steps.is_empty() {
-                    let mut i = 0;
-                    while i < remaining_steps.len() {
-                        let step = &remaining_steps[i];
-                        let step_id = step.get("id")
-                            .and_then(|id| id.as_str())
-                            .ok_or_else(|| anyhow::anyhow!("Step missing id"))?;
-                        
-                        // Check if dependencies are met
-                        let dependencies = step.get("dependencies")
-                            .and_then(|deps| deps.as_array())
-                            .map(|deps| deps.iter()
-                                .filter_map(|d| d.as_str())
-                                .collect::<Vec<_>>())
-                            .unwrap_or_default();
-
-                        let deps_met = dependencies.iter()
-                            .all(|dep| completed_steps.iter().any(|cs| cs == dep));
-
-                        if deps_met {
-                            completed_steps.push(step_id.to_string());
-                            remaining_steps.remove(i);
-                        } else {
-                            i += 1;
-                        }
-                    }
-                }
-
+                let signatures = params.get("signatures")
+                    .and_then(|v| v.as_array())
+                    .ok_or_else(|| anyhow::anyhow!("Missing signatures parameter"))?
+                    .iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| s.parse())
+                    .collect::<Result<Vec<_>, _>>()?;
+                let statuses = self.client.get_signature_statuses(&signatures).await?;
                 Ok(CallToolResponse {
                     content: vec![ToolResponseContent::Text { text: json!({
-                        "result": {
-                            "completed_steps": completed_steps
-                        }
+                        "result": statuses
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_transaction_count" => {
+                let count = self.client.get_transaction_count().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": count.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "simulate_transaction" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let tx_str = params.get("transaction")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing transaction parameter"))?;
+                let tx_bytes = base64.decode(tx_str)?;
+                let tx: Transaction = bincode::deserialize(&tx_bytes)?;
+                let result = self.client.simulate_transaction(&tx).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": result
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "send_transaction" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let tx_str = params.get("transaction")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing transaction parameter"))?;
+                let tx_bytes = base64.decode(tx_str)?;
+                let tx: Transaction = bincode::deserialize(&tx_bytes)?;
+                let signature = self.client.send_transaction(&tx).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": signature.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            // Other Methods
+            "get_fee_for_message" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let message_str = params.get("message")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing message parameter"))?;
+                let message_bytes = base64.decode(message_str)?;
+                let message: Message = bincode::deserialize(&message_bytes)?;
+                let fee = self.client.get_fee_for_message(&message).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": fee.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_latest_blockhash" => {
+                let blockhash = self.client.get_latest_blockhash().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": blockhash.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "is_blockhash_valid" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let blockhash_str = params.get("blockhash")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing blockhash parameter"))?;
+                let blockhash: Hash = blockhash_str.parse()?;
+                let valid = self.client.is_blockhash_valid(&blockhash, CommitmentConfig::default()).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": valid
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_stake_minimum_delegation" => {
+                let min_delegation = self.client.get_stake_minimum_delegation().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": min_delegation.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_supply" => {
+                let supply = self.client.supply().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": supply
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "request_airdrop" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let pubkey_str = params.get("pubkey")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?;
+                let lamports = params.get("lamports")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| anyhow::anyhow!("Missing lamports parameter"))?;
+                let pubkey = Pubkey::from_str(pubkey_str)?;
+                let signature = self.client.request_airdrop(&pubkey, lamports).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": signature.to_string()
                     }).to_string() }],
                     is_error: None,
                     meta: None,
