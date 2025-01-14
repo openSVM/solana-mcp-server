@@ -25,7 +25,8 @@ async fn test_server_e2e() -> Result<()> {
     assert!(!response.content.is_empty());
     let current_slot = match &response.content[0] {
         ToolResponseContent::Text { text } => {
-            text.parse::<u64>().unwrap()
+            let json: serde_json::Value = serde_json::from_str(text)?;
+            json["result"].as_str().unwrap().parse::<u64>().unwrap()
         }
         _ => panic!("Expected Text response"),
     };
@@ -60,7 +61,8 @@ async fn test_server_e2e() -> Result<()> {
     assert!(!response.content.is_empty());
     match &response.content[0] {
         ToolResponseContent::Text { text } => {
-            assert_eq!(text, "ok");
+            let json: serde_json::Value = serde_json::from_str(text)?;
+            assert_eq!(json["result"], "ok");
         }
         _ => panic!("Expected Text response"),
     }
@@ -79,7 +81,8 @@ async fn test_server_e2e() -> Result<()> {
     assert!(!response.content.is_empty());
     match &response.content[0] {
         ToolResponseContent::Text { text } => {
-            assert!(text.parse::<u64>().is_ok());
+            let json: serde_json::Value = serde_json::from_str(text)?;
+            assert!(json["result"].as_str().unwrap().parse::<u64>().is_ok());
         }
         _ => panic!("Expected Text response"),
     }
@@ -94,7 +97,8 @@ async fn test_server_e2e() -> Result<()> {
     assert!(!response.content.is_empty());
     match &response.content[0] {
         ToolResponseContent::Text { text } => {
-            assert!(text.parse::<u64>().is_ok());
+            let json: serde_json::Value = serde_json::from_str(text)?;
+            assert!(json["result"].as_str().unwrap().parse::<u64>().is_ok());
         }
         _ => panic!("Expected Text response"),
     }
@@ -151,7 +155,7 @@ async fn test_server_e2e() -> Result<()> {
         name: "get_token_accounts_by_owner".into(),
         arguments: {
             let mut args = HashMap::new();
-            args.insert("owner".to_string(), json!("11111111111111111111111111111111"));
+            args.insert("ownerAddress".to_string(), json!("11111111111111111111111111111111"));
             Some(args)
         },
         meta: None,

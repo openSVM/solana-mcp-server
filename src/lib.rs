@@ -1055,6 +1055,313 @@ impl SolanaMcpServer {
                     meta: None,
                 })
             }
+            // System Methods
+            "get_health" => {
+                self.client.get_health().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": "ok"
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_version" => {
+                let version = self.client.get_version().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": version
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_identity" => {
+                let identity = self.client.get_identity().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": identity.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_genesis_hash" => {
+                let genesis_hash = self.client.get_genesis_hash().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": genesis_hash.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_slot_leader" => {
+                let leaders = self.client.get_slot_leaders(self.client.get_slot().await?, 1).await?;
+                let leader = leaders.first().ok_or_else(|| anyhow::anyhow!("No slot leader found"))?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": leader.to_string()
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_cluster_nodes" => {
+                let nodes = self.client.get_cluster_nodes().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": nodes
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_vote_accounts" => {
+                let accounts = self.client.get_vote_accounts().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            // Epoch Methods
+            "get_epoch_info" => {
+                let info = self.client.get_epoch_info().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": info
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_epoch_schedule" => {
+                let schedule = self.client.get_epoch_schedule().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": schedule
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_inflation_governor" => {
+                let governor = self.client.get_inflation_governor().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": governor
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_inflation_rate" => {
+                let rate = self.client.get_inflation_rate().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": rate
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_inflation_reward" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let addresses = params.get("addresses")
+                    .and_then(|v| v.as_array())
+                    .ok_or_else(|| anyhow::anyhow!("Missing addresses parameter"))?
+                    .iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| Pubkey::from_str(s))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let epoch = params.get("epoch").and_then(|v| v.as_u64());
+                let rewards = self.client.get_inflation_reward(&addresses, epoch).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": rewards
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            // Token Methods
+            "get_token_account_balance" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let account = Pubkey::from_str(params.get("accountAddress")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing accountAddress parameter"))?)?;
+                let balance = self.client.get_token_account_balance(&account).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": balance
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_token_accounts_by_delegate" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let delegate = Pubkey::from_str(params.get("delegateAddress")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing delegateAddress parameter"))?)?;
+                use solana_client::rpc_request::TokenAccountsFilter;
+                let accounts = self.client.get_token_accounts_by_delegate(&delegate, TokenAccountsFilter::ProgramId(spl_token::id())).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_token_accounts_by_owner" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let owner = Pubkey::from_str(params.get("ownerAddress")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing ownerAddress parameter"))?)?;
+                use solana_client::rpc_request::TokenAccountsFilter;
+                let accounts = self.client.get_token_accounts_by_owner(&owner, TokenAccountsFilter::ProgramId(spl_token::id())).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_token_largest_accounts" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let mint = Pubkey::from_str(params.get("mint")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?)?;
+                let accounts = self.client.get_token_largest_accounts(&mint).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_token_supply" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let mint = Pubkey::from_str(params.get("mint")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?)?;
+                let supply = self.client.get_token_supply(&mint).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": supply
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            // Block Methods
+            "get_blocks" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let start_slot = params.get("start_slot")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| anyhow::anyhow!("Missing start_slot parameter"))?;
+                let end_slot = params.get("end_slot")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| anyhow::anyhow!("Missing end_slot parameter"))?;
+                let blocks = self.client.get_blocks(start_slot, Some(end_slot)).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": blocks
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_blocks_with_limit" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let start_slot = params.get("start_slot")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| anyhow::anyhow!("Missing start_slot parameter"))?;
+                let limit = params.get("limit")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))?;
+                let blocks = self.client.get_blocks_with_limit(start_slot, limit.try_into()?).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": blocks
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_block_time" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let slot = params.get("slot")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
+                let time = self.client.get_block_time(slot).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": time
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_block_production" => {
+                let production = self.client.get_block_production().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": production
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_first_available_block" => {
+                let block = self.client.get_first_available_block().await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": block
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            // Account Methods
+            "get_multiple_accounts" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let pubkeys = params.get("pubkeys")
+                    .and_then(|v| v.as_array())
+                    .ok_or_else(|| anyhow::anyhow!("Missing pubkeys parameter"))?
+                    .iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|s| Pubkey::from_str(s))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let accounts = self.client.get_multiple_accounts(&pubkeys).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
+            "get_program_accounts" => {
+                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
+                let program_id = Pubkey::from_str(params.get("programId")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("Missing programId parameter"))?)?;
+                let accounts = self.client.get_program_accounts(&program_id).await?;
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
             _ => anyhow::bail!("Tool not found"),
         }
     }
