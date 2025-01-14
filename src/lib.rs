@@ -89,6 +89,17 @@ impl SolanaMcpServer {
             },
         );
 
+        // RPC Optimization Guide
+        resources.insert(
+            "solana://docs/rpc-optimization".to_string(),
+            Resource {
+                name: "RPC Optimization Guide".to_string(),
+                description: "Advanced optimization techniques for Solana RPC usage with performance metrics".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/guides/rpc_optimization.md").to_string(),
+            },
+        );
+
         // RPC API Documentation
         resources.insert(
             "solana://docs/rpc/accounts".to_string(),
