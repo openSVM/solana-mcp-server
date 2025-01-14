@@ -1,60 +1,358 @@
 use anyhow::Result;
-use mcp_sdk::{
-    transport::{JsonRpcRequest, JsonRpcResponse},
-    types::{CallToolRequest, CallToolResponse, ResourceContents, ToolResponseContent},
-};
+use mcp_sdk::types::{CallToolRequest, CallToolResponse, ToolResponseContent, ToolsListResponse, Tool};
+use serde_json::json;
 use solana_client::{
     nonblocking::rpc_client::RpcClient,
     rpc_request::TokenAccountsFilter,
 };
 use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::UiTransactionEncoding;
-use std::{str::FromStr, sync::Arc};
-use url::Url;
+use std::{str::FromStr, sync::Arc, collections::HashMap};
 
 pub struct SolanaMcpServer {
     client: Arc<RpcClient>,
+    resources: HashMap<String, Resource>,
+}
+
+struct Resource {
+    name: String,
+    description: String,
+    mime_type: String,
+    text: String,
 }
 
 impl SolanaMcpServer {
     pub fn new(client: RpcClient) -> Self {
+        let mut resources = HashMap::new();
+        
+        // Initialize documentation resources
+        
+        // Core Documentation
+        resources.insert(
+            "solana://docs/core/accounts".to_string(),
+            Resource {
+                name: "Solana Account Model".to_string(),
+                description: "Documentation for Solana's account model and structure".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/core/accounts.md").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/core/programs".to_string(),
+            Resource {
+                name: "Solana Programs".to_string(),
+                description: "Documentation for Solana program architecture and development".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/core/programs.md").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/core/transactions".to_string(),
+            Resource {
+                name: "Solana Transactions".to_string(),
+                description: "Documentation for Solana transaction structure and lifecycle".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/core/transactions.md").to_string(),
+            },
+        );
+
+        // Development Guides
+        resources.insert(
+            "solana://docs/guides/development".to_string(),
+            Resource {
+                name: "Development Guide".to_string(),
+                description: "Guide for developing on Solana".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/guides/development.md").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/guides/deployment".to_string(),
+            Resource {
+                name: "Deployment Guide".to_string(),
+                description: "Guide for deploying Solana programs".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/guides/deployment.md").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/guides/programs".to_string(),
+            Resource {
+                name: "Program Development Guide".to_string(),
+                description: "Comprehensive guide for Solana program development".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/guides/programs.md").to_string(),
+            },
+        );
+
+        // RPC API Documentation
+        resources.insert(
+            "solana://docs/rpc/accounts".to_string(),
+            Resource {
+                name: "Account RPC Methods".to_string(),
+                description: "Documentation for account-related RPC methods".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/rpc/accounts.rs").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/rpc/blocks".to_string(),
+            Resource {
+                name: "Block RPC Methods".to_string(),
+                description: "Documentation for block-related RPC methods".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/rpc/blocks.rs").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/rpc/system".to_string(),
+            Resource {
+                name: "System RPC Methods".to_string(),
+                description: "Documentation for system-related RPC methods".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/rpc/system.rs").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/rpc/tokens".to_string(),
+            Resource {
+                name: "Token RPC Methods".to_string(),
+                description: "Documentation for token-related RPC methods".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/rpc/tokens.rs").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/rpc/transactions".to_string(),
+            Resource {
+                name: "Transaction RPC Methods".to_string(),
+                description: "Documentation for transaction-related RPC methods".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/rpc/transactions.rs").to_string(),
+            },
+        );
+        resources.insert(
+            "solana://docs/rpc-api".to_string(),
+            Resource {
+                name: "Solana RPC API Documentation".to_string(),
+                description: "Documentation for the Solana RPC API endpoints and usage".to_string(),
+                mime_type: "text/markdown".to_string(),
+                text: include_str!("docs/rpc/mod.rs").to_string(),
+            },
+        );
+
         Self {
             client: Arc::new(client),
+            resources,
         }
     }
 
-    pub async fn handle_read_resource(&self, uri: Url) -> Result<ResourceContents> {
-        match uri.as_str() {
-            "solana://supply" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            "solana://inflation" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            "solana://validators" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            "solana://epoch" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            "solana://fees" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            "solana://stake" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            "solana://tokens" => Ok(ResourceContents {
-                uri,
-                mime_type: Some("application/json".to_string()),
-            }),
-            _ => anyhow::bail!("Resource not found"),
-        }
+    pub fn list_tools(&self) -> Result<ToolsListResponse> {
+        let tools = vec![
+            Tool {
+                name: "get_slot".to_string(),
+                description: Some("Get current slot".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_slot_leaders".to_string(),
+                description: Some("Get slot leaders".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "start_slot": {"type": "integer"},
+                        "limit": {"type": "integer"}
+                    },
+                    "required": ["start_slot", "limit"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_block".to_string(),
+                description: Some("Get block information".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "slot": {"type": "integer"}
+                    },
+                    "required": ["slot"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_block_height".to_string(),
+                description: Some("Get current block height".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_balance".to_string(),
+                description: Some("Get account balance".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "pubkey": {"type": "string"}
+                    },
+                    "required": ["pubkey"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_account_info".to_string(),
+                description: Some("Get detailed account information".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "pubkey": {"type": "string"}
+                    },
+                    "required": ["pubkey"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_transaction".to_string(),
+                description: Some("Get transaction details".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "signature": {"type": "string"}
+                    },
+                    "required": ["signature"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_health".to_string(),
+                description: Some("Get node health status".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_version".to_string(),
+                description: Some("Get node version information".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_identity".to_string(),
+                description: Some("Get node identity".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_epoch_info".to_string(),
+                description: Some("Get current epoch information".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_inflation_rate".to_string(),
+                description: Some("Get current inflation rate".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_token_accounts_by_owner".to_string(),
+                description: Some("Get token accounts owned by an address".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "owner": {"type": "string"}
+                    },
+                    "required": ["owner"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "process_sequential_thinking".to_string(),
+                description: Some("Process a sequence of thinking steps with dependencies".to_string()),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "steps": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "string"},
+                                    "description": {"type": "string"},
+                                    "dependencies": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    }
+                                },
+                                "required": ["id", "description"]
+                            }
+                        }
+                    },
+                    "required": ["steps"],
+                    "additionalProperties": false
+                }),
+            }
+        ];
+
+        Ok(ToolsListResponse {
+            tools,
+            meta: None,
+            next_cursor: None,
+        })
+    }
+
+    pub fn list_resources(&self) -> Result<serde_json::Value> {
+        let resources = self.resources.iter().map(|(uri, resource)| {
+            json!({
+                "uri": uri,
+                "name": resource.name,
+                "description": resource.description,
+                "mimeType": resource.mime_type
+            })
+        }).collect::<Vec<_>>();
+
+        Ok(json!({
+            "resources": resources
+        }))
+    }
+
+    pub fn read_resource(&self, uri: &str) -> Result<serde_json::Value> {
+        let resource = self.resources.get(uri)
+            .ok_or_else(|| anyhow::anyhow!("Resource not found: {}", uri))?;
+
+        Ok(json!({
+            "contents": [{
+                "uri": uri,
+                "mimeType": resource.mime_type,
+                "text": resource.text
+            }]
+        }))
     }
 
     pub async fn handle_tool_request(&self, request: CallToolRequest) -> Result<CallToolResponse> {
@@ -63,8 +361,10 @@ impl SolanaMcpServer {
             "get_slot" => {
                 let slot = self.client.get_slot().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: slot.to_string() }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": slot.to_string()
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
@@ -78,12 +378,13 @@ impl SolanaMcpServer {
                     .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))?;
                 let leaders = self.client.get_slot_leaders(start_slot, limit).await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", leaders) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": leaders
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-
             // Block Information
             "get_block" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
@@ -92,69 +393,23 @@ impl SolanaMcpServer {
                     .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
                 let block = self.client.get_block(slot).await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", block) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": block
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
             "get_block_height" => {
                 let height = self.client.get_block_height().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: height.to_string() }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": height.to_string()
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-            "get_block_production" => {
-                let production = self.client.get_block_production().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", production) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-            "get_blocks" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let start_slot = params.get("start_slot")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| anyhow::anyhow!("Missing start_slot parameter"))?;
-                let end_slot = params.get("end_slot")
-                    .and_then(|v| v.as_u64());
-                let blocks = self.client.get_blocks(start_slot, end_slot).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", blocks) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-            "get_blocks_with_limit" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let start_slot = params.get("start_slot")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| anyhow::anyhow!("Missing start_slot parameter"))?;
-                let limit = params.get("limit")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))?;
-                let blocks = self.client.get_blocks_with_limit(start_slot, limit.try_into()?).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", blocks) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-            "get_block_time" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let slot = params.get("slot")
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
-                let time = self.client.get_block_time(slot).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: time.to_string() }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-
             // Account Information
             "get_balance" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
@@ -164,8 +419,10 @@ impl SolanaMcpServer {
                 let pubkey = Pubkey::from_str(pubkey_str)?;
                 let balance = self.client.get_balance(&pubkey).await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: balance.to_string() }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": balance.to_string()
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
@@ -177,28 +434,13 @@ impl SolanaMcpServer {
                 let pubkey = Pubkey::from_str(pubkey_str)?;
                 let account = self.client.get_account(&pubkey).await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", account) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": account
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-            "get_multiple_accounts" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let pubkeys: Vec<Pubkey> = params.get("pubkeys")
-                    .and_then(|v| v.as_array())
-                    .ok_or_else(|| anyhow::anyhow!("Missing pubkeys parameter"))?
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .filter_map(|s| Pubkey::from_str(s).ok())
-                    .collect();
-                let accounts = self.client.get_multiple_accounts(&pubkeys).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", accounts) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-
             // Transaction Information
             "get_transaction" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
@@ -208,103 +450,65 @@ impl SolanaMcpServer {
                 let signature = signature_str.parse()?;
                 let tx = self.client.get_transaction(&signature, UiTransactionEncoding::Json).await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", tx) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": tx
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-            "get_signatures_for_address" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let address_str = params.get("address")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing address parameter"))?;
-                let address = Pubkey::from_str(address_str)?;
-                let signatures = self.client.get_signatures_for_address(&address).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", signatures) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-
             // System Information
             "get_health" => {
                 self.client.get_health().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: "ok".to_string() }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": "ok"
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
             "get_version" => {
                 let version = self.client.get_version().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", version) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": version
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
             "get_identity" => {
                 let identity = self.client.get_identity().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: identity.to_string() }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": identity.to_string()
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-            "get_genesis_hash" => {
-                let hash = self.client.get_genesis_hash().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: hash.to_string() }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-
             // Epoch and Inflation
             "get_epoch_info" => {
                 let epoch_info = self.client.get_epoch_info().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", epoch_info) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": epoch_info
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
             "get_inflation_rate" => {
                 let inflation = self.client.get_inflation_rate().await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", inflation) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": inflation
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-            "get_inflation_governor" => {
-                let governor = self.client.get_inflation_governor().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", governor) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-            "get_inflation_reward" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let addresses: Vec<Pubkey> = params.get("addresses")
-                    .and_then(|v| v.as_array())
-                    .ok_or_else(|| anyhow::anyhow!("Missing addresses parameter"))?
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .filter_map(|s| Pubkey::from_str(s).ok())
-                    .collect();
-                let epoch = params.get("epoch")
-                    .and_then(|v| v.as_u64());
-                let rewards = self.client.get_inflation_reward(&addresses, epoch).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", rewards) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-
             // Token Information
             "get_token_accounts_by_owner" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
@@ -317,103 +521,62 @@ impl SolanaMcpServer {
                     TokenAccountsFilter::ProgramId(spl_token::id()),
                 ).await?;
                 Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", accounts) }],
-                    is_error: Some(false),
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": accounts
+                    }).to_string() }],
+                    is_error: None,
                     meta: None,
                 })
             }
-            "get_token_largest_accounts" => {
+            "process_sequential_thinking" => {
                 let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let mint_str = params.get("mint")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?;
-                let mint = Pubkey::from_str(mint_str)?;
-                let accounts = self.client.get_token_largest_accounts(&mint).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", accounts) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-            "get_token_supply" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let mint_str = params.get("mint")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?;
-                let mint = Pubkey::from_str(mint_str)?;
-                let supply = self.client.get_token_supply(&mint).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", supply) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
+                let steps = params.get("steps")
+                    .and_then(|s| s.as_array())
+                    .ok_or_else(|| anyhow::anyhow!("Missing steps parameter"))?;
 
-            // Program Information
-            "get_program_accounts" => {
-                let params = request.arguments.ok_or_else(|| anyhow::anyhow!("Missing arguments"))?;
-                let program_str = params.get("program")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing program parameter"))?;
-                let program = Pubkey::from_str(program_str)?;
-                let accounts = self.client.get_program_accounts(&program).await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", accounts) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
+                // Build dependency graph and process steps
+                let mut completed_steps = Vec::new();
+                let mut remaining_steps: Vec<_> = steps.iter().collect();
 
-            // Supply Information
-            "get_supply" => {
-                let uri = Url::parse("solana://supply")?;
-                let resource = ResourceContents {
-                    uri,
-                    mime_type: Some("application/json".to_string()),
-                };
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Resource { resource }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
+                while !remaining_steps.is_empty() {
+                    let mut i = 0;
+                    while i < remaining_steps.len() {
+                        let step = &remaining_steps[i];
+                        let step_id = step.get("id")
+                            .and_then(|id| id.as_str())
+                            .ok_or_else(|| anyhow::anyhow!("Step missing id"))?;
+                        
+                        // Check if dependencies are met
+                        let dependencies = step.get("dependencies")
+                            .and_then(|deps| deps.as_array())
+                            .map(|deps| deps.iter()
+                                .filter_map(|d| d.as_str())
+                                .collect::<Vec<_>>())
+                            .unwrap_or_default();
 
-            // Validator Information
-            "get_vote_accounts" => {
-                let accounts = self.client.get_vote_accounts().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", accounts) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
-            "get_cluster_nodes" => {
-                let nodes = self.client.get_cluster_nodes().await?;
-                Ok(CallToolResponse {
-                    content: vec![ToolResponseContent::Text { text: format!("{:?}", nodes) }],
-                    is_error: Some(false),
-                    meta: None,
-                })
-            }
+                        let deps_met = dependencies.iter()
+                            .all(|dep| completed_steps.iter().any(|cs| cs == dep));
 
+                        if deps_met {
+                            completed_steps.push(step_id.to_string());
+                            remaining_steps.remove(i);
+                        } else {
+                            i += 1;
+                        }
+                    }
+                }
+
+                Ok(CallToolResponse {
+                    content: vec![ToolResponseContent::Text { text: json!({
+                        "result": {
+                            "completed_steps": completed_steps
+                        }
+                    }).to_string() }],
+                    is_error: None,
+                    meta: None,
+                })
+            }
             _ => anyhow::bail!("Tool not found"),
-        }
-    }
-
-    pub async fn handle_request(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse> {
-        match request.method.as_str() {
-            "call_tool" => {
-                let params = request.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
-                let tool_request: CallToolRequest = serde_json::from_value(params)?;
-                let response = self.handle_tool_request(tool_request).await?;
-                Ok(JsonRpcResponse {
-                    jsonrpc: Default::default(),
-                    id: request.id,
-                    result: Some(serde_json::to_value(response)?),
-                    error: None,
-                })
-            }
-            _ => anyhow::bail!("Method not found"),
         }
     }
 }

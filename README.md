@@ -4,38 +4,34 @@ A Model Context Protocol (MCP) server that provides comprehensive access to Sola
 
 ## Features
 
-The server provides 21 essential Solana RPC methods across different categories:
+The server provides essential Solana RPC methods across different categories:
 
-### Account & Balance Operations
-- `get_sol_balance`: Get SOL balance for an address
-- `get_token_balance`: Get SPL token balance
-- `get_account_info`: Get account information
-- `get_largest_accounts`: Get largest accounts on network
+### Slot Information
+- `get_slot`: Get current slot number
+- `get_slot_leaders`: Get slot leaders for a specified range
 
-### Block & Transaction Information
-- `get_slot`: Get current slot
-- `get_block`: Get block information
-- `get_block_time`: Get block production time
-- `get_transaction`: Get transaction details
-- `get_recent_blockhash`: Get recent blockhash
+### Block Information
+- `get_block`: Get block information for a specific slot
+- `get_block_height`: Get current block height
 
-### Token Operations
-- `get_token_accounts_by_owner`: Get token accounts by owner
-- `get_token_accounts_by_delegate`: Get delegated token accounts
-- `get_token_supply`: Get token supply information
+### Account Information
+- `get_balance`: Get SOL balance for an address
+- `get_account_info`: Get detailed account information
+
+### Transaction Information
+- `get_transaction`: Get transaction details by signature
 
 ### System Information
-- `get_epoch_info`: Get current epoch information
-- `get_version`: Get node version
 - `get_health`: Get node health status
-- `get_supply`: Get current supply
-- `get_inflation_rate`: Get inflation rate
-- `get_cluster_nodes`: Get cluster node information
-- `get_minimum_balance_for_rent_exemption`: Get minimum rent-exempt balance
+- `get_version`: Get node version information
+- `get_identity`: Get node identity
 
-### Staking & Governance
-- `get_vote_accounts`: Get vote accounts
-- `get_leader_schedule`: Get leader schedule
+### Epoch and Inflation
+- `get_epoch_info`: Get current epoch information
+- `get_inflation_rate`: Get current inflation rate
+
+### Token Information
+- `get_token_accounts_by_owner`: Get token accounts owned by an address
 
 ## Quick Setup
 

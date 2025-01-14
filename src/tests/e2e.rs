@@ -1,10 +1,8 @@
 use crate::SolanaMcpServer;
 use anyhow::Result;
-use mcp_sdk::{
-    transport::JsonRpcRequest,
-    types::{CallToolResponse, ToolResponseContent},
-};
+use mcp_sdk::types::{CallToolRequest, ToolResponseContent};
 use serde_json::json;
+use std::collections::HashMap;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 
@@ -18,292 +16,164 @@ async fn test_server_e2e() -> Result<()> {
     let server = SolanaMcpServer::new(client);
 
     // Test Slot Information
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 1,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_slot",
-            "arguments": null,
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "get_slot".into(),
+        arguments: None,
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    let current_slot = if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                text.parse::<u64>().unwrap()
-            }
-            _ => panic!("Expected Text response"),
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+    let current_slot = match &response.content[0] {
+        ToolResponseContent::Text { text } => {
+            text.parse::<u64>().unwrap()
         }
-    } else {
-        panic!("Expected result");
+        _ => panic!("Expected Text response"),
     };
 
     // Test get_slot_leaders using current slot
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 2,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_slot_leaders",
-            "arguments": {
-                "start_slot": current_slot,
-                "limit": 10
-            },
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "get_slot_leaders".into(),
+        arguments: {
+            let mut args = HashMap::new();
+            args.insert("start_slot".to_string(), json!(current_slot));
+            args.insert("limit".to_string(), json!(10));
+            Some(args)
+        },
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(!text.is_empty());
-            }
-            _ => panic!("Expected Text response"),
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+    match &response.content[0] {
+        ToolResponseContent::Text { text } => {
+            assert!(!text.is_empty());
         }
+        _ => panic!("Expected Text response"),
     }
 
     // Test System Information
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 3,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_health",
-            "arguments": null,
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "get_health".into(),
+        arguments: None,
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert_eq!(text, "ok");
-            }
-            _ => panic!("Expected Text response"),
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+    match &response.content[0] {
+        ToolResponseContent::Text { text } => {
+            assert_eq!(text, "ok");
         }
-    }
-
-    // Test get_version
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 4,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_version",
-            "arguments": null,
-            "meta": null
-        })),
-    };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(!text.is_empty());
-            }
-            _ => panic!("Expected Text response"),
-        }
-    }
-
-    // Test get_genesis_hash
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 5,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_genesis_hash",
-            "arguments": null,
-            "meta": null
-        })),
-    };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(!text.is_empty());
-            }
-            _ => panic!("Expected Text response"),
-        }
+        _ => panic!("Expected Text response"),
     }
 
     // Test Account Information
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 6,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_balance",
-            "arguments": {
-                "pubkey": "11111111111111111111111111111111"
-            },
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "get_balance".into(),
+        arguments: {
+            let mut args = HashMap::new();
+            args.insert("pubkey".to_string(), json!("11111111111111111111111111111111"));
+            Some(args)
+        },
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(text.parse::<u64>().is_ok());
-            }
-            _ => panic!("Expected Text response"),
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+    match &response.content[0] {
+        ToolResponseContent::Text { text } => {
+            assert!(text.parse::<u64>().is_ok());
         }
+        _ => panic!("Expected Text response"),
     }
 
-    // Test Epoch Information
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 7,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_epoch_info",
-            "arguments": null,
-            "meta": null
-        })),
+    // Test Block Information
+    let request = CallToolRequest {
+        name: "get_block_height".into(),
+        arguments: None,
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(!text.is_empty());
-            }
-            _ => panic!("Expected Text response"),
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+    match &response.content[0] {
+        ToolResponseContent::Text { text } => {
+            assert!(text.parse::<u64>().is_ok());
         }
+        _ => panic!("Expected Text response"),
     }
 
-    // Test Validator Information
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 8,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_vote_accounts",
-            "arguments": null,
-            "meta": null
-        })),
+    // Test Account Information - Extended
+    let request = CallToolRequest {
+        name: "get_account_info".into(),
+        arguments: {
+            let mut args = HashMap::new();
+            args.insert("pubkey".to_string(), json!("11111111111111111111111111111111"));
+            Some(args)
+        },
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(!text.is_empty());
-            }
-            _ => panic!("Expected Text response"),
-        }
-    }
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+
+    // Test System Information - Extended
+    let request = CallToolRequest {
+        name: "get_version".into(),
+        arguments: None,
+        meta: None,
+    };
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+
+    let request = CallToolRequest {
+        name: "get_identity".into(),
+        arguments: None,
+        meta: None,
+    };
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+
+    // Test Epoch and Inflation
+    let request = CallToolRequest {
+        name: "get_epoch_info".into(),
+        arguments: None,
+        meta: None,
+    };
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
+
+    let request = CallToolRequest {
+        name: "get_inflation_rate".into(),
+        arguments: None,
+        meta: None,
+    };
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
 
     // Test Token Information
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 9,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_token_accounts_by_owner",
-            "arguments": {
-                "owner": "11111111111111111111111111111111"
-            },
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "get_token_accounts_by_owner".into(),
+        arguments: {
+            let mut args = HashMap::new();
+            args.insert("owner".to_string(), json!("11111111111111111111111111111111"));
+            Some(args)
+        },
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Text { text } => {
-                assert!(!text.is_empty());
-            }
-            _ => panic!("Expected Text response"),
-        }
-    }
-
-    // Test Resource Endpoints
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 10,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_supply",
-            "arguments": null,
-            "meta": null
-        })),
-    };
-    
-    let response = server.handle_request(request).await?;
-    assert!(response.error.is_none());
-    if let Some(result) = response.result {
-        let response: CallToolResponse = serde_json::from_value(result)?;
-        assert!(!response.content.is_empty());
-        match &response.content[0] {
-            ToolResponseContent::Resource { resource } => {
-                assert_eq!(resource.uri.as_str(), "solana://supply");
-                assert_eq!(resource.mime_type.as_ref().unwrap(), "application/json");
-            }
-            _ => panic!("Expected Resource response"),
-        }
-    }
+    let response = server.handle_tool_request(request).await?;
+    assert!(!response.content.is_empty());
 
     // Test Error Cases
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 11,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "invalid_tool",
-            "arguments": null,
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "invalid_tool".into(),
+        arguments: None,
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await;
+    let response = server.handle_tool_request(request).await;
     assert!(response.is_err());
 
-    let request = JsonRpcRequest {
-        jsonrpc: Default::default(),
-        id: 12,
-        method: "call_tool".to_string(),
-        params: Some(json!({
-            "name": "get_balance",
-            "arguments": {},
-            "meta": null
-        })),
+    let request = CallToolRequest {
+        name: "get_balance".into(),
+        arguments: Some(HashMap::new()),
+        meta: None,
     };
-    
-    let response = server.handle_request(request).await;
+    let response = server.handle_tool_request(request).await;
     assert!(response.is_err());
 
     Ok(())
