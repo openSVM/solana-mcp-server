@@ -2,6 +2,12 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive access to Solana blockchain data through Cline. This server implements a wide range of Solana RPC methods, making it easy to query blockchain information directly through natural language conversations.
 
+## Install in Claude Desktop
+
+```bash
+TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/solana-mcp-server.git . && cargo build --release && CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude" && mkdir -p "$CONFIG_DIR" && echo "{\"mcpServers\":{\"solana\":{\"command\":\"$PWD/target/release/solana-mcp-server\",\"env\":{\"SOLANA_RPC_URL\":\"https://api.mainnet-beta.solana.com\"}}}}" > "$CONFIG_DIR/config.json" || { rm -rf "$TEMP_DIR"; exit 1; }
+```
+
 ## Features
 
 The server provides essential Solana RPC methods across different categories:
@@ -32,44 +38,6 @@ The server provides essential Solana RPC methods across different categories:
 
 ### Token Information
 - `get_token_accounts_by_owner`: Get token accounts owned by an address
-
-## Quick Setup
-
-One-line setup command for macOS:
-```bash
-mkdir -p ~/Library/Application\ Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/ && echo '{"mcpServers":{"solana":{"command":"cargo","args":["run"],"cwd":"'$(pwd)'","env":{"SOLANA_RPC_URL":"https://api.mainnet-beta.solana.com"}}}}' > ~/Library/Application\ Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
-```
-
-For Linux:
-```bash
-mkdir -p ~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/ && echo '{"mcpServers":{"solana":{"command":"cargo","args":["run"],"cwd":"'$(pwd)'","env":{"SOLANA_RPC_URL":"https://api.mainnet-beta.solana.com"}}}}' > ~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
-```
-
-For Windows (PowerShell):
-```powershell
-$settings = @{mcpServers=@{solana=@{command="cargo";args=@("run");cwd=$PWD.Path;env=@{SOLANA_RPC_URL="https://api.mainnet-beta.solana.com"}}}} | ConvertTo-Json -Depth 10; New-Item -ItemType Directory -Force "$env:APPDATA\Code\User\globalStorage\saoudrizwan.claude-dev\settings"; $settings | Out-File "$env:APPDATA\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json"
-```
-
-## Setup in Cline
-
-1. Add the following configuration to your Cline MCP settings file (`~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "solana": {
-      "command": "cargo",
-      "args": ["run"],
-      "cwd": "/path/to/solana-mcp-server",
-      "env": {
-        "SOLANA_RPC_URL": "https://api.mainnet-beta.solana.com"  // Or your preferred RPC endpoint
-      }
-    }
-  }
-}
-```
-
-2. Restart Cline to load the new MCP server.
 
 ## Usage Examples
 
