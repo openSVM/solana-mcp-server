@@ -1,0 +1,5 @@
+    Finished `release` profile [optimized] target(s) in 0.27s
+     Running `target/release/solana-mcp-server`
+Initializing Solana MCP server...
+Solana MCP server running on stdio
+[2025-01-14T18:10:45Z DEBUG mcp_sdk::protocol] Listening for requests
