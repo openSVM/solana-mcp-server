@@ -5,18 +5,14 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-async-trait = "0.1"
-base64 = "0.21"
-bincode = "1.3"
-bs58 = "0.5"
-clap = { version = "4.4", features = ["derive"] }
-ctrlc = "3.4"
-mcp-sdk = "0.0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-solana-account-decoder = "1.17"
+tokio = { version = "1.0", features = ["full"] }
 solana-client = "1.17"
 solana-sdk = "1.17"
+solana-account-decoder = "1.17"
 solana-transaction-status = "1.17"
 spl-token = "4.0"
-tokio = { version = "1.32", features = ["full"] }
+base64 = "0.21"
+bs58 = "0.5"
+bincode = "1.3"

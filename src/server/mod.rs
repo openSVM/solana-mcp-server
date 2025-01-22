@@ -1,5 +1,7 @@
 use anyhow::Result;
-use std::io::{self, BufRead, Write};
+use crate::transport::{Transport, JsonRpcMessage};
+use crate::CustomStdioTransport;
+use serde_json::Value;
 
 pub async fn start_server() -> Result<()> {
     eprintln!("Solana MCP server ready - {} v{}", 
@@ -7,23 +9,26 @@ pub async fn start_server() -> Result<()> {
         env!("CARGO_PKG_VERSION")
     );
 
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-    let mut reader = stdin.lock();
-    let mut line = String::new();
+    let transport = CustomStdioTransport::new();
+    transport.open()?;
 
     loop {
-        line.clear();
-        match reader.read_line(&mut line) {
-            Ok(0) => continue,
-            Ok(_) => {
-                if !line.trim().is_empty() {
-                    let response = crate::tools::handle_request(&line).await?;
-                    writeln!(stdout, "{}", serde_json::to_string_pretty(&response)?)?;
-                    stdout.flush()?;
-                }
+        match transport.receive() {
+            Ok(message) => {
+                let message_str = serde_json::to_string(&message)?;
+                let response = crate::tools::handle_request(&message_str).await?;
+                transport.send(&response)?;
             }
-            Err(e) => eprintln!("Error reading input: {}", e),
+            Err(e) => {
+                if e.to_string().contains("Connection closed") {
+                    eprintln!("Client disconnected");
+                    break;
+                }
+                eprintln!("Error receiving message: {}", e);
+            }
         }
     }
+
+    transport.close()?;
+    Ok(())
 }

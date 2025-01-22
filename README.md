@@ -2,7 +2,28 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive access to Solana blockchain data through Cline. This server implements a wide range of Solana RPC methods, making it easy to query blockchain information directly through natural language conversations.
 
-## Install in Claude Desktop
+## Installation
+
+### Using Pre-built Binaries
+
+1. Go to the [Releases](https://github.com/opensvm/solana-mcp-server/releases) page
+2. Download the appropriate binary for your system:
+   - Linux: `solana-mcp-server-linux-amd64`
+   - macOS Intel: `solana-mcp-server-macos-amd64`
+   - macOS Apple Silicon: `solana-mcp-server-macos-arm64`
+   - Windows: `solana-mcp-server-windows-amd64.exe`
+3. Make the binary executable (Linux/macOS):
+   ```bash
+   chmod +x solana-mcp-server-*
+   ```
+4. Configure Claude Desktop:
+   ```bash
+   CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude"
+   mkdir -p "$CONFIG_DIR"
+   echo "{\"mcpServers\":{\"solana\":{\"command\":\"$PWD/solana-mcp-server-*\",\"env\":{\"SOLANA_RPC_URL\":\"https://api.mainnet-beta.solana.com\"}}}}" > "$CONFIG_DIR/config.json"
+   ```
+
+### Building from Source
 
 ```bash
 TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/solana-mcp-server.git . && cargo build --release && CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude" && mkdir -p "$CONFIG_DIR" && echo "{\"mcpServers\":{\"solana\":{\"command\":\"$PWD/target/release/solana-mcp-server\",\"env\":{\"SOLANA_RPC_URL\":\"https://api.mainnet-beta.solana.com\"}}}}" > "$CONFIG_DIR/config.json" || { rm -rf "$TEMP_DIR"; exit 1; }
