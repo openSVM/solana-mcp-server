@@ -15,7 +15,7 @@ pub async fn start_server() -> Result<()> {
         }
 
         let response = crate::tools::handle_request(&line).await?;
-        writeln!(stdout, "{}", serde_json::to_string(&response)?)?;
+        writeln!(stdout, "{}", serde_json::to_string_pretty(&response)?)?;
         stdout.flush()?;
     }
     
