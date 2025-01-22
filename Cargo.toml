@@ -4,25 +4,17 @@ version = "0.1.2"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0"
 base64 = "0.21"
 bincode = "1.3"
 bs58 = "0.5"
+clap = { version = "4.4", features = ["derive"] }
 mcp-sdk = "0.0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+solana-account-decoder = "1.17"
 solana-client = "1.17"
 solana-sdk = "1.17"
 solana-transaction-status = "1.17"
-solana-account-decoder = "1.17"
-tokio = { version = "1.32", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-thiserror = "1.0"
-async-trait = "0.1"
 spl-token = "4.0"
-url = "2.4"
-clap = { version = "4.4", features = ["derive"] }
-
-[dev-dependencies]
-tempfile = "3.10"
-jsonrpc-core = "18.0"
-tokio = { version = "1.32", features = ["full", "test-util", "macros"] }
+tokio = { version = "1.32", features = ["full"] }

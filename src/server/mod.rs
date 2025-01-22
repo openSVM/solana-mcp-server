@@ -1,17 +1,23 @@
 use anyhow::Result;
-use mcp_sdk::server::{Server, ServerConfig, ServerInfo};
-use crate::rpc;
+use std::io::{self, BufRead, Write};
 
 pub async fn start_server() -> Result<()> {
-    let server = Server::new(
-        ServerInfo {
-            name: "solana-mcp-server".to_string(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
-        },
-        ServerConfig::default(),
-    );
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    let mut reader = stdin.lock();
 
-    // Add server capabilities and handlers here
+    loop {
+        let mut line = String::new();
+        let n = reader.read_line(&mut line)?;
+        
+        if n == 0 {
+            break;
+        }
+
+        let response = crate::tools::handle_request(&line).await?;
+        writeln!(stdout, "{}", serde_json::to_string(&response)?)?;
+        stdout.flush()?;
+    }
     
     Ok(())
 }
