@@ -17,8 +17,8 @@ struct Config {
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to config file
-    #[arg(value_name = "CONFIG")]
-    config: PathBuf,
+    #[arg(value_name = "CONFIG", required = false)]
+    config: Option<PathBuf>,
 }
 
 mod transport;
@@ -40,11 +40,21 @@ use tokio::runtime::Handle;
 async fn main() -> Result<()> {
     let args = Args::parse();
     
-    // Load and parse config file
-    let config_str = fs::read_to_string(&args.config)
-        .with_context(|| format!("Failed to read config file: {}", args.config.display()))?;
-    let config: Config = serde_json::from_str(&config_str)
-        .with_context(|| format!("Failed to parse config file: {}", args.config.display()))?;
+    // Default config values
+    let config = if let Some(config_path) = args.config {
+        // Load and parse config file
+        let config_str = fs::read_to_string(&config_path)
+            .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
+        serde_json::from_str(&config_str)
+            .with_context(|| format!("Failed to parse config file: {}", config_path.display()))?
+    } else {
+        Config {
+            url: "https://rpc.opensvm.com".to_string(),
+            apikey: "".to_string(),
+            iam_agent: false,
+            tools: vec![],
+        }
+    };
 
     let rpc_url = config.url;
 

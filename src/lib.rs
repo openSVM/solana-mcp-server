@@ -1,27 +1,15 @@
-use anyhow::Result;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use serde_json::Value;
+//! Solana MCP Server
+//! 
+//! This crate provides a Model Context Protocol (MCP) server implementation for Solana RPC.
+//! It exposes Solana RPC methods as MCP tools that can be used by MCP clients.
 
-pub struct SolanaMcpServer {
-    client: RpcClient,
-}
+mod rpc;
+mod server;
+mod tools;
 
-impl SolanaMcpServer {
-    pub fn new(client: RpcClient) -> Self {
-        Self { client }
-    }
+pub use server::SolanaMcpServer;
 
-    pub fn list_tools(&self) -> Result<Value> {
-        Ok(serde_json::json!([]))
-    }
-
-    pub async fn handle_tool_request(&self, request: mcp_sdk::types::CallToolRequest) -> Result<Value> {
-        match request.name.as_str() {
-            "get_slot" => {
-                let slot = self.client.get_slot().await?;
-                Ok(serde_json::json!({ "slot": slot }))
-            },
-            _ => Err(anyhow::anyhow!("Tool not found: {}", request.name)),
-        }
-    }
-}
+// Re-export commonly used types
+pub use solana_client::nonblocking::rpc_client::RpcClient;
+pub use solana_sdk::{pubkey::Pubkey, signature::Signature};
+pub use anyhow::Result;
