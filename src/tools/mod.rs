@@ -1,264 +1,108 @@
-use serde_json::json;
-use mcp_sdk::types::Tool;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-pub fn get_tools() -> Vec<Tool> {
-    vec![
-        // Slot & Block Methods
-        Tool {
-            name: "get_slot".to_string(),
-            description: Some("Get current slot".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_slot_leaders".to_string(),
-            description: Some("Get slot leaders".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "start_slot": {"type": "integer"},
-                    "limit": {"type": "integer"}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JsonRpcRequest {
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: Option<Value>,
+    pub id: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JsonRpcResponse {
+    pub jsonrpc: String,
+    pub result: Option<Value>,
+    pub error: Option<JsonRpcError>,
+    pub id: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JsonRpcError {
+    pub code: i32,
+    pub message: String,
+    pub data: Option<Value>,
+}
+
+pub async fn handle_tools_list() -> Result<JsonRpcResponse> {
+    Ok(JsonRpcResponse {
+        jsonrpc: "2.0".to_string(),
+        result: Some(serde_json::json!({
+            "tools": [
+                {
+                    "name": "get_account",
+                    "description": "Get account information",
+                    "parameters": ["pubkey"]
                 },
-                "required": ["start_slot", "limit"]
-            }),
-        },
-        Tool {
-            name: "get_block".to_string(),
-            description: Some("Get block information".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "slot": {"type": "integer"}
+                {
+                    "name": "get_balance",
+                    "description": "Get account balance",
+                    "parameters": ["pubkey"]
                 },
-                "required": ["slot"]
-            }),
-        },
-        Tool {
-            name: "get_block_height".to_string(),
-            description: Some("Get current block height".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_block_production".to_string(),
-            description: Some("Get block production information".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "identity": {"type": "string"},
-                    "first_slot": {"type": "integer"},
-                    "last_slot": {"type": "integer"}
+                {
+                    "name": "get_block",
+                    "description": "Get block information",
+                    "parameters": ["slot"]
+                },
+                {
+                    "name": "get_transaction",
+                    "description": "Get transaction details",
+                    "parameters": ["signature"]
+                },
+                {
+                    "name": "get_token_account",
+                    "description": "Get token account information",
+                    "parameters": ["pubkey"]
                 }
+            ]
+        })),
+        error: None,
+        id: None,
+    })
+}
+
+pub async fn handle_request(request: &str) -> Result<JsonRpcResponse> {
+    let request: JsonRpcRequest = match serde_json::from_str(request) {
+        Ok(req) => req,
+        Err(_) => {
+            return Ok(JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                result: None,
+                error: Some(JsonRpcError {
+                    code: -32600,
+                    message: "Invalid Request: jsonrpc version must be 2.0".to_string(),
+                    data: None,
+                }),
+                id: None,
+            });
+        }
+    };
+
+    if request.jsonrpc != "2.0" {
+        return Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            result: None,
+            error: Some(JsonRpcError {
+                code: -32600,
+                message: "Invalid Request: jsonrpc version must be 2.0".to_string(),
+                data: None,
             }),
-        },
-        Tool {
-            name: "get_blocks".to_string(),
-            description: Some("Get confirmed blocks between two slots".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "start_slot": {"type": "integer"},
-                    "end_slot": {"type": "integer"}
-                },
-                "required": ["start_slot"]
+            id: None,
+        });
+    }
+
+    match request.method.as_str() {
+        "tools/list" => handle_tools_list().await,
+        _ => Ok(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            result: None,
+            error: Some(JsonRpcError {
+                code: -32601,
+                message: "Method not found".to_string(),
+                data: None,
             }),
-        },
-        // Account Methods
-        Tool {
-            name: "get_balance".to_string(),
-            description: Some("Get account balance".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "pubkey": {"type": "string"}
-                },
-                "required": ["pubkey"]
-            }),
-        },
-        Tool {
-            name: "get_account_info".to_string(),
-            description: Some("Get detailed account information".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "pubkey": {"type": "string"}
-                },
-                "required": ["pubkey"]
-            }),
-        },
-        Tool {
-            name: "get_multiple_accounts".to_string(),
-            description: Some("Get information for multiple accounts".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "pubkeys": {"type": "array", "items": {"type": "string"}}
-                },
-                "required": ["pubkeys"]
-            }),
-        },
-        Tool {
-            name: "get_program_accounts".to_string(),
-            description: Some("Get all accounts owned by a program".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "program_id": {"type": "string"}
-                },
-                "required": ["program_id"]
-            }),
-        },
-        // Transaction Methods
-        Tool {
-            name: "get_transaction".to_string(),
-            description: Some("Get transaction details".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "signature": {"type": "string"}
-                },
-                "required": ["signature"]
-            }),
-        },
-        Tool {
-            name: "get_signatures_for_address".to_string(),
-            description: Some("Get confirmed signatures for address".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "address": {"type": "string"},
-                    "before": {"type": "string"},
-                    "until": {"type": "string"},
-                    "limit": {"type": "integer"}
-                },
-                "required": ["address"]
-            }),
-        },
-        Tool {
-            name: "send_transaction".to_string(),
-            description: Some("Submit a signed transaction".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "transaction": {"type": "string"},
-                    "encoding": {"type": "string", "enum": ["base58", "base64"]}
-                },
-                "required": ["transaction", "encoding"]
-            }),
-        },
-        // System Info Methods
-        Tool {
-            name: "get_health".to_string(),
-            description: Some("Get node health status".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_version".to_string(),
-            description: Some("Get node version information".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_identity".to_string(),
-            description: Some("Get node identity".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_cluster_nodes".to_string(),
-            description: Some("Get information about all the nodes participating in the cluster".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        // Epoch & Inflation Methods
-        Tool {
-            name: "get_epoch_info".to_string(),
-            description: Some("Get current epoch information".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_epoch_schedule".to_string(),
-            description: Some("Get epoch schedule information".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_inflation_rate".to_string(),
-            description: Some("Get current inflation rate".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        Tool {
-            name: "get_inflation_governor".to_string(),
-            description: Some("Get inflation governor parameters".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {},
-                "required": []
-            }),
-        },
-        // Token Methods
-        Tool {
-            name: "get_token_accounts_by_owner".to_string(),
-            description: Some("Get token accounts owned by an address".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "owner": {"type": "string"}
-                },
-                "required": ["owner"]
-            }),
-        },
-        Tool {
-            name: "get_token_supply".to_string(),
-            description: Some("Get total supply of a token".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "mint": {"type": "string"}
-                },
-                "required": ["mint"]
-            }),
-        },
-        Tool {
-            name: "get_token_largest_accounts".to_string(),
-            description: Some("Get token accounts with largest balances".to_string()),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "mint": {"type": "string"}
-                },
-                "required": ["mint"]
-            }),
-        },
-    ]
+            id: request.id,
+        }),
+    }
 }
