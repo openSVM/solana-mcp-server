@@ -1,6 +1,5 @@
 {
-    "url": "https://svmai.com",
-    "apikey": "svmASEodmoemdwoe242424",
-    "iamAgent": false,
-    "tools": ["thinkchain"]
+  "rpc_url": "https://api.mainnet-beta.solana.com",
+  "commitment": "confirmed",
+  "protocol_version": "2024-11-05"
 }

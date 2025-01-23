@@ -35,7 +35,7 @@ impl Transport for TestTransport {
         let json = match message {
             JsonRpcMessage::Request(req) => {
                 json!({
-                    "jsonrpc": "2.0",
+                    "jsonrpc": JsonRpcVersion::V2,
                     "id": req.id,
                     "method": req.method,
                     "params": req.params
@@ -43,7 +43,7 @@ impl Transport for TestTransport {
             },
             JsonRpcMessage::Response(resp) => {
                 json!({
-                    "jsonrpc": "2.0",
+                    "jsonrpc": JsonRpcVersion::V2,
                     "id": resp.id,
                     "result": resp.result,
                     "error": resp.error
@@ -114,7 +114,7 @@ fn setup_mock_server() -> TestTransport {
                 match (method, auth) {
                     ("initialize", "test_key_123") => {
                         server_transport.tx.send(json!({
-                            "jsonrpc": "2.0",
+                            "jsonrpc": JsonRpcVersion::V2,
                             "id": id,
                             "result": {
                                 "server": {
@@ -130,7 +130,7 @@ fn setup_mock_server() -> TestTransport {
                     },
                     (_, "invalid_key") => {
                         server_transport.tx.send(json!({
-                            "jsonrpc": "2.0",
+                            "jsonrpc": JsonRpcVersion::V2,
                             "id": id,
                             "error": {
                                 "code": -32601,
@@ -143,14 +143,14 @@ fn setup_mock_server() -> TestTransport {
                         match tool_name {
                             "get_slot" => {
                                 server_transport.tx.send(json!({
-                                    "jsonrpc": "2.0",
+                                    "jsonrpc": JsonRpcVersion::V2,
                                     "id": id,
                                     "result": 12345
                                 })).unwrap();
                             },
                             _ => {
                                 server_transport.tx.send(json!({
-                                    "jsonrpc": "2.0",
+                                    "jsonrpc": JsonRpcVersion::V2,
                                     "id": id,
                                     "error": {
                                         "code": -32601,
@@ -187,7 +187,7 @@ async fn test_server_initialization() {
 
     match response {
         JsonRpcMessage::Response(resp) => {
-            assert_eq!(serde_json::to_string(&resp.jsonrpc).unwrap(), "\"2.0\"");
+            assert_eq!(resp.jsonrpc, JsonRpcVersion::V2);
             assert_eq!(resp.id, 1);
             let result = resp.result.unwrap();
             assert!(result["server"]["name"].as_str().unwrap().contains("solana-mcp"));
@@ -215,7 +215,7 @@ async fn test_invalid_api_key() {
 
     match response {
         JsonRpcMessage::Response(resp) => {
-            assert_eq!(serde_json::to_string(&resp.jsonrpc).unwrap(), "\"2.0\"");
+            assert_eq!(resp.jsonrpc, JsonRpcVersion::V2);
             assert_eq!(resp.id, 1);
             let error = resp.error.unwrap();
             assert_eq!(error.code, -32601);
@@ -259,7 +259,7 @@ async fn test_tool_execution() {
 
     match response {
         JsonRpcMessage::Response(resp) => {
-            assert_eq!(serde_json::to_string(&resp.jsonrpc).unwrap(), "\"2.0\"");
+            assert_eq!(resp.jsonrpc, JsonRpcVersion::V2);
             assert_eq!(resp.id, 2);
             assert!(resp.result.is_some());
         },
@@ -301,7 +301,7 @@ async fn test_invalid_tool() {
 
     match response {
         JsonRpcMessage::Response(resp) => {
-            assert_eq!(serde_json::to_string(&resp.jsonrpc).unwrap(), "\"2.0\"");
+            assert_eq!(resp.jsonrpc, JsonRpcVersion::V2);
             assert_eq!(resp.id, 2);
             let error = resp.error.unwrap();
             assert_eq!(error.code, -32601);
