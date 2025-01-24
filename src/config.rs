@@ -21,7 +21,7 @@ impl Config {
 
         // Fall back to environment variables
         let rpc_url = env::var("SOLANA_RPC_URL")
-            .unwrap_or_else(|_| "http://api.opensvm.com".to_string());
+            .unwrap_or_else(|_| "https://api.opensvm.com".to_string());
             
         let commitment = env::var("SOLANA_COMMITMENT")
             .unwrap_or_else(|_| "confirmed".to_string());
