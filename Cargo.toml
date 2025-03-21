@@ -5,17 +5,17 @@ edition = "2021"
 
 [dependencies]
 log = "0.4"
-env_logger = "0.10"
+env_logger = "0.11"
 chrono = "0.4"
-url = { version = "2.4.1", features = ["serde"] }
+url = { version = "2.5.0", features = ["serde"] }
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-solana-client = "1.17"
-solana-sdk = "1.17"
-solana-account-decoder = "1.17"
-solana-transaction-status = "1.17"
+tokio = { version = "1.36", features = ["full"] }
+solana-client = "1.18"
+solana-sdk = "1.18"
+solana-account-decoder = "1.18"
+solana-transaction-status = "1.18"
 spl-token = "4.0"
 base64 = "0.21"
 bs58 = "0.5"

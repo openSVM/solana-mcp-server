@@ -35,9 +35,7 @@ pub fn create_error_response(code: i32, message: String, id: u64, protocol_versi
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CancelledParams {
-    #[allow(dead_code)]
     request_id: i64,
-    #[allow(dead_code)]
     reason: String,
 }
 
@@ -224,7 +222,8 @@ pub async fn handle_initialize(params: Option<Value>, id: Option<Value>, state: 
 pub async fn handle_cancelled(params: Option<Value>, id: Option<Value>, state: &ServerState) -> Result<JsonRpcMessage> {
     log::info!("Handling cancelled request");
     if let Some(params) = params {
-        let _cancel_params: CancelledParams = serde_json::from_value(params)?;
+        let cancel_params: CancelledParams = serde_json::from_value(params)?;
+        log::info!("Request {} cancelled: {}", cancel_params.request_id, cancel_params.reason);
         Ok(create_success_response(
             Value::Null,
             id.and_then(|v| v.as_u64()).unwrap_or(0)
