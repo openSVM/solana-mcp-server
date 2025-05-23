@@ -49,8 +49,12 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
   - Returns: Balance in lamports (1 SOL = 1,000,000,000 lamports)
 
 - `getLargestAccounts`: Returns the 20 largest accounts by lamport balance
-  - Input: None
+  - Input: Optional `filter` (string) - Filter by account type (circulating|nonCirculating)
   - Returns: Array of accounts with their balances
+
+- `getMinimumBalanceForRentExemption`: Returns minimum balance for rent exemption
+  - Input: `dataSize` (integer) - Size of account data in bytes
+  - Returns: Minimum lamports required for rent exemption
 
 ### Block Methods
 - `getBlock`: Returns identity and transaction information about a confirmed block
@@ -78,8 +82,24 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
   - Returns: Block commitment information
 
 - `getBlockProduction`: Returns recent block production information
-  - Input: None
+  - Input: Optional `identity` (string) - Validator identity, `range` (object)
   - Returns: Block production stats
+
+- `getSlot`: Returns the current slot the node is processing
+  - Input: Optional `commitment` (string) - Commitment level
+  - Returns: Current slot
+
+- `getSlotLeaders`: Returns slot leaders for a given slot range
+  - Input: `startSlot` (integer), `limit` (integer)
+  - Returns: Array of validator identity pubkeys
+
+- `getFirstAvailableBlock`: Returns the lowest confirmed block still available
+  - Input: None
+  - Returns: First available block slot
+
+- `getGenesisHash`: Returns the genesis hash of the ledger
+  - Input: None
+  - Returns: Genesis hash as string
 
 ### System Methods
 - `getHealth`: Returns current health status of the node
@@ -98,8 +118,12 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
   - Input: None
   - Returns: Array of node information
 
+- `getLeaderSchedule`: Returns the leader schedule for an epoch
+  - Input: Optional `slot` (integer), `identity` (string)
+  - Returns: Leader schedule by validator identity
+
 - `getVoteAccounts`: Returns account info and stake for all voting accounts
-  - Input: None
+  - Input: Optional `votePubkey` (string), configuration parameters
   - Returns: Current and delinquent vote accounts
 
 ### Epoch and Inflation Methods
