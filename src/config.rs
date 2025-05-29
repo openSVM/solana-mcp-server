@@ -1,13 +1,22 @@
 use anyhow::{Result, Context};
-use serde::Deserialize;
-use std::{env, fs};
+use serde::{Deserialize, Serialize};
+use std::{env, fs, collections::HashMap};
 use crate::protocol::LATEST_PROTOCOL_VERSION;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SvmNetwork {
+    pub name: String,
+    pub rpc_url: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     pub rpc_url: String,
     pub commitment: String,
     pub protocol_version: String,
+    #[serde(default)]
+    pub svm_networks: HashMap<String, SvmNetwork>,
 }
 
 impl Config {
@@ -33,6 +42,15 @@ impl Config {
             rpc_url,
             commitment,
             protocol_version,
+            svm_networks: HashMap::new(),
         })
+    }
+
+    pub fn save(&self) -> Result<()> {
+        let content = serde_json::to_string_pretty(self)
+            .context("Failed to serialize config")?;
+        fs::write("config.json", content)
+            .context("Failed to write config.json")?;
+        Ok(())
     }
 }

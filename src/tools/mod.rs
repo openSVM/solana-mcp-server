@@ -5,6 +5,7 @@ use url::Url;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
+use reqwest;
 
 pub fn create_success_response(result: Value, id: u64) -> JsonRpcMessage {
     log::debug!("Creating success response with id {}", id);
@@ -354,6 +355,73 @@ pub async fn handle_initialize(params: Option<Value>, id: Option<Value>, state: 
                         input_schema: serde_json::json!({
                             "type": "object",
                             "properties": {}
+                        }),
+                    });
+
+                    // SVM Network Management Tools
+                    tools.insert("listSvmNetworks".to_string(), ToolDefinition {
+                        name: "listSvmNetworks".to_string(),
+                        description: Some("List all available SVM networks from the awesome-svm repository".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {}
+                        }),
+                    });
+
+                    tools.insert("enableSvmNetwork".to_string(), ToolDefinition {
+                        name: "enableSvmNetwork".to_string(),
+                        description: Some("Enable an SVM network for use in RPC requests".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "networkId": {
+                                    "type": "string",
+                                    "description": "Network identifier"
+                                },
+                                "name": {
+                                    "type": "string",
+                                    "description": "Network display name"
+                                },
+                                "rpcUrl": {
+                                    "type": "string",
+                                    "description": "RPC endpoint URL"
+                                }
+                            },
+                            "required": ["networkId", "name", "rpcUrl"]
+                        }),
+                    });
+
+                    tools.insert("disableSvmNetwork".to_string(), ToolDefinition {
+                        name: "disableSvmNetwork".to_string(),
+                        description: Some("Disable an SVM network".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "networkId": {
+                                    "type": "string",
+                                    "description": "Network identifier"
+                                }
+                            },
+                            "required": ["networkId"]
+                        }),
+                    });
+
+                    tools.insert("setNetworkRpcUrl".to_string(), ToolDefinition {
+                        name: "setNetworkRpcUrl".to_string(),
+                        description: Some("Override RPC URL for a specific network".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "networkId": {
+                                    "type": "string",
+                                    "description": "Network identifier"
+                                },
+                                "rpcUrl": {
+                                    "type": "string",
+                                    "description": "New RPC endpoint URL"
+                                }
+                            },
+                            "required": ["networkId", "rpcUrl"]
                         }),
                     });
 
@@ -1705,7 +1773,88 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::server::ServerState;
+use crate::{SvmNetwork};
 use solana_sdk::pubkey::Pubkey;
+
+// SVM Network Management Functions
+
+// Helper function to check if multi-network mode is enabled
+fn is_multi_network_mode(state: &ServerState) -> bool {
+    state.get_enabled_networks().len() > 1
+}
+
+async fn list_svm_networks() -> Result<Value> {
+    let url = "https://raw.githubusercontent.com/openSVM/awesome-svm/refs/heads/main/svm-networks.json";
+    let client = reqwest::Client::new();
+    let response = client.get(url).send().await?;
+    let networks: Value = response.json().await?;
+    Ok(networks)
+}
+
+async fn enable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str, name: &str, rpc_url: &str) -> Result<Value> {
+    let mut state_guard = state.write().await;
+    
+    let network = SvmNetwork {
+        name: name.to_string(),
+        rpc_url: rpc_url.to_string(),
+        enabled: true,
+    };
+    
+    let mut new_config = state_guard.config.clone();
+    new_config.svm_networks.insert(network_id.to_string(), network);
+    new_config.save()?;
+    
+    state_guard.update_config(new_config);
+    
+    Ok(serde_json::json!({
+        "success": true,
+        "message": format!("Network '{}' enabled successfully", network_id)
+    }))
+}
+
+async fn disable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str) -> Result<Value> {
+    let mut state_guard = state.write().await;
+    
+    let mut new_config = state_guard.config.clone();
+    if let Some(network) = new_config.svm_networks.get_mut(network_id) {
+        network.enabled = false;
+    } else {
+        return Ok(serde_json::json!({
+            "success": false,
+            "error": format!("Network '{}' not found", network_id)
+        }));
+    }
+    new_config.save()?;
+    
+    state_guard.update_config(new_config);
+    
+    Ok(serde_json::json!({
+        "success": true,
+        "message": format!("Network '{}' disabled successfully", network_id)
+    }))
+}
+
+async fn set_network_rpc_url(state: Arc<RwLock<ServerState>>, network_id: &str, rpc_url: &str) -> Result<Value> {
+    let mut state_guard = state.write().await;
+    
+    let mut new_config = state_guard.config.clone();
+    if let Some(network) = new_config.svm_networks.get_mut(network_id) {
+        network.rpc_url = rpc_url.to_string();
+    } else {
+        return Ok(serde_json::json!({
+            "success": false,
+            "error": format!("Network '{}' not found", network_id)
+        }));
+    }
+    new_config.save()?;
+    
+    state_guard.update_config(new_config);
+    
+    Ok(serde_json::json!({
+        "success": true,
+        "message": format!("RPC URL for network '{}' updated successfully", network_id)
+    }))
+}
 
 pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> Result<JsonRpcMessage> {
     log::debug!("Received request: {}", request);
@@ -1770,7 +1919,28 @@ pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> R
                     let pubkey = Pubkey::try_from(pubkey_str)?;
                     
                     let state = state.read().await;
-                    let result = crate::rpc::accounts::get_account_info(&state.rpc_client, &pubkey).await?;
+                    let result = if is_multi_network_mode(&state) {
+                        // Multi-network mode
+                        let mut network_results = serde_json::Map::new();
+                        for network_id in state.get_enabled_networks() {
+                            if let Some(client) = state.svm_clients.get(network_id) {
+                                match crate::rpc::accounts::get_account_info(client, &pubkey).await {
+                                    Ok(result) => {
+                                        network_results.insert(network_id.to_string(), result);
+                                    }
+                                    Err(e) => {
+                                        network_results.insert(network_id.to_string(), serde_json::json!({
+                                            "error": e.to_string()
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        serde_json::Value::Object(network_results)
+                    } else {
+                        // Single network mode
+                        crate::rpc::accounts::get_account_info(&state.rpc_client, &pubkey).await?
+                    };
                     Ok(create_success_response(result, req.id))
                 },
                 "getBalance" => {
@@ -1782,7 +1952,28 @@ pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> R
                     let pubkey = Pubkey::try_from(pubkey_str)?;
                     
                     let state = state.read().await;
-                    let result = crate::rpc::accounts::get_balance(&state.rpc_client, &pubkey).await?;
+                    let result = if is_multi_network_mode(&state) {
+                        // Multi-network mode
+                        let mut network_results = serde_json::Map::new();
+                        for network_id in state.get_enabled_networks() {
+                            if let Some(client) = state.svm_clients.get(network_id) {
+                                match crate::rpc::accounts::get_balance(client, &pubkey).await {
+                                    Ok(result) => {
+                                        network_results.insert(network_id.to_string(), result);
+                                    }
+                                    Err(e) => {
+                                        network_results.insert(network_id.to_string(), serde_json::json!({
+                                            "error": e.to_string()
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        serde_json::Value::Object(network_results)
+                    } else {
+                        // Single network mode
+                        crate::rpc::accounts::get_balance(&state.rpc_client, &pubkey).await?
+                    };
                     Ok(create_success_response(result, req.id))
                 },
                 "getProgramAccounts" => {
@@ -1968,6 +2159,55 @@ pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> R
                     log::info!("Getting genesis hash");
                     let state = state.read().await;
                     let result = crate::rpc::blocks::get_genesis_hash(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                // SVM Network Management Tools
+                "listSvmNetworks" => {
+                    log::info!("Listing SVM networks");
+                    let result = list_svm_networks().await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "enableSvmNetwork" => {
+                    log::info!("Enabling SVM network");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let network_id = params.get("networkId")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing networkId parameter"))?;
+                    let name = params.get("name")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing name parameter"))?;
+                    let rpc_url = params.get("rpcUrl")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing rpcUrl parameter"))?;
+                    
+                    let result = enable_svm_network(state.clone(), network_id, name, rpc_url).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "disableSvmNetwork" => {
+                    log::info!("Disabling SVM network");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let network_id = params.get("networkId")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing networkId parameter"))?;
+                    
+                    let result = disable_svm_network(state.clone(), network_id).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "setNetworkRpcUrl" => {
+                    log::info!("Setting network RPC URL");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let network_id = params.get("networkId")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing networkId parameter"))?;
+                    let rpc_url = params.get("rpcUrl")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing rpcUrl parameter"))?;
+                    
+                    let result = set_network_rpc_url(state.clone(), network_id, rpc_url).await?;
                     Ok(create_success_response(result, req.id))
                 },
 
