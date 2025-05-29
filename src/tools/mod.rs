@@ -565,6 +565,325 @@ pub async fn handle_initialize(params: Option<Value>, id: Option<Value>, state: 
                         }),
                     });
 
+                    // Additional Block Methods
+                    tools.insert("getSlotLeaders".to_string(), ToolDefinition {
+                        name: "getSlotLeaders".to_string(),
+                        description: Some("Returns slot leaders for a given slot range".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "startSlot": {
+                                    "type": "integer",
+                                    "description": "Start slot"
+                                },
+                                "limit": {
+                                    "type": "integer",
+                                    "description": "Limit number of results"
+                                }
+                            },
+                            "required": ["startSlot", "limit"]
+                        }),
+                    });
+
+                    tools.insert("getBlockProduction".to_string(), ToolDefinition {
+                        name: "getBlockProduction".to_string(),
+                        description: Some("Returns recent block production information".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "identity": {
+                                    "type": "string",
+                                    "description": "Validator identity (base58 encoded)"
+                                },
+                                "firstSlot": {
+                                    "type": "integer",
+                                    "description": "First slot to query"
+                                },
+                                "lastSlot": {
+                                    "type": "integer", 
+                                    "description": "Last slot to query"
+                                }
+                            }
+                        }),
+                    });
+
+                    tools.insert("getVoteAccounts".to_string(), ToolDefinition {
+                        name: "getVoteAccounts".to_string(),
+                        description: Some("Returns account info and stake for all voting accounts".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "commitment": {
+                                    "type": "string",
+                                    "enum": ["processed", "confirmed", "finalized"]
+                                },
+                                "votePubkey": {
+                                    "type": "string",
+                                    "description": "Vote account pubkey (base58 encoded)"
+                                },
+                                "keepUnstakedDelinquents": {
+                                    "type": "boolean",
+                                    "description": "Keep unstaked delinquents"
+                                }
+                            }
+                        }),
+                    });
+
+                    tools.insert("getLeaderSchedule".to_string(), ToolDefinition {
+                        name: "getLeaderSchedule".to_string(),
+                        description: Some("Returns the leader schedule for an epoch".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "slot": {
+                                    "type": "integer",
+                                    "description": "Slot to query (optional)"
+                                },
+                                "identity": {
+                                    "type": "string",
+                                    "description": "Validator identity (base58 encoded)"
+                                }
+                            }
+                        }),
+                    });
+
+                    // Additional System Methods
+                    tools.insert("getClusterNodes".to_string(), ToolDefinition {
+                        name: "getClusterNodes".to_string(),
+                        description: Some("Returns information about all cluster nodes".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {}
+                        }),
+                    });
+
+                    tools.insert("getEpochSchedule".to_string(), ToolDefinition {
+                        name: "getEpochSchedule".to_string(),
+                        description: Some("Returns epoch schedule information".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {}
+                        }),
+                    });
+
+                    tools.insert("getInflationGovernor".to_string(), ToolDefinition {
+                        name: "getInflationGovernor".to_string(),
+                        description: Some("Returns current inflation governor".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {}
+                        }),
+                    });
+
+                    tools.insert("getInflationRate".to_string(), ToolDefinition {
+                        name: "getInflationRate".to_string(),
+                        description: Some("Returns specific inflation values for current epoch".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {}
+                        }),
+                    });
+
+                    tools.insert("getInflationReward".to_string(), ToolDefinition {
+                        name: "getInflationReward".to_string(),
+                        description: Some("Returns inflation reward for list of addresses".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "addresses": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Array of addresses (base58 encoded)"
+                                },
+                                "epoch": {
+                                    "type": "integer",
+                                    "description": "Epoch number"
+                                }
+                            },
+                            "required": ["addresses"]
+                        }),
+                    });
+
+                    tools.insert("getTransactionCount".to_string(), ToolDefinition {
+                        name: "getTransactionCount".to_string(),
+                        description: Some("Returns current Transaction count from ledger".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "commitment": {
+                                    "type": "string",
+                                    "enum": ["processed", "confirmed", "finalized"]
+                                }
+                            }
+                        }),
+                    });
+
+                    tools.insert("requestAirdrop".to_string(), ToolDefinition {
+                        name: "requestAirdrop".to_string(),
+                        description: Some("Request an airdrop of lamports to a Pubkey".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "pubkey": {
+                                    "type": "string",
+                                    "description": "Public key to receive airdrop (base58 encoded)"
+                                },
+                                "lamports": {
+                                    "type": "integer",
+                                    "description": "Amount in lamports"
+                                }
+                            },
+                            "required": ["pubkey", "lamports"]
+                        }),
+                    });
+
+                    // Additional Transaction Methods
+                    tools.insert("getBlockTime".to_string(), ToolDefinition {
+                        name: "getBlockTime".to_string(),
+                        description: Some("Returns estimated production time of a block".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "slot": {
+                                    "type": "integer",
+                                    "description": "Slot number"
+                                }
+                            },
+                            "required": ["slot"]
+                        }),
+                    });
+
+                    tools.insert("getFeeForMessage".to_string(), ToolDefinition {
+                        name: "getFeeForMessage".to_string(),
+                        description: Some("Get the fee for a message".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Encoded message"
+                                },
+                                "encoding": {
+                                    "type": "string",
+                                    "enum": ["base58", "base64"],
+                                    "default": "base64"
+                                }
+                            },
+                            "required": ["message"]
+                        }),
+                    });
+
+                    // Additional Token Methods
+                    tools.insert("getTokenAccountsByDelegate".to_string(), ToolDefinition {
+                        name: "getTokenAccountsByDelegate".to_string(),
+                        description: Some("Returns all token accounts by approved delegate".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "delegate": {
+                                    "type": "string",
+                                    "description": "Delegate public key (base58 encoded)"
+                                },
+                                "mint": {
+                                    "type": "string",
+                                    "description": "Token mint (base58 encoded)"
+                                },
+                                "programId": {
+                                    "type": "string",
+                                    "description": "Token program ID (base58 encoded)"
+                                }
+                            },
+                            "required": ["delegate"]
+                        }),
+                    });
+
+                    tools.insert("getTokenLargestAccounts".to_string(), ToolDefinition {
+                        name: "getTokenLargestAccounts".to_string(),
+                        description: Some("Returns 20 largest accounts of a token type".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "mint": {
+                                    "type": "string",
+                                    "description": "Token mint (base58 encoded)"
+                                },
+                                "commitment": {
+                                    "type": "string",
+                                    "enum": ["processed", "confirmed", "finalized"]
+                                }
+                            },
+                            "required": ["mint"]
+                        }),
+                    });
+
+                    // Additional Block and Slot Methods
+                    tools.insert("getBlocksWithLimit".to_string(), ToolDefinition {
+                        name: "getBlocksWithLimit".to_string(),
+                        description: Some("Returns a list of confirmed blocks starting at given slot".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "startSlot": {
+                                    "type": "integer",
+                                    "description": "Start slot"
+                                },
+                                "limit": {
+                                    "type": "integer",
+                                    "description": "Maximum number of blocks to return"
+                                },
+                                "commitment": {
+                                    "type": "string",
+                                    "enum": ["processed", "confirmed", "finalized"]
+                                }
+                            },
+                            "required": ["startSlot", "limit"]
+                        }),
+                    });
+
+                    tools.insert("getStakeMinimumDelegation".to_string(), ToolDefinition {
+                        name: "getStakeMinimumDelegation".to_string(),
+                        description: Some("Returns stake minimum delegation".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "commitment": {
+                                    "type": "string",
+                                    "enum": ["processed", "confirmed", "finalized"]
+                                }
+                            }
+                        }),
+                    });
+
+                    // Additional complex transaction method
+                    tools.insert("getTransactionWithConfig".to_string(), ToolDefinition {
+                        name: "getTransactionWithConfig".to_string(),
+                        description: Some("Returns transaction details with additional configuration".to_string()),
+                        input_schema: serde_json::json!({
+                            "type": "object",
+                            "properties": {
+                                "signature": {
+                                    "type": "string",
+                                    "description": "Transaction signature (base58 encoded)"
+                                },
+                                "encoding": {
+                                    "type": "string",
+                                    "enum": ["json", "jsonParsed", "base58", "base64"]
+                                },
+                                "commitment": {
+                                    "type": "string",
+                                    "enum": ["processed", "confirmed", "finalized"]
+                                },
+                                "maxSupportedTransactionVersion": {
+                                    "type": "integer",
+                                    "description": "Maximum transaction version to return"
+                                }
+                            },
+                            "required": ["signature"]
+                        }),
+                    });
+
                     Some(tools)
                 },
                 resources: {
@@ -1065,6 +1384,307 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["account"]
             }),
         },
+        // Additional Block Methods
+        ToolDefinition {
+            name: "getSlotLeaders".to_string(),
+            description: Some("Returns slot leaders for a given slot range".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "startSlot": {
+                        "type": "integer",
+                        "description": "Start slot"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Limit number of results"
+                    }
+                },
+                "required": ["startSlot", "limit"]
+            }),
+        },
+        ToolDefinition {
+            name: "getBlockProduction".to_string(),
+            description: Some("Returns recent block production information".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "identity": {
+                        "type": "string",
+                        "description": "Validator identity (base58 encoded)"
+                    },
+                    "firstSlot": {
+                        "type": "integer",
+                        "description": "First slot to query"
+                    },
+                    "lastSlot": {
+                        "type": "integer", 
+                        "description": "Last slot to query"
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "getVoteAccounts".to_string(),
+            description: Some("Returns account info and stake for all voting accounts".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "votePubkey": {
+                        "type": "string",
+                        "description": "Vote account pubkey (base58 encoded)"
+                    },
+                    "keepUnstakedDelinquents": {
+                        "type": "boolean",
+                        "description": "Keep unstaked delinquents"
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "getLeaderSchedule".to_string(),
+            description: Some("Returns the leader schedule for an epoch".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "type": "integer",
+                        "description": "Slot to query (optional)"
+                    },
+                    "identity": {
+                        "type": "string",
+                        "description": "Validator identity (base58 encoded)"
+                    }
+                }
+            }),
+        },
+        // Additional System Methods
+        ToolDefinition {
+            name: "getClusterNodes".to_string(),
+            description: Some("Returns information about all cluster nodes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getEpochSchedule".to_string(),
+            description: Some("Returns epoch schedule information".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getInflationGovernor".to_string(),
+            description: Some("Returns current inflation governor".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getInflationRate".to_string(),
+            description: Some("Returns specific inflation values for current epoch".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getInflationReward".to_string(),
+            description: Some("Returns inflation reward for list of addresses".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "addresses": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Array of addresses (base58 encoded)"
+                    },
+                    "epoch": {
+                        "type": "integer",
+                        "description": "Epoch number"
+                    }
+                },
+                "required": ["addresses"]
+            }),
+        },
+        ToolDefinition {
+            name: "getTransactionCount".to_string(),
+            description: Some("Returns current Transaction count from ledger".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "requestAirdrop".to_string(),
+            description: Some("Request an airdrop of lamports to a Pubkey".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "description": "Public key to receive airdrop (base58 encoded)"
+                    },
+                    "lamports": {
+                        "type": "integer",
+                        "description": "Amount in lamports"
+                    }
+                },
+                "required": ["pubkey", "lamports"]
+            }),
+        },
+        // Additional Transaction Methods
+        ToolDefinition {
+            name: "getBlockTime".to_string(),
+            description: Some("Returns estimated production time of a block".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "type": "integer",
+                        "description": "Slot number"
+                    }
+                },
+                "required": ["slot"]
+            }),
+        },
+        ToolDefinition {
+            name: "getFeeForMessage".to_string(),
+            description: Some("Get the fee for a message".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Encoded message"
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "enum": ["base58", "base64"],
+                        "default": "base64"
+                    }
+                },
+                "required": ["message"]
+            }),
+        },
+        // Additional Token Methods
+        ToolDefinition {
+            name: "getTokenAccountsByDelegate".to_string(),
+            description: Some("Returns all token accounts by approved delegate".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "delegate": {
+                        "type": "string",
+                        "description": "Delegate public key (base58 encoded)"
+                    },
+                    "mint": {
+                        "type": "string",
+                        "description": "Token mint (base58 encoded)"
+                    },
+                    "programId": {
+                        "type": "string",
+                        "description": "Token program ID (base58 encoded)"
+                    }
+                },
+                "required": ["delegate"]
+            }),
+        },
+        ToolDefinition {
+            name: "getTokenLargestAccounts".to_string(),
+            description: Some("Returns 20 largest accounts of a token type".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "mint": {
+                        "type": "string",
+                        "description": "Token mint (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                },
+                "required": ["mint"]
+            }),
+        },
+        // Additional Block and Slot Methods
+        ToolDefinition {
+            name: "getBlocksWithLimit".to_string(),
+            description: Some("Returns a list of confirmed blocks starting at given slot".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "startSlot": {
+                        "type": "integer",
+                        "description": "Start slot"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of blocks to return"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                },
+                "required": ["startSlot", "limit"]
+            }),
+        },
+        ToolDefinition {
+            name: "getStakeMinimumDelegation".to_string(),
+            description: Some("Returns stake minimum delegation".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                }
+            }),
+        },
+        // Additional complex transaction method
+        ToolDefinition {
+            name: "getTransactionWithConfig".to_string(),
+            description: Some("Returns transaction details with additional configuration".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "signature": {
+                        "type": "string",
+                        "description": "Transaction signature (base58 encoded)"
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "enum": ["json", "jsonParsed", "base58", "base64"]
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "maxSupportedTransactionVersion": {
+                        "type": "integer",
+                        "description": "Maximum transaction version to return"
+                    }
+                },
+                "required": ["signature"]
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -1538,6 +2158,297 @@ pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> R
                     } else {
                         crate::rpc::tokens::get_token_account_balance(&state.rpc_client, &account).await?
                     };
+                    Ok(create_success_response(result, req.id))
+                },
+
+                // Additional Block Methods
+                "getSlotLeaders" => {
+                    log::info!("Getting slot leaders");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let start_slot = params.get("startSlot")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
+                    let limit = params.get("limit")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))?;
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::blocks::get_slot_leaders(&state.rpc_client, start_slot, limit).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getBlockProduction" => {
+                    log::info!("Getting block production");
+                    let params = req.params.unwrap_or_else(|| serde_json::json!({}));
+                    let identity = params.get("identity").and_then(|v| v.as_str()).map(|s| s.to_string());
+                    let first_slot = params.get("firstSlot").and_then(|v| v.as_u64());
+                    let last_slot = params.get("lastSlot").and_then(|v| v.as_u64());
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::blocks::get_block_production(&state.rpc_client, identity, first_slot, last_slot).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getVoteAccounts" => {
+                    log::info!("Getting vote accounts");
+                    let params = req.params.unwrap_or_else(|| serde_json::json!({}));
+                    let commitment = params.get("commitment").and_then(|v| v.as_str()).map(|c| match c {
+                        "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                        "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                        "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                        _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                    });
+                    let vote_pubkey = params.get("votePubkey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                    let keep_unstaked_delinquents = params.get("keepUnstakedDelinquents").and_then(|v| v.as_bool());
+                    
+                    let state = state.read().await;
+                    let result = if commitment.is_some() || vote_pubkey.is_some() || keep_unstaked_delinquents.is_some() {
+                        crate::rpc::blocks::get_vote_accounts_with_config(&state.rpc_client, commitment, vote_pubkey, keep_unstaked_delinquents, None).await?
+                    } else {
+                        crate::rpc::blocks::get_vote_accounts(&state.rpc_client).await?
+                    };
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getLeaderSchedule" => {
+                    log::info!("Getting leader schedule");
+                    let params = req.params.unwrap_or_else(|| serde_json::json!({}));
+                    let slot = params.get("slot").and_then(|v| v.as_u64());
+                    let identity = params.get("identity").and_then(|v| v.as_str()).map(|s| s.to_string());
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::blocks::get_leader_schedule(&state.rpc_client, slot, identity).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                // Additional System Methods
+                "getClusterNodes" => {
+                    log::info!("Getting cluster nodes");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_cluster_nodes(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getEpochSchedule" => {
+                    log::info!("Getting epoch schedule");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_epoch_schedule(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getInflationGovernor" => {
+                    log::info!("Getting inflation governor");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_inflation_governor(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getInflationRate" => {
+                    log::info!("Getting inflation rate");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_inflation_rate(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getInflationReward" => {
+                    log::info!("Getting inflation reward");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let addresses_array = params.get("addresses")
+                        .and_then(|v| v.as_array())
+                        .ok_or_else(|| anyhow::anyhow!("Missing addresses parameter"))?;
+                    
+                    let mut addresses = Vec::new();
+                    for addr_val in addresses_array {
+                        let addr_str = addr_val.as_str()
+                            .ok_or_else(|| anyhow::anyhow!("Invalid address in array"))?;
+                        addresses.push(Pubkey::try_from(addr_str)?);
+                    }
+                    
+                    let epoch = params.get("epoch").and_then(|v| v.as_u64());
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_inflation_reward(&state.rpc_client, &addresses, epoch).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getTransactionCount" => {
+                    log::info!("Getting transaction count");
+                    let params = req.params.unwrap_or_else(|| serde_json::json!({}));
+                    let state = state.read().await;
+                    let result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                        let commitment = match commitment_str {
+                            "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                            "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                            "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                            _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                        };
+                        crate::rpc::system::get_transaction_count_with_commitment(&state.rpc_client, commitment).await?
+                    } else {
+                        crate::rpc::system::get_transaction_count(&state.rpc_client).await?
+                    };
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "requestAirdrop" => {
+                    log::info!("Requesting airdrop");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let pubkey_str = params.get("pubkey")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?;
+                    let pubkey = Pubkey::try_from(pubkey_str)?;
+                    let lamports = params.get("lamports")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing lamports parameter"))?;
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::system::request_airdrop(&state.rpc_client, &pubkey, lamports).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                // Additional Transaction Methods
+                "getBlockTime" => {
+                    log::info!("Getting block time");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let slot = params.get("slot")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::transactions::get_block_time(&state.rpc_client, slot).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getFeeForMessage" => {
+                    log::info!("Getting fee for message");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let message_data = params.get("message")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing message parameter"))?;
+                    let encoding = params.get("encoding").and_then(|v| v.as_str()).unwrap_or("base64");
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::transactions::get_fee_for_message(&state.rpc_client, message_data, encoding).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                // Additional Token Methods
+                "getTokenAccountsByDelegate" => {
+                    log::info!("Getting token accounts by delegate");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let delegate_str = params.get("delegate")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing delegate parameter"))?;
+                    let delegate = Pubkey::try_from(delegate_str)?;
+                    
+                    let filter = if let Some(mint_str) = params.get("mint").and_then(|v| v.as_str()) {
+                        let mint = Pubkey::try_from(mint_str)?;
+                        solana_client::rpc_request::TokenAccountsFilter::Mint(mint)
+                    } else if let Some(program_id_str) = params.get("programId").and_then(|v| v.as_str()) {
+                        let program_id = Pubkey::try_from(program_id_str)?;
+                        solana_client::rpc_request::TokenAccountsFilter::ProgramId(program_id)
+                    } else {
+                        solana_client::rpc_request::TokenAccountsFilter::ProgramId(spl_token::id())
+                    };
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::tokens::get_token_accounts_by_delegate(&state.rpc_client, &delegate, filter).await?;
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getTokenLargestAccounts" => {
+                    log::info!("Getting token largest accounts");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let mint_str = params.get("mint")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?;
+                    let mint = Pubkey::try_from(mint_str)?;
+                    
+                    let state = state.read().await;
+                    let result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                        let commitment = match commitment_str {
+                            "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                            "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                            "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                            _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                        };
+                        crate::rpc::tokens::get_token_largest_accounts_with_commitment(&state.rpc_client, &mint, commitment).await?
+                    } else {
+                        crate::rpc::tokens::get_token_largest_accounts(&state.rpc_client, &mint).await?
+                    };
+                    Ok(create_success_response(result, req.id))
+                },
+
+                // Additional Block and Slot Methods
+                "getBlocksWithLimit" => {
+                    log::info!("Getting blocks with limit");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let start_slot = params.get("startSlot")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
+                    let limit = params.get("limit")
+                        .and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))? as usize;
+                    
+                    let state = state.read().await;
+                    let result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                        let commitment = match commitment_str {
+                            "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                            "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                            "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                            _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                        };
+                        crate::rpc::blocks::get_blocks_with_limit_and_commitment(&state.rpc_client, start_slot, limit, commitment).await?
+                    } else {
+                        crate::rpc::blocks::get_blocks_with_limit(&state.rpc_client, start_slot, limit).await?
+                    };
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getStakeMinimumDelegation" => {
+                    log::info!("Getting stake minimum delegation");
+                    let params = req.params.unwrap_or_else(|| serde_json::json!({}));
+                    let state = state.read().await;
+                    let result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                        let commitment = match commitment_str {
+                            "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                            "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                            "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                            _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                        };
+                        crate::rpc::system::get_stake_minimum_delegation_with_commitment(&state.rpc_client, commitment).await?
+                    } else {
+                        crate::rpc::system::get_stake_minimum_delegation(&state.rpc_client).await?
+                    };
+                    Ok(create_success_response(result, req.id))
+                },
+
+                "getTransactionWithConfig" => {
+                    log::info!("Getting transaction with config");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let signature_str = params.get("signature")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing signature parameter"))?;
+                    let signature = signature_str.parse()?;
+                    
+                    let encoding = params.get("encoding").and_then(|v| v.as_str()).map(|e| match e {
+                        "json" => solana_transaction_status::UiTransactionEncoding::Json,
+                        "jsonParsed" => solana_transaction_status::UiTransactionEncoding::JsonParsed,
+                        "base58" => solana_transaction_status::UiTransactionEncoding::Base58,
+                        "base64" => solana_transaction_status::UiTransactionEncoding::Base64,
+                        _ => solana_transaction_status::UiTransactionEncoding::Json,
+                    }).unwrap_or(solana_transaction_status::UiTransactionEncoding::Json);
+                    
+                    let commitment = params.get("commitment").and_then(|v| v.as_str()).map(|c| match c {
+                        "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                        "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                        "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                        _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                    });
+                    
+                    let max_supported_transaction_version = params.get("maxSupportedTransactionVersion").and_then(|v| v.as_u64()).map(|v| v as u8);
+                    
+                    let state = state.read().await;
+                    let result = crate::rpc::transactions::get_transaction_with_config(&state.rpc_client, &signature, encoding, commitment, max_supported_transaction_version).await?;
                     Ok(create_success_response(result, req.id))
                 },
                 
