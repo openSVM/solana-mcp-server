@@ -222,15 +222,41 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
 
 Once configured, you can interact with the Solana blockchain through natural language in Cline. Here are some example queries:
 
+### Basic Queries
 - "What's the SOL balance of address Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr?"
 - "Show me the current slot number"
 - "Get information about the latest block"
 - "What's the current inflation rate?"
 - "Show me the token accounts owned by address ..."
 
+### Multi-Network Queries
+- "List all available SVM networks"
+- "Enable Eclipse mainnet for queries"
+- "Check SOL balance on all enabled networks"
+- "Compare transaction counts across networks"
+
+### Advanced Operations
+- "Show me the largest USDC token accounts"
+- "Get the leader schedule for the current epoch"
+- "Find all accounts owned by the SPL Token program"
+- "Check the block production stats for a validator"
+
+## Documentation
+
+For comprehensive documentation including architecture, deployment guides, and complete API reference, see:
+
+📚 **[Complete Documentation](./docs/README.md)**
+
+- [🏗️ Architecture Overview](./docs/ARCHITECTURE.md) - Server internals and design
+- [🚀 Deployment Guide](./docs/DEPLOYMENT.md) - Local, serverless, and endpoint deployment
+- [📖 API Reference](./docs/API_REFERENCE.md) - Complete method documentation
+- [⚙️ Configuration Guide](./docs/CONFIGURATION.md) - Configuration options and management
+
 ## Environment Variables
 
 - `SOLANA_RPC_URL`: (Optional) The Solana RPC endpoint to use. Defaults to "https://api.mainnet-beta.solana.com" if not specified.
+- `SOLANA_COMMITMENT`: (Optional) Commitment level (processed|confirmed|finalized). Defaults to "confirmed".
+- `SOLANA_PROTOCOL_VERSION`: (Optional) MCP protocol version. Defaults to latest.
 
 ## Development
 
