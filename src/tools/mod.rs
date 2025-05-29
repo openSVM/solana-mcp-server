@@ -2056,16 +2056,48 @@ pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> R
                     log::info!("Getting current slot");
                     let params = req.params.unwrap_or_else(|| serde_json::json!({}));
                     let state = state.read().await;
-                    let result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
-                        let commitment = match commitment_str {
-                            "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
-                            "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
-                            "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
-                            _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
-                        };
-                        crate::rpc::blocks::get_slot_with_commitment(&state.rpc_client, commitment).await?
+                    let result = if is_multi_network_mode(&state) {
+                        // Multi-network mode
+                        let mut network_results = serde_json::Map::new();
+                        for network_id in state.get_enabled_networks() {
+                            if let Some(client) = state.svm_clients.get(network_id) {
+                                let slot_result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                                    let commitment = match commitment_str {
+                                        "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                                        "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                                        "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                                        _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                                    };
+                                    crate::rpc::blocks::get_slot_with_commitment(client, commitment).await
+                                } else {
+                                    crate::rpc::blocks::get_slot(client).await
+                                };
+                                match slot_result {
+                                    Ok(result) => {
+                                        network_results.insert(network_id.to_string(), result);
+                                    }
+                                    Err(e) => {
+                                        network_results.insert(network_id.to_string(), serde_json::json!({
+                                            "error": e.to_string()
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        serde_json::Value::Object(network_results)
                     } else {
-                        crate::rpc::blocks::get_slot(&state.rpc_client).await?
+                        // Single network mode
+                        if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                            let commitment = match commitment_str {
+                                "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                                "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                                "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                                _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                            };
+                            crate::rpc::blocks::get_slot_with_commitment(&state.rpc_client, commitment).await?
+                        } else {
+                            crate::rpc::blocks::get_slot(&state.rpc_client).await?
+                        }
                     };
                     Ok(create_success_response(result, req.id))
                 },
@@ -2515,16 +2547,48 @@ pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> R
                     log::info!("Getting transaction count");
                     let params = req.params.unwrap_or_else(|| serde_json::json!({}));
                     let state = state.read().await;
-                    let result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
-                        let commitment = match commitment_str {
-                            "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
-                            "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
-                            "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
-                            _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
-                        };
-                        crate::rpc::system::get_transaction_count_with_commitment(&state.rpc_client, commitment).await?
+                    let result = if is_multi_network_mode(&state) {
+                        // Multi-network mode
+                        let mut network_results = serde_json::Map::new();
+                        for network_id in state.get_enabled_networks() {
+                            if let Some(client) = state.svm_clients.get(network_id) {
+                                let count_result = if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                                    let commitment = match commitment_str {
+                                        "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                                        "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                                        "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                                        _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                                    };
+                                    crate::rpc::system::get_transaction_count_with_commitment(client, commitment).await
+                                } else {
+                                    crate::rpc::system::get_transaction_count(client).await
+                                };
+                                match count_result {
+                                    Ok(result) => {
+                                        network_results.insert(network_id.to_string(), result);
+                                    }
+                                    Err(e) => {
+                                        network_results.insert(network_id.to_string(), serde_json::json!({
+                                            "error": e.to_string()
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        serde_json::Value::Object(network_results)
                     } else {
-                        crate::rpc::system::get_transaction_count(&state.rpc_client).await?
+                        // Single network mode
+                        if let Some(commitment_str) = params.get("commitment").and_then(|v| v.as_str()) {
+                            let commitment = match commitment_str {
+                                "processed" => solana_sdk::commitment_config::CommitmentConfig::processed(),
+                                "confirmed" => solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+                                "finalized" => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                                _ => solana_sdk::commitment_config::CommitmentConfig::finalized(),
+                            };
+                            crate::rpc::system::get_transaction_count_with_commitment(&state.rpc_client, commitment).await?
+                        } else {
+                            crate::rpc::system::get_transaction_count(&state.rpc_client).await?
+                        }
                     };
                     Ok(create_success_response(result, req.id))
                 },
