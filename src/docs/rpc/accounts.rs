@@ -221,5 +221,185 @@ pub fn get_account_method_docs() -> HashMap<String, RpcMethodDoc> {
         ],
     });
 
+    // getLargestAccounts
+    docs.insert("getLargestAccounts".to_string(), RpcMethodDoc {
+        description: "Returns the 20 largest accounts by lamport balance".to_string(),
+        request_params: vec![
+            ParamDoc {
+                name: "filter".to_string(),
+                type_info: "string".to_string(),
+                description: "Filter results by account type (circulating|nonCirculating)".to_string(),
+                required: false,
+            },
+            ParamDoc {
+                name: "commitment".to_string(),
+                type_info: "string".to_string(),
+                description: "Commitment level to use".to_string(),
+                required: false,
+            },
+        ],
+        response_fields: vec![
+            ParamDoc {
+                name: "context".to_string(),
+                type_info: "object".to_string(),
+                description: "Response context including slot".to_string(),
+                required: true,
+            },
+            ParamDoc {
+                name: "value".to_string(),
+                type_info: "array".to_string(),
+                description: "Array of account information objects".to_string(),
+                required: true,
+            },
+        ],
+        examples: vec![
+            Example {
+                description: "Get largest accounts".to_string(),
+                request: r#"{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getLargestAccounts"
+}"#.to_string(),
+                response: r#"{
+  "jsonrpc": "2.0",
+  "result": {
+    "context": {
+      "slot": 1
+    },
+    "value": [
+      {
+        "lamports": 999999999,
+        "address": "99P8ZgtJYe1buSK8JXkvpLh8xPsCFuLYhz9hQFNw93WJ"
+      },
+      {
+        "lamports": 42,
+        "address": "uPwWLo16MVehpyWqsLkK3Ka8nLowWvAHbBChqv2FZeL"
+      }
+    ]
+  },
+  "id": 1
+}"#.to_string(),
+            },
+        ],
+    });
+
+    // getMultipleAccounts
+    docs.insert("getMultipleAccounts".to_string(), RpcMethodDoc {
+        description: "Returns the account information for a list of Pubkeys".to_string(),
+        request_params: vec![
+            ParamDoc {
+                name: "pubkeys".to_string(),
+                type_info: "array".to_string(),
+                description: "List of Pubkeys to query, as base-58 encoded strings".to_string(),
+                required: true,
+            },
+            ParamDoc {
+                name: "config".to_string(),
+                type_info: "object".to_string(),
+                description: "Configuration object containing commitment and encoding options".to_string(),
+                required: false,
+            },
+        ],
+        response_fields: vec![
+            ParamDoc {
+                name: "context".to_string(),
+                type_info: "object".to_string(),
+                description: "Response context including slot".to_string(),
+                required: true,
+            },
+            ParamDoc {
+                name: "value".to_string(),
+                type_info: "array".to_string(),
+                description: "Array of account information objects or nulls for accounts not found".to_string(),
+                required: true,
+            },
+        ],
+        examples: vec![
+            Example {
+                description: "Get multiple accounts".to_string(),
+                request: r#"{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getMultipleAccounts",
+  "params": [
+    [
+      "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg",
+      "4fYNw3dojWmQ4dXtSGE9epjRGy9pFSx62YypT7avPYvA"
+    ],
+    {"encoding": "base58"}
+  ]
+}"#.to_string(),
+                response: r#"{
+  "jsonrpc": "2.0",
+  "result": {
+    "context": {
+      "slot": 1
+    },
+    "value": [
+      {
+        "data": ["", "base58"],
+        "executable": false,
+        "lamports": 1000000000,
+        "owner": "11111111111111111111111111111111",
+        "rentEpoch": 2
+      },
+      {
+        "data": ["", "base58"],
+        "executable": false,
+        "lamports": 5000000,
+        "owner": "11111111111111111111111111111111",
+        "rentEpoch": 2
+      }
+    ]
+  },
+  "id": 1
+}"#.to_string(),
+            },
+        ],
+    });
+
+    // getMinimumBalanceForRentExemption
+    docs.insert("getMinimumBalanceForRentExemption".to_string(), RpcMethodDoc {
+        description: "Returns the minimum balance required to make an account rent exempt".to_string(),
+        request_params: vec![
+            ParamDoc {
+                name: "dataSize".to_string(),
+                type_info: "number".to_string(),
+                description: "Size of account data in bytes".to_string(),
+                required: true,
+            },
+            ParamDoc {
+                name: "commitment".to_string(),
+                type_info: "string".to_string(),
+                description: "Commitment level to use".to_string(),
+                required: false,
+            },
+        ],
+        response_fields: vec![
+            ParamDoc {
+                name: "lamports".to_string(),
+                type_info: "number".to_string(),
+                description: "Minimum lamports required for rent exemption".to_string(),
+                required: true,
+            },
+        ],
+        examples: vec![
+            Example {
+                description: "Get minimum balance for rent exemption".to_string(),
+                request: r#"{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getMinimumBalanceForRentExemption",
+  "params": [50]
+}"#.to_string(),
+                response: r#"{
+  "jsonrpc": "2.0",
+  "result": 1238880,
+  "id": 1
+}"#.to_string(),
+            },
+        ],
+    });
+
     docs
 }

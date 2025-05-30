@@ -4,7 +4,8 @@ pub mod rpc;
 pub mod server;
 pub mod tools;
 pub mod transport;
+pub mod validation;
 
-pub use config::Config;
+pub use config::{Config, SvmNetwork};
 pub use server::start_server;
 pub use transport::CustomStdioTransport;

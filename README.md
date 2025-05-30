@@ -29,6 +29,32 @@ A Model Context Protocol (MCP) server that provides comprehensive access to Sola
 TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/solana-mcp-server.git . && cargo build --release && CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude" && mkdir -p "$CONFIG_DIR" && echo "{\"mcpServers\":{\"solana\":{\"command\":\"$PWD/target/release/solana-mcp-server\",\"env\":{\"SOLANA_RPC_URL\":\"https://api.mainnet-beta.solana.com\"}}}}" > "$CONFIG_DIR/config.json" || { rm -rf "$TEMP_DIR"; exit 1; }
 ```
 
+## Quick Deployment
+
+🚀 **One-liner deployment scripts for all platforms:**
+
+```bash
+# Local development
+./scripts/deploy-local.sh
+
+# Docker container
+./scripts/deploy-docker.sh
+
+# Kubernetes
+./scripts/deploy-k8s.sh
+
+# AWS Lambda
+./scripts/deploy-lambda.sh
+
+# Google Cloud Functions  
+./scripts/deploy-gcf.sh
+
+# Vercel Edge Functions
+./scripts/deploy-vercel.sh
+```
+
+See [`scripts/README.md`](scripts/README.md) for detailed usage and requirements for each deployment option.
+
 ## Available RPC Methods
 
 ### Account Methods
@@ -49,8 +75,12 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
   - Returns: Balance in lamports (1 SOL = 1,000,000,000 lamports)
 
 - `getLargestAccounts`: Returns the 20 largest accounts by lamport balance
-  - Input: None
+  - Input: Optional `filter` (string) - Filter by account type (circulating|nonCirculating)
   - Returns: Array of accounts with their balances
+
+- `getMinimumBalanceForRentExemption`: Returns minimum balance for rent exemption
+  - Input: `dataSize` (integer) - Size of account data in bytes
+  - Returns: Minimum lamports required for rent exemption
 
 ### Block Methods
 - `getBlock`: Returns identity and transaction information about a confirmed block
@@ -78,8 +108,24 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
   - Returns: Block commitment information
 
 - `getBlockProduction`: Returns recent block production information
-  - Input: None
+  - Input: Optional `identity` (string) - Validator identity, `range` (object)
   - Returns: Block production stats
+
+- `getSlot`: Returns the current slot the node is processing
+  - Input: Optional `commitment` (string) - Commitment level
+  - Returns: Current slot
+
+- `getSlotLeaders`: Returns slot leaders for a given slot range
+  - Input: `startSlot` (integer), `limit` (integer)
+  - Returns: Array of validator identity pubkeys
+
+- `getFirstAvailableBlock`: Returns the lowest confirmed block still available
+  - Input: None
+  - Returns: First available block slot
+
+- `getGenesisHash`: Returns the genesis hash of the ledger
+  - Input: None
+  - Returns: Genesis hash as string
 
 ### System Methods
 - `getHealth`: Returns current health status of the node
@@ -98,8 +144,12 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
   - Input: None
   - Returns: Array of node information
 
+- `getLeaderSchedule`: Returns the leader schedule for an epoch
+  - Input: Optional `slot` (integer), `identity` (string)
+  - Returns: Leader schedule by validator identity
+
 - `getVoteAccounts`: Returns account info and stake for all voting accounts
-  - Input: None
+  - Input: Optional `votePubkey` (string), configuration parameters
   - Returns: Current and delinquent vote accounts
 
 ### Epoch and Inflation Methods
@@ -198,15 +248,41 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
 
 Once configured, you can interact with the Solana blockchain through natural language in Cline. Here are some example queries:
 
+### Basic Queries
 - "What's the SOL balance of address Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr?"
 - "Show me the current slot number"
 - "Get information about the latest block"
 - "What's the current inflation rate?"
 - "Show me the token accounts owned by address ..."
 
+### Multi-Network Queries
+- "List all available SVM networks"
+- "Enable Eclipse mainnet for queries"
+- "Check SOL balance on all enabled networks"
+- "Compare transaction counts across networks"
+
+### Advanced Operations
+- "Show me the largest USDC token accounts"
+- "Get the leader schedule for the current epoch"
+- "Find all accounts owned by the SPL Token program"
+- "Check the block production stats for a validator"
+
+## Documentation
+
+For comprehensive documentation including architecture, deployment guides, and complete API reference, see:
+
+📚 **[Complete Documentation](./docs/README.md)**
+
+- [🏗️ Architecture Overview](./docs/ARCHITECTURE.md) - Server internals and design
+- [🚀 Deployment Guide](./docs/DEPLOYMENT.md) - Local, serverless, and endpoint deployment
+- [📖 API Reference](./docs/API_REFERENCE.md) - Complete method documentation
+- [⚙️ Configuration Guide](./docs/CONFIGURATION.md) - Configuration options and management
+
 ## Environment Variables
 
 - `SOLANA_RPC_URL`: (Optional) The Solana RPC endpoint to use. Defaults to "https://api.mainnet-beta.solana.com" if not specified.
+- `SOLANA_COMMITMENT`: (Optional) Commitment level (processed|confirmed|finalized). Defaults to "confirmed".
+- `SOLANA_PROTOCOL_VERSION`: (Optional) MCP protocol version. Defaults to latest.
 
 ## Development
 
