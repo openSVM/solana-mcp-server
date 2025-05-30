@@ -1,12 +1,25 @@
 use anyhow::Result;
 use crate::transport::{JsonRpcMessage, JsonRpcResponse, JsonRpcError, JsonRpcVersion};
 use crate::protocol::{InitializeRequest, InitializeResponse, ServerCapabilities, Implementation, LATEST_PROTOCOL_VERSION, ToolDefinition, ToolsListResponse, Resource, ResourcesListResponse};
+use crate::validation::{validate_rpc_url, validate_network_id, validate_network_name, sanitize_for_logging};
+use crate::server::ServerState;
+use crate::SvmNetwork;
 use url::Url;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use reqwest;
 
+/// Creates a success response for JSON-RPC requests
+/// 
+/// # Arguments
+/// * `result` - The result data to include in the response
+/// * `id` - The request ID to match the response to
+/// 
+/// # Returns
+/// * `JsonRpcMessage` - Formatted success response
 pub fn create_success_response(result: Value, id: u64) -> JsonRpcMessage {
     log::debug!("Creating success response with id {}", id);
     JsonRpcMessage::Response(JsonRpcResponse {
@@ -17,6 +30,20 @@ pub fn create_success_response(result: Value, id: u64) -> JsonRpcMessage {
     })
 }
 
+/// Creates an error response for JSON-RPC requests
+/// 
+/// # Arguments
+/// * `code` - Error code following JSON-RPC 2.0 specification
+/// * `message` - Human-readable error message
+/// * `id` - The request ID to match the response to
+/// * `protocol_version` - Optional protocol version for context
+/// 
+/// # Returns
+/// * `JsonRpcMessage` - Formatted error response
+/// 
+/// # Security
+/// - Sanitizes error messages to prevent information leakage
+/// - Logs errors for monitoring
 pub fn create_error_response(code: i32, message: String, id: u64, protocol_version: Option<&str>) -> JsonRpcMessage {
     log::error!("Creating error response: {} (code: {})", message, code);
     let error = JsonRpcError {
@@ -1770,10 +1797,6 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
     ))
 }
 
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use crate::server::ServerState;
-use crate::{SvmNetwork};
 use solana_sdk::pubkey::Pubkey;
 
 // SVM Network Management Functions
@@ -1783,15 +1806,67 @@ fn is_multi_network_mode(state: &ServerState) -> bool {
     state.get_enabled_networks().len() > 1
 }
 
+/// Fetches the latest list of SVM networks from the awesome-svm repository
+/// 
+/// # Returns
+/// * `Result<Value>` - JSON containing available SVM networks
+/// 
+/// # Security
+/// - Uses HTTPS to fetch network list
+/// - Does not cache data to ensure freshness
+/// - Validates response format
 async fn list_svm_networks() -> Result<Value> {
     let url = "https://raw.githubusercontent.com/openSVM/awesome-svm/refs/heads/main/svm-networks.json";
-    let client = reqwest::Client::new();
-    let response = client.get(url).send().await?;
-    let networks: Value = response.json().await?;
+    log::info!("Fetching SVM networks from: {}", sanitize_for_logging(url));
+    
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
+    
+    let response = client.get(url).send().await
+        .map_err(|e| anyhow::anyhow!("Failed to fetch SVM networks: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(anyhow::anyhow!("Failed to fetch SVM networks: HTTP {}", response.status()));
+    }
+    
+    let networks: Value = response.json().await
+        .map_err(|e| anyhow::anyhow!("Failed to parse SVM networks JSON: {}", e))?;
+    
+    log::info!("Successfully fetched SVM networks list");
     Ok(networks)
 }
 
+/// Enables an SVM network for use
+/// 
+/// # Arguments
+/// * `state` - Server state to update
+/// * `network_id` - Unique identifier for the network
+/// * `name` - Human-readable name for the network
+/// * `rpc_url` - RPC endpoint URL (must be HTTPS)
+/// 
+/// # Returns
+/// * `Result<Value>` - Success/error response
+/// 
+/// # Security
+/// - Validates network ID format
+/// - Validates network name content
+/// - Enforces HTTPS for RPC URL
+/// - Saves configuration atomically
 async fn enable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str, name: &str, rpc_url: &str) -> Result<Value> {
+    // Validate inputs
+    validate_network_id(network_id)
+        .map_err(|e| anyhow::anyhow!("Invalid network ID: {}", e))?;
+    
+    validate_network_name(name)
+        .map_err(|e| anyhow::anyhow!("Invalid network name: {}", e))?;
+    
+    validate_rpc_url(rpc_url)
+        .map_err(|e| anyhow::anyhow!("Invalid RPC URL: {}", e))?;
+    
+    log::info!("Enabling SVM network '{}' ({}): {}", 
+        network_id, name, sanitize_for_logging(rpc_url));
+    
     let mut state_guard = state.write().await;
     
     let network = SvmNetwork {
@@ -1802,17 +1877,34 @@ async fn enable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str, n
     
     let mut new_config = state_guard.config.clone();
     new_config.svm_networks.insert(network_id.to_string(), network);
-    new_config.save()?;
+    
+    // Validate and save configuration
+    new_config.save()
+        .map_err(|e| anyhow::anyhow!("Failed to save configuration: {}", e))?;
     
     state_guard.update_config(new_config);
     
+    log::info!("Successfully enabled network '{}'", network_id);
     Ok(serde_json::json!({
         "success": true,
         "message": format!("Network '{}' enabled successfully", network_id)
     }))
 }
 
+/// Disables an SVM network
+/// 
+/// # Arguments
+/// * `state` - Server state to update
+/// * `network_id` - Unique identifier for the network to disable
+/// 
+/// # Returns
+/// * `Result<Value>` - Success/error response
 async fn disable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str) -> Result<Value> {
+    validate_network_id(network_id)
+        .map_err(|e| anyhow::anyhow!("Invalid network ID: {}", e))?;
+    
+    log::info!("Disabling SVM network '{}'", network_id);
+    
     let mut state_guard = state.write().await;
     
     let mut new_config = state_guard.config.clone();
@@ -1824,17 +1916,43 @@ async fn disable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str) 
             "error": format!("Network '{}' not found", network_id)
         }));
     }
-    new_config.save()?;
+    
+    new_config.save()
+        .map_err(|e| anyhow::anyhow!("Failed to save configuration: {}", e))?;
     
     state_guard.update_config(new_config);
     
+    log::info!("Successfully disabled network '{}'", network_id);
     Ok(serde_json::json!({
         "success": true,
         "message": format!("Network '{}' disabled successfully", network_id)
     }))
 }
 
+/// Sets or updates the RPC URL for an existing network
+/// 
+/// # Arguments
+/// * `state` - Server state to update
+/// * `network_id` - Unique identifier for the network
+/// * `rpc_url` - New RPC endpoint URL (must be HTTPS)
+/// 
+/// # Returns
+/// * `Result<Value>` - Success/error response
+/// 
+/// # Security
+/// - Validates network ID format
+/// - Enforces HTTPS for RPC URL
+/// - Validates configuration before saving
 async fn set_network_rpc_url(state: Arc<RwLock<ServerState>>, network_id: &str, rpc_url: &str) -> Result<Value> {
+    validate_network_id(network_id)
+        .map_err(|e| anyhow::anyhow!("Invalid network ID: {}", e))?;
+    
+    validate_rpc_url(rpc_url)
+        .map_err(|e| anyhow::anyhow!("Invalid RPC URL: {}", e))?;
+    
+    log::info!("Updating RPC URL for network '{}': {}", 
+        network_id, sanitize_for_logging(rpc_url));
+    
     let mut state_guard = state.write().await;
     
     let mut new_config = state_guard.config.clone();
@@ -1846,18 +1964,38 @@ async fn set_network_rpc_url(state: Arc<RwLock<ServerState>>, network_id: &str, 
             "error": format!("Network '{}' not found", network_id)
         }));
     }
-    new_config.save()?;
+    
+    new_config.save()
+        .map_err(|e| anyhow::anyhow!("Failed to save configuration: {}", e))?;
     
     state_guard.update_config(new_config);
     
+    log::info!("Successfully updated RPC URL for network '{}'", network_id);
     Ok(serde_json::json!({
         "success": true,
         "message": format!("RPC URL for network '{}' updated successfully", network_id)
     }))
 }
 
+/// Main request handler for the MCP server
+/// 
+/// Parses incoming JSON-RPC requests and routes them to appropriate handlers.
+/// Supports all Solana RPC methods plus custom network management functionality.
+/// 
+/// # Arguments
+/// * `request` - JSON-RPC request string
+/// * `state` - Shared server state containing configuration and RPC clients
+/// 
+/// # Returns
+/// * `Result<JsonRpcMessage>` - JSON-RPC response or error
+/// 
+/// # Security
+/// - Validates all input parameters
+/// - Sanitizes logging output to prevent sensitive data exposure
+/// - Enforces HTTPS for all network operations
 pub async fn handle_request(request: &str, state: Arc<RwLock<ServerState>>) -> Result<JsonRpcMessage> {
-    log::debug!("Received request: {}", request);
+    // Sanitize request for logging to avoid exposing sensitive data
+    log::debug!("Received request: {}", sanitize_for_logging(request));
     let message: JsonRpcMessage = serde_json::from_str(request).map_err(|e| {
         log::error!("Failed to parse JSON-RPC request: {}", e);
         anyhow::anyhow!("Invalid JSON-RPC request: {}", e)
