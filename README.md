@@ -29,6 +29,32 @@ A Model Context Protocol (MCP) server that provides comprehensive access to Sola
 TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/solana-mcp-server.git . && cargo build --release && CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude" && mkdir -p "$CONFIG_DIR" && echo "{\"mcpServers\":{\"solana\":{\"command\":\"$PWD/target/release/solana-mcp-server\",\"env\":{\"SOLANA_RPC_URL\":\"https://api.mainnet-beta.solana.com\"}}}}" > "$CONFIG_DIR/config.json" || { rm -rf "$TEMP_DIR"; exit 1; }
 ```
 
+## Quick Deployment
+
+🚀 **One-liner deployment scripts for all platforms:**
+
+```bash
+# Local development
+./scripts/deploy-local.sh
+
+# Docker container
+./scripts/deploy-docker.sh
+
+# Kubernetes
+./scripts/deploy-k8s.sh
+
+# AWS Lambda
+./scripts/deploy-lambda.sh
+
+# Google Cloud Functions  
+./scripts/deploy-gcf.sh
+
+# Vercel Edge Functions
+./scripts/deploy-vercel.sh
+```
+
+See [`scripts/README.md`](scripts/README.md) for detailed usage and requirements for each deployment option.
+
 ## Available RPC Methods
 
 ### Account Methods
