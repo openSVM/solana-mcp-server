@@ -8,8 +8,7 @@ use tracing_subscriber::{
 use uuid::Uuid;
 use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::HashMap;
-use std::sync::Mutex;
+use dashmap::DashMap;
 
 /// Metrics collection for monitoring RPC call outcomes
 #[derive(Debug, Default)]
@@ -19,9 +18,9 @@ pub struct Metrics {
     /// Number of successful RPC calls
     pub successful_calls: AtomicU64,
     /// Number of failed RPC calls by error type
-    pub failed_calls_by_type: Mutex<HashMap<String, u64>>,
+    pub failed_calls_by_type: DashMap<String, u64>,
     /// Number of failed RPC calls by method
-    pub failed_calls_by_method: Mutex<HashMap<String, u64>>,
+    pub failed_calls_by_method: DashMap<String, u64>,
 }
 
 impl Metrics {
@@ -37,21 +36,27 @@ impl Metrics {
 
     /// Increment failed calls counter by error type
     pub fn increment_failed_calls(&self, error_type: &str, method: Option<&str>) {
-        // Increment by error type
-        let mut failed_by_type = self.failed_calls_by_type.lock().unwrap();
-        *failed_by_type.entry(error_type.to_string()).or_insert(0) += 1;
+        // Increment by error type using dashmap for concurrent access
+        *self.failed_calls_by_type.entry(error_type.to_string()).or_insert(0) += 1;
         
         // Increment by method if available
         if let Some(method) = method {
-            let mut failed_by_method = self.failed_calls_by_method.lock().unwrap();
-            *failed_by_method.entry(method.to_string()).or_insert(0) += 1;
+            *self.failed_calls_by_method.entry(method.to_string()).or_insert(0) += 1;
         }
     }
 
     /// Get current metrics as JSON value
     pub fn to_json(&self) -> Value {
-        let failed_by_type = self.failed_calls_by_type.lock().unwrap().clone();
-        let failed_by_method = self.failed_calls_by_method.lock().unwrap().clone();
+        // Convert DashMap to HashMap for JSON serialization
+        let failed_by_type: std::collections::HashMap<String, u64> = self.failed_calls_by_type
+            .iter()
+            .map(|entry| (entry.key().clone(), *entry.value()))
+            .collect();
+            
+        let failed_by_method: std::collections::HashMap<String, u64> = self.failed_calls_by_method
+            .iter()
+            .map(|entry| (entry.key().clone(), *entry.value()))
+            .collect();
         
         serde_json::json!({
             "total_calls": self.total_calls.load(Ordering::Relaxed),
@@ -65,8 +70,8 @@ impl Metrics {
     pub fn reset(&self) {
         self.total_calls.store(0, Ordering::Relaxed);
         self.successful_calls.store(0, Ordering::Relaxed);
-        self.failed_calls_by_type.lock().unwrap().clear();
-        self.failed_calls_by_method.lock().unwrap().clear();
+        self.failed_calls_by_type.clear();
+        self.failed_calls_by_method.clear();
     }
 }
 
@@ -378,11 +383,9 @@ mod tests {
         assert_eq!(metrics.total_calls.load(Ordering::Relaxed), 1);
         assert_eq!(metrics.successful_calls.load(Ordering::Relaxed), 1);
         
-        let failed_by_type = metrics.failed_calls_by_type.lock().unwrap();
-        assert_eq!(failed_by_type.get("validation"), Some(&1));
-        
-        let failed_by_method = metrics.failed_calls_by_method.lock().unwrap();
-        assert_eq!(failed_by_method.get("getBalance"), Some(&1));
+        // Test dashmap access
+        assert_eq!(metrics.failed_calls_by_type.get("validation").map(|v| *v), Some(1));
+        assert_eq!(metrics.failed_calls_by_method.get("getBalance").map(|v| *v), Some(1));
     }
 
     #[test]

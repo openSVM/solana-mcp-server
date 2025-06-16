@@ -7,7 +7,7 @@ use uuid::Uuid;
 /// This module defines a hierarchy of error types that provide
 /// rich context for debugging and monitoring while maintaining
 /// security by avoiding sensitive data exposure.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum McpError {
     /// Client-side errors (invalid input, malformed requests)
     #[error("Client error: {message}")]
@@ -23,7 +23,7 @@ pub enum McpError {
         message: String,
         request_id: Option<Uuid>,
         method: Option<String>,
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        source_message: Option<String>, // Store source error as string for Clone/PartialEq
     },
 
     /// RPC-specific errors (Solana client failures)
@@ -33,7 +33,7 @@ pub enum McpError {
         request_id: Option<Uuid>,
         method: Option<String>,
         rpc_url: Option<String>,
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        source_message: Option<String>, // Store source error as string for Clone/PartialEq
     },
 
     /// Validation errors (invalid parameters, security checks)
@@ -79,7 +79,7 @@ impl McpError {
             message: message.into(),
             request_id: None,
             method: None,
-            source: None,
+            source_message: None,
         }
     }
 
@@ -90,7 +90,7 @@ impl McpError {
             request_id: None,
             method: None,
             rpc_url: None,
-            source: None,
+            source_message: None,
         }
     }
 
@@ -176,9 +176,10 @@ impl McpError {
 
     /// Adds source error context
     pub fn with_source(mut self, source: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        let source_message = source.to_string();
         match &mut self {
-            McpError::Server { source: ref mut s, .. } => *s = Some(source),
-            McpError::Rpc { source: ref mut s, .. } => *s = Some(source),
+            McpError::Server { source_message: ref mut s, .. } => *s = Some(source_message),
+            McpError::Rpc { source_message: ref mut s, .. } => *s = Some(source_message),
             _ => {}, // Other error types don't have source fields
         }
         self
@@ -253,17 +254,25 @@ impl McpError {
                     log_data.insert("parameter".to_string(), Value::String(param.clone()));
                 }
             },
-            McpError::Rpc { rpc_url, .. } => {
+            McpError::Rpc { rpc_url, source_message, .. } => {
                 if let Some(url) = rpc_url {
                     // Sanitize URL for logging
                     let sanitized = crate::validation::sanitize_for_logging(url);
                     log_data.insert("rpc_url".to_string(), Value::String(sanitized));
+                }
+                if let Some(source_msg) = source_message {
+                    log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
                 }
             },
             McpError::Network { endpoint, .. } => {
                 if let Some(ep) = endpoint {
                     let sanitized = crate::validation::sanitize_for_logging(ep);
                     log_data.insert("endpoint".to_string(), Value::String(sanitized));
+                }
+            },
+            McpError::Server { source_message, .. } => {
+                if let Some(source_msg) = source_message {
+                    log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
                 }
             },
             _ => {}
@@ -351,5 +360,27 @@ mod tests {
         assert!(log_value.get("request_id").is_some());
         assert!(log_value.get("method").is_some());
         assert!(log_value.get("rpc_url").is_some());
+    }
+
+    #[test]
+    fn test_derived_traits() {
+        let request_id = Uuid::new_v4();
+        let error1 = McpError::validation("Invalid pubkey format")
+            .with_request_id(request_id)
+            .with_method("getBalance")
+            .with_parameter("pubkey");
+
+        // Test Clone
+        let error2 = error1.clone();
+        assert_eq!(error1.request_id(), error2.request_id());
+        assert_eq!(error1.method(), error2.method());
+        assert_eq!(error1.error_type(), error2.error_type());
+
+        // Test PartialEq
+        assert_eq!(error1, error2);
+
+        // Test that different errors are not equal
+        let error3 = McpError::client("Different error");
+        assert_ne!(error1, error3);
     }
 }
