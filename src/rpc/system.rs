@@ -1,14 +1,7 @@
 use anyhow::Result;
 use serde_json::Value;
-use solana_client::{
-    nonblocking::rpc_client::RpcClient,
-    rpc_config::RpcRequestAirdropConfig,
-};
-use solana_sdk::{
-    commitment_config::CommitmentConfig,
-    pubkey::Pubkey,
-    message::Message,
-};
+use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcRequestAirdropConfig};
+use solana_sdk::{commitment_config::CommitmentConfig, message::Message, pubkey::Pubkey};
 
 pub async fn get_health(client: &RpcClient) -> Result<Value> {
     let health = client.get_health().await?;
@@ -63,7 +56,9 @@ pub async fn get_minimum_balance_for_rent_exemption(
     client: &RpcClient,
     data_len: usize,
 ) -> Result<Value> {
-    let lamports = client.get_minimum_balance_for_rent_exemption(data_len).await?;
+    let lamports = client
+        .get_minimum_balance_for_rent_exemption(data_len)
+        .await?;
     Ok(serde_json::json!({ "lamports": lamports }))
 }
 
@@ -80,11 +75,7 @@ pub async fn get_supply_with_commitment(
     Ok(serde_json::json!({ "supply": supply }))
 }
 
-pub async fn request_airdrop(
-    client: &RpcClient,
-    pubkey: &Pubkey,
-    lamports: u64,
-) -> Result<Value> {
+pub async fn request_airdrop(client: &RpcClient, pubkey: &Pubkey, lamports: u64) -> Result<Value> {
     let signature = client.request_airdrop(pubkey, lamports).await?;
     Ok(serde_json::json!({ "signature": signature }))
 }
@@ -100,7 +91,9 @@ pub async fn request_airdrop_with_config(
         commitment,
         recent_blockhash,
     };
-    let signature = client.request_airdrop_with_config(pubkey, lamports, config).await?;
+    let signature = client
+        .request_airdrop_with_config(pubkey, lamports, config)
+        .await?;
     Ok(serde_json::json!({ "signature": signature }))
 }
 
@@ -113,7 +106,9 @@ pub async fn get_stake_minimum_delegation_with_commitment(
     client: &RpcClient,
     commitment: CommitmentConfig,
 ) -> Result<Value> {
-    let minimum = client.get_stake_minimum_delegation_with_commitment(commitment).await?;
+    let minimum = client
+        .get_stake_minimum_delegation_with_commitment(commitment)
+        .await?;
     Ok(serde_json::json!({ "minimum": minimum }))
 }
 
@@ -126,7 +121,9 @@ pub async fn get_transaction_count_with_commitment(
     client: &RpcClient,
     commitment: CommitmentConfig,
 ) -> Result<Value> {
-    let count = client.get_transaction_count_with_commitment(commitment).await?;
+    let count = client
+        .get_transaction_count_with_commitment(commitment)
+        .await?;
     Ok(serde_json::json!({ "count": count }))
 }
 
@@ -141,16 +138,16 @@ pub async fn get_latest_blockhash_with_commitment(
     client: &RpcClient,
     commitment: CommitmentConfig,
 ) -> Result<Value> {
-    let blockhash = client.get_latest_blockhash_with_commitment(commitment).await?.0;
+    let blockhash = client
+        .get_latest_blockhash_with_commitment(commitment)
+        .await?
+        .0;
     Ok(serde_json::json!({
         "blockhash": blockhash.to_string()
     }))
 }
 
-pub async fn get_fee_for_message(
-    client: &RpcClient,
-    message: &Message,
-) -> Result<Value> {
+pub async fn get_fee_for_message(client: &RpcClient, message: &Message) -> Result<Value> {
     let fee = client.get_fee_for_message(message).await?;
     Ok(serde_json::json!({ "fee": fee }))
 }

@@ -14,7 +14,7 @@ async fn test_solana_operations() {
     let timeout = std::time::Duration::from_secs(60);
     let commitment = CommitmentConfig::finalized();
     let client = RpcClient::new_with_timeout_and_commitment(rpc_url.clone(), timeout, commitment);
-    
+
     println!("\nTesting health check:");
     match client.get_health().await {
         Ok(health) => println!("Health status: {:?}", health),
@@ -38,7 +38,9 @@ async fn test_solana_operations() {
 
     // Get info about the System Program
     println!("\nTesting account info for System Program:");
-    let system_program_id = "11111111111111111111111111111111".parse::<Pubkey>().unwrap();
+    let system_program_id = "11111111111111111111111111111111"
+        .parse::<Pubkey>()
+        .unwrap();
     let account = client.get_account(&system_program_id).await.unwrap();
     println!("System Program Account:");
     println!("  Owner: {}", account.owner);
@@ -47,7 +49,10 @@ async fn test_solana_operations() {
 
     // Get recent confirmed signatures first
     println!("\nTesting recent transactions:");
-    let signatures = client.get_signatures_for_address(&system_program_id).await.unwrap();
+    let signatures = client
+        .get_signatures_for_address(&system_program_id)
+        .await
+        .unwrap();
     println!("Recent transactions for System Program:");
     for sig in signatures.iter().take(3) {
         println!("  Signature: {}", sig.signature);
@@ -62,7 +67,7 @@ async fn test_solana_operations() {
     let keypair = Keypair::new();
     let pubkey = keypair.pubkey();
     println!("Generated keypair with pubkey: {}", pubkey);
-    
+
     // Get account info (should be empty/not found)
     match client.get_account(&pubkey).await {
         Ok(account) => println!("Account exists with {} lamports", account.lamports),
@@ -71,14 +76,17 @@ async fn test_solana_operations() {
 
     // Get minimum rent
     println!("\nTesting rent calculation:");
-    let rent = client.get_minimum_balance_for_rent_exemption(0).await.unwrap();
+    let rent = client
+        .get_minimum_balance_for_rent_exemption(0)
+        .await
+        .unwrap();
     println!("Minimum balance for rent exemption: {} lamports", rent);
 
     // Get recent block
     println!("\nTesting block info:");
     let slot = client.get_slot().await.unwrap();
     println!("Current slot: {}", slot);
-    
+
     // Get block production
     println!("\nTesting block production:");
     let production = client.get_block_production().await.unwrap();

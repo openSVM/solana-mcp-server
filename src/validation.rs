@@ -1,54 +1,56 @@
 /// Validation module for input sanitization and security checks
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use url::Url;
 
 /// Validates that a URL is well-formed and uses HTTPS protocol
-/// 
+///
 /// # Arguments
 /// * `url_str` - The URL string to validate
-/// 
+///
 /// # Returns
 /// * `Result<()>` - Ok if valid, Err with description if invalid
-/// 
+///
 /// # Security
 /// - Enforces HTTPS protocol to prevent MITM attacks
 /// - Validates URL structure to prevent injection
 /// - Ensures no malformed URLs are accepted
 pub fn validate_rpc_url(url_str: &str) -> Result<()> {
     // Parse the URL to ensure it's well-formed
-    let url = Url::parse(url_str)
-        .map_err(|e| anyhow!("Invalid URL format: {}", e))?;
-    
+    let url = Url::parse(url_str).map_err(|e| anyhow!("Invalid URL format: {}", e))?;
+
     // Enforce HTTPS for security
     if url.scheme() != "https" {
-        return Err(anyhow!("RPC URL must use HTTPS protocol for security. Got: {}", url.scheme()));
+        return Err(anyhow!(
+            "RPC URL must use HTTPS protocol for security. Got: {}",
+            url.scheme()
+        ));
     }
-    
+
     // Ensure host is present
     if url.host().is_none() {
         return Err(anyhow!("RPC URL must have a valid host"));
     }
-    
+
     // Additional security checks
     let host = url.host_str().unwrap();
-    
+
     // Prevent localhost/internal addresses in production
     if is_internal_address(host) {
         log::warn!("Using internal/localhost address: {}", host);
     }
-    
+
     // Basic format validation
     if url_str.len() > 2048 {
         return Err(anyhow!("URL too long (max 2048 characters)"));
     }
-    
+
     Ok(())
 }
 
 /// Checks if an address is internal/localhost
 fn is_internal_address(host: &str) -> bool {
-    host == "localhost" 
-        || host == "127.0.0.1" 
+    host == "localhost"
+        || host == "127.0.0.1"
         || host == "::1"
         || host.starts_with("192.168.")
         || host.starts_with("10.")
@@ -66,72 +68,79 @@ fn is_private_class_b(host: &str) -> bool {
 }
 
 /// Validates network ID format and content
-/// 
+///
 /// # Arguments
 /// * `network_id` - The network identifier to validate
-/// 
+///
 /// # Returns
 /// * `Result<()>` - Ok if valid, Err with description if invalid
 pub fn validate_network_id(network_id: &str) -> Result<()> {
     if network_id.is_empty() {
         return Err(anyhow!("Network ID cannot be empty"));
     }
-    
+
     if network_id.len() > 64 {
         return Err(anyhow!("Network ID too long (max 64 characters)"));
     }
-    
+
     // Allow alphanumeric, hyphens, and underscores
-    if !network_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-        return Err(anyhow!("Network ID can only contain alphanumeric characters, hyphens, and underscores"));
+    if !network_id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(anyhow!(
+            "Network ID can only contain alphanumeric characters, hyphens, and underscores"
+        ));
     }
-    
+
     Ok(())
 }
 
 /// Validates network name format and content
-/// 
+///
 /// # Arguments  
 /// * `name` - The network name to validate
-/// 
+///
 /// # Returns
 /// * `Result<()>` - Ok if valid, Err with description if invalid
 pub fn validate_network_name(name: &str) -> Result<()> {
     if name.is_empty() {
         return Err(anyhow!("Network name cannot be empty"));
     }
-    
+
     if name.len() > 128 {
         return Err(anyhow!("Network name too long (max 128 characters)"));
     }
-    
+
     // More permissive for display names but still safe
     if name.chars().any(|c| c.is_control()) {
         return Err(anyhow!("Network name cannot contain control characters"));
     }
-    
+
     Ok(())
 }
 
 /// Validates commitment level
-/// 
+///
 /// # Arguments
 /// * `commitment` - The commitment level to validate
-/// 
+///
 /// # Returns
 /// * `Result<()>` - Ok if valid, Err with description if invalid
 pub fn validate_commitment(commitment: &str) -> Result<()> {
     match commitment {
         "processed" | "confirmed" | "finalized" => Ok(()),
-        _ => Err(anyhow!("Invalid commitment level. Must be 'processed', 'confirmed', or 'finalized'"))
+        _ => Err(anyhow!(
+            "Invalid commitment level. Must be 'processed', 'confirmed', or 'finalized'"
+        )),
     }
 }
 
 /// Sanitizes a string for safe logging (removes sensitive information)
-/// 
+///
 /// # Arguments
 /// * `input` - The string to sanitize
-/// 
+///
 /// # Returns
 /// * `String` - Sanitized string safe for logging
 pub fn sanitize_for_logging(input: &str) -> String {
@@ -141,7 +150,7 @@ pub fn sanitize_for_logging(input: &str) -> String {
             return format!("{}://{}", url.scheme(), host);
         }
     }
-    
+
     // For other strings, truncate if too long
     if input.len() > 100 {
         format!("{}...[truncated]", &input[..100])
@@ -202,7 +211,7 @@ mod tests {
         let url = "https://api.opensvm.com/v1/accounts/abc123?encoding=json";
         let sanitized = sanitize_for_logging(url);
         assert_eq!(sanitized, "https://api.opensvm.com");
-        
+
         let long_string = "x".repeat(150);
         let sanitized_long = sanitize_for_logging(&long_string);
         assert!(sanitized_long.len() <= 115); // 100 + "...[truncated]"
