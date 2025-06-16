@@ -21,6 +21,11 @@ pub struct Metrics {
     pub failed_calls_by_type: DashMap<String, u64>,
     /// Number of failed RPC calls by method
     pub failed_calls_by_method: DashMap<String, u64>,
+    /// Duration histogram buckets (in milliseconds)
+    /// Buckets: <10ms, 10-50ms, 50-100ms, 100-500ms, 500-1000ms, >1000ms
+    pub duration_buckets: [AtomicU64; 6],
+    /// Total duration sum for average calculation
+    pub total_duration_ms: AtomicU64,
 }
 
 impl Metrics {
@@ -29,13 +34,30 @@ impl Metrics {
         self.total_calls.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Increment successful calls counter
-    pub fn increment_successful_calls(&self) {
+    /// Increment successful calls counter and record duration
+    pub fn increment_successful_calls(&self, duration_ms: u64) {
         self.successful_calls.fetch_add(1, Ordering::Relaxed);
+        self.record_duration(duration_ms);
     }
 
-    /// Increment failed calls counter by error type
-    pub fn increment_failed_calls(&self, error_type: &str, method: Option<&str>) {
+    /// Record duration in appropriate histogram bucket
+    fn record_duration(&self, duration_ms: u64) {
+        self.total_duration_ms.fetch_add(duration_ms, Ordering::Relaxed);
+        
+        let bucket_index = match duration_ms {
+            0..=9 => 0,      // <10ms
+            10..=49 => 1,    // 10-50ms
+            50..=99 => 2,    // 50-100ms
+            100..=499 => 3,  // 100-500ms
+            500..=999 => 4,  // 500-1000ms
+            _ => 5,          // >1000ms
+        };
+        
+        self.duration_buckets[bucket_index].fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Increment failed calls counter by error type and record duration
+    pub fn increment_failed_calls(&self, error_type: &str, method: Option<&str>, duration_ms: u64) {
         // Increment by error type using dashmap for concurrent access
         *self.failed_calls_by_type.entry(error_type.to_string()).or_insert(0) += 1;
         
@@ -43,6 +65,9 @@ impl Metrics {
         if let Some(method) = method {
             *self.failed_calls_by_method.entry(method.to_string()).or_insert(0) += 1;
         }
+        
+        // Record duration for failed requests too
+        self.record_duration(duration_ms);
     }
 
     /// Get current metrics as JSON value
@@ -57,12 +82,31 @@ impl Metrics {
             .iter()
             .map(|entry| (entry.key().clone(), *entry.value()))
             .collect();
+
+        let total_calls = self.total_calls.load(Ordering::Relaxed);
+        let total_duration = self.total_duration_ms.load(Ordering::Relaxed);
+        let avg_duration = if total_calls > 0 { total_duration / total_calls } else { 0 };
+
+        // Collect histogram data
+        let histogram = [
+            ("0-9ms", self.duration_buckets[0].load(Ordering::Relaxed)),
+            ("10-49ms", self.duration_buckets[1].load(Ordering::Relaxed)),
+            ("50-99ms", self.duration_buckets[2].load(Ordering::Relaxed)),
+            ("100-499ms", self.duration_buckets[3].load(Ordering::Relaxed)),
+            ("500-999ms", self.duration_buckets[4].load(Ordering::Relaxed)),
+            ("1000ms+", self.duration_buckets[5].load(Ordering::Relaxed)),
+        ];
         
         serde_json::json!({
-            "total_calls": self.total_calls.load(Ordering::Relaxed),
+            "total_calls": total_calls,
             "successful_calls": self.successful_calls.load(Ordering::Relaxed),
             "failed_calls_by_type": failed_by_type,
-            "failed_calls_by_method": failed_by_method
+            "failed_calls_by_method": failed_by_method,
+            "performance": {
+                "avg_duration_ms": avg_duration,
+                "total_duration_ms": total_duration,
+                "duration_histogram": histogram
+            }
         })
     }
 
@@ -70,6 +114,10 @@ impl Metrics {
     pub fn reset(&self) {
         self.total_calls.store(0, Ordering::Relaxed);
         self.successful_calls.store(0, Ordering::Relaxed);
+        self.total_duration_ms.store(0, Ordering::Relaxed);
+        for bucket in &self.duration_buckets {
+            bucket.store(0, Ordering::Relaxed);
+        }
         self.failed_calls_by_type.clear();
         self.failed_calls_by_method.clear();
     }
@@ -160,7 +208,7 @@ pub fn log_rpc_request_success(
     duration_ms: u64,
     result_summary: Option<&str>,
 ) {
-    METRICS.increment_successful_calls();
+    METRICS.increment_successful_calls(duration_ms);
     
     let span = Span::current();
     span.record("duration_ms", duration_ms);
@@ -187,7 +235,7 @@ pub fn log_rpc_request_failure(
     duration_ms: u64,
     error_details: Option<&Value>,
 ) {
-    METRICS.increment_failed_calls(error_type, Some(method));
+    METRICS.increment_failed_calls(error_type, Some(method), duration_ms);
     
     let span = Span::current();
     span.record("duration_ms", duration_ms);
@@ -316,12 +364,20 @@ pub fn get_metrics() -> &'static Metrics {
 
 /// Create a parameters summary for logging (sanitized)
 pub fn create_params_summary(params: &Value) -> String {
+    use crate::validation::sanitization::*;
+    
     match params {
         Value::Object(map) => {
             let keys: Vec<String> = map.keys()
+                .take(MAX_OBJECT_KEYS_IN_SUMMARY)
                 .map(|k| k.to_string())
                 .collect();
-            format!("params: [{}]", keys.join(", "))
+            let summary = format!("params: [{}]", keys.join(", "));
+            if map.len() > MAX_OBJECT_KEYS_IN_SUMMARY {
+                format!("{}...({} more)", summary, map.len() - MAX_OBJECT_KEYS_IN_SUMMARY)
+            } else {
+                summary
+            }
         },
         Value::Array(arr) => {
             format!("params: array[{}]", arr.len())
@@ -332,14 +388,16 @@ pub fn create_params_summary(params: &Value) -> String {
 
 /// Create a result summary for logging (sanitized)
 pub fn create_result_summary(result: &Value) -> String {
+    use crate::validation::sanitization::*;
+    
     match result {
         Value::Object(map) => {
             let keys: Vec<String> = map.keys()
-                .take(5) // Limit to first 5 keys
+                .take(MAX_OBJECT_KEYS_IN_SUMMARY)
                 .map(|k| k.to_string())
                 .collect();
-            if map.len() > 5 {
-                format!("result: {{{},...}}", keys.join(", "))
+            if map.len() > MAX_OBJECT_KEYS_IN_SUMMARY {
+                format!("result: {{{},...({} more)}}", keys.join(", "), map.len() - MAX_OBJECT_KEYS_IN_SUMMARY)
             } else {
                 format!("result: {{{}}}", keys.join(", "))
             }
@@ -377,8 +435,8 @@ mod tests {
         
         // Test incrementing
         metrics.increment_total_calls();
-        metrics.increment_successful_calls();
-        metrics.increment_failed_calls("validation", Some("getBalance"));
+        metrics.increment_successful_calls(150);
+        metrics.increment_failed_calls("validation", Some("getBalance"), 200);
         
         assert_eq!(metrics.total_calls.load(Ordering::Relaxed), 1);
         assert_eq!(metrics.successful_calls.load(Ordering::Relaxed), 1);
@@ -446,13 +504,45 @@ mod tests {
     fn test_metrics_json_serialization() {
         let metrics = Metrics::default();
         metrics.increment_total_calls();
-        metrics.increment_successful_calls();
-        metrics.increment_failed_calls("rpc", Some("getBalance"));
+        metrics.increment_successful_calls(100);
+        metrics.increment_failed_calls("rpc", Some("getBalance"), 250);
         
         let json = metrics.to_json();
         assert!(json.get("total_calls").is_some());
         assert!(json.get("successful_calls").is_some());
         assert!(json.get("failed_calls_by_type").is_some());
         assert!(json.get("failed_calls_by_method").is_some());
+        assert!(json.get("performance").is_some());
+        
+        // Check performance metrics
+        let performance = json.get("performance").unwrap();
+        assert!(performance.get("avg_duration_ms").is_some());
+        assert!(performance.get("duration_histogram").is_some());
+    }
+
+    #[test]
+    fn test_performance_histogram() {
+        let metrics = Metrics::default();
+        
+        // Test different duration buckets
+        metrics.increment_total_calls(); metrics.increment_successful_calls(5);   // 0-9ms bucket
+        metrics.increment_total_calls(); metrics.increment_successful_calls(25);  // 10-49ms bucket  
+        metrics.increment_total_calls(); metrics.increment_successful_calls(75);  // 50-99ms bucket
+        metrics.increment_total_calls(); metrics.increment_successful_calls(200); // 100-499ms bucket
+        metrics.increment_total_calls(); metrics.increment_successful_calls(750); // 500-999ms bucket
+        metrics.increment_total_calls(); metrics.increment_successful_calls(1500); // 1000ms+ bucket
+        
+        let json = metrics.to_json();
+        let performance = json.get("performance").unwrap();
+        let histogram = performance.get("duration_histogram").unwrap();
+        
+        // Verify each bucket has 1 entry
+        let histogram_array = histogram.as_array().unwrap();
+        assert_eq!(histogram_array.len(), 6);
+        
+        // Check that average is calculated correctly
+        // (5+25+75+200+750+1500)/6 = 425
+        let avg_duration = performance.get("avg_duration_ms").unwrap().as_u64().unwrap();
+        assert_eq!(avg_duration, 425);
     }
 }
