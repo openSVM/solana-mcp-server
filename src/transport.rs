@@ -1,7 +1,7 @@
-use std::io::{self, BufRead, BufReader, Write};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::io::{self, BufRead, BufReader, Write};
 use std::sync::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -97,9 +97,10 @@ impl CustomStdioTransport {
 
 impl Transport for CustomStdioTransport {
     fn send_raw(&self, json: &str) -> Result<()> {
-        let mut writer = self.writer.lock().map_err(|_| {
-            io::Error::new(io::ErrorKind::Other, "Failed to acquire writer lock")
-        })?;
+        let mut writer = self
+            .writer
+            .lock()
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to acquire writer lock"))?;
         let json = json.trim();
         writeln!(writer, "{}", json)?;
         writer.flush()?;
@@ -129,13 +130,13 @@ impl Transport for CustomStdioTransport {
             log::error!("Transport error: {}", err);
             err
         })?;
-        
+
         match reader.read_line(&mut line) {
             Ok(0) => {
                 let err = io::Error::new(io::ErrorKind::UnexpectedEof, "Connection closed");
                 log::info!("Transport connection closed");
                 Err(err.into())
-            },
+            }
             Ok(_) => {
                 if line.trim().is_empty() {
                     let err = io::Error::new(io::ErrorKind::InvalidData, "Empty message received");
@@ -145,11 +146,11 @@ impl Transport for CustomStdioTransport {
                 log::debug!("Received raw message: {}", line.trim());
                 let message = serde_json::from_str(&line)?;
                 Ok(message)
-            },
+            }
             Err(e) => {
                 log::error!("Transport error: {}", e);
                 Err(e.into())
-            },
+            }
         }
     }
 

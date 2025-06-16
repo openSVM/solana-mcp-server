@@ -2,11 +2,12 @@
 
 ## Table of Contents
 
-1. [Architecture Overview](./ARCHITECTURE.md)
-2. [Deployment Guide](./DEPLOYMENT.md)
-3. [API Reference](./API_REFERENCE.md)
-4. [Configuration Guide](./CONFIGURATION.md)
-5. [Examples and Use Cases](./EXAMPLES.md)
+1. [Developer Onboarding Guide](./ONBOARDING.md) - **New contributors start here!**
+2. [Architecture Overview](./ARCHITECTURE.md)
+3. [Deployment Guide](./DEPLOYMENT.md)
+4. [API Reference](./API_REFERENCE.md)
+5. [Configuration Guide](./CONFIGURATION.md)
+6. [Examples and Use Cases](./EXAMPLES.md)
 
 ## Quick Overview
 

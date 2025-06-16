@@ -273,6 +273,8 @@ For comprehensive documentation including architecture, deployment guides, and c
 
 📚 **[Complete Documentation](./docs/README.md)**
 
+🚀 **[Developer Onboarding Guide](./docs/ONBOARDING.md)** - **Start here if you're new to the project!**
+
 - [🏗️ Architecture Overview](./docs/ARCHITECTURE.md) - Server internals and design
 - [🚀 Deployment Guide](./docs/DEPLOYMENT.md) - Local, serverless, and endpoint deployment
 - [📖 API Reference](./docs/API_REFERENCE.md) - Complete method documentation

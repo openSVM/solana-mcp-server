@@ -1,8 +1,3 @@
 pub use solana_mcp_server::transport::{
-    Transport,
-    JsonRpcMessage,
-    JsonRpcRequest,
-    JsonRpcResponse,
-    JsonRpcVersion,
-    JsonRpcError,
+    JsonRpcError, JsonRpcMessage, JsonRpcRequest, JsonRpcResponse, JsonRpcVersion, Transport,
 };

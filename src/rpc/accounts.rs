@@ -1,6 +1,7 @@
 use crate::error::{McpError, McpResult};
 use crate::logging::{log_rpc_request_start, log_rpc_request_success, log_rpc_request_failure, new_request_id};
 use serde_json::Value;
+use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::rpc_client::RpcClient,
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
@@ -256,7 +257,6 @@ pub async fn get_multiple_accounts_with_config(
         data_slice: None,
         min_context_slot: None,
     };
-
     match client.get_multiple_accounts_with_config(pubkeys, config).await {
         Ok(accounts) => {
             let duration = start_time.elapsed().as_millis() as u64;
@@ -368,7 +368,6 @@ pub async fn get_program_accounts_with_config(
         },
         with_context: None,
     };
-
     match client.get_program_accounts_with_config(program_id, config).await {
         Ok(accounts) => {
             let duration = start_time.elapsed().as_millis() as u64;

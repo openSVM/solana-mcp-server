@@ -464,7 +464,7 @@ pub async fn request_airdrop(
     client: &RpcClient,
     pubkey: &Pubkey,
     lamports: u64,
-) -> McpResult<Value> {
+
     let signature = client.request_airdrop(pubkey, lamports).await?;
     Ok(serde_json::json!({ "signature": signature }))
 }
@@ -480,7 +480,9 @@ pub async fn request_airdrop_with_config(
         commitment,
         recent_blockhash,
     };
-    let signature = client.request_airdrop_with_config(pubkey, lamports, config).await?;
+    let signature = client
+        .request_airdrop_with_config(pubkey, lamports, config)
+        .await?;
     Ok(serde_json::json!({ "signature": signature }))
 }
 
@@ -494,6 +496,7 @@ pub async fn get_stake_minimum_delegation_with_commitment(
     commitment: CommitmentConfig,
 ) -> McpResult<Value> {
     let minimum = client.get_stake_minimum_delegation_with_commitment(commitment).await?;
+
     Ok(serde_json::json!({ "minimum": minimum }))
 }
 
@@ -507,6 +510,7 @@ pub async fn get_transaction_count_with_commitment(
     commitment: CommitmentConfig,
 ) -> McpResult<Value> {
     let count = client.get_transaction_count_with_commitment(commitment).await?;
+
     Ok(serde_json::json!({ "count": count }))
 }
 
@@ -522,6 +526,7 @@ pub async fn get_latest_blockhash_with_commitment(
     commitment: CommitmentConfig,
 ) -> McpResult<Value> {
     let blockhash = client.get_latest_blockhash_with_commitment(commitment).await?.0;
+
     Ok(serde_json::json!({
         "blockhash": blockhash.to_string()
     }))
@@ -531,6 +536,7 @@ pub async fn get_fee_for_message(
     client: &RpcClient,
     message: &Message,
 ) -> McpResult<Value> {
+
     let fee = client.get_fee_for_message(message).await?;
     Ok(serde_json::json!({ "fee": fee }))
 }
