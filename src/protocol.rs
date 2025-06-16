@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use url::Url;
 
 pub const LATEST_PROTOCOL_VERSION: &str = "2024-11-05";
