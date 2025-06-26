@@ -22,7 +22,7 @@ pub mod sanitization {
     
     /// Common sensitive parameter names to redact
     pub const SENSITIVE_PARAM_NAMES: &[&str] = &[
-        "password", "secret", "key", "token", "auth", "authorization",
+        "password", "secret", "token", "auth", "authorization",
         "api_key", "apikey", "access_token", "refresh_token", "private_key",
         "seed", "mnemonic", "signature", "private", "credential"
     ];
@@ -172,14 +172,6 @@ pub fn validate_commitment(commitment: &str) -> Result<()> {
 pub fn sanitize_for_logging(input: &str) -> String {
     use sanitization::*;
     
-    // Check for sensitive parameter names and redact completely
-    let input_lower = input.to_lowercase();
-    for sensitive_name in SENSITIVE_PARAM_NAMES {
-        if input_lower.contains(sensitive_name) {
-            return format!("[REDACTED-{}]", sensitive_name.to_uppercase());
-        }
-    }
-    
     // For URLs, only show scheme and host, hide path/params
     if let Ok(url) = Url::parse(input) {
         if let Some(host) = url.host_str() {
@@ -197,7 +189,20 @@ pub fn sanitize_for_logging(input: &str) -> String {
             return sanitized;
         }
     }
-
+    
+    // Check for sensitive parameter patterns with word boundaries
+    let input_lower = input.to_lowercase();
+    for sensitive_name in SENSITIVE_PARAM_NAMES {
+        // Check for exact word matches or parameter-like patterns
+        if input_lower == *sensitive_name || 
+           input_lower.contains(&format!("{}=", sensitive_name)) ||
+           input_lower.contains(&format!("{}_", sensitive_name)) ||
+           input_lower.contains(&format!("_{}", sensitive_name)) ||
+           (input_lower.contains(sensitive_name) && input_lower.len() == sensitive_name.len()) {
+            return format!("[REDACTED-{}]", sensitive_name.to_uppercase());
+        }
+    }
+    
     // For other strings, apply length truncation
     if input.len() > MAX_LOG_STRING_LENGTH {
         format!("{}...[truncated {} chars]", 
@@ -275,7 +280,6 @@ mod tests {
         assert_eq!(sanitized_sensitive, "[REDACTED-SECRET]");
         
         // Test long string truncation
-
         let long_string = "x".repeat(150);
         let sanitized_long = sanitize_for_logging(&long_string);
         assert!(sanitized_long.contains("truncated 50 chars"));
@@ -285,6 +289,63 @@ mod tests {
         let normal = "normal_string";
         let sanitized_normal = sanitize_for_logging(normal);
         assert_eq!(sanitized_normal, "normal_string");
+    }
+
+    #[test]
+    fn test_comprehensive_sensitive_data_redaction() {
+        // Test all sensitive parameter names
+        let test_cases = vec![
+            ("password=secret123", "[REDACTED-PASSWORD]"),
+            ("API_KEY=abcd1234", "[REDACTED-API_KEY]"),
+            ("access_token=xyz789", "[REDACTED-ACCESS_TOKEN]"),
+            ("private_key=private123", "[REDACTED-PRIVATE_KEY]"),
+            ("authorization=Bearer token123", "[REDACTED-AUTHORIZATION]"),
+            ("mnemonic=phrase here", "[REDACTED-MNEMONIC]"),
+            ("signature=sig123", "[REDACTED-SIGNATURE]"),
+        ];
+        
+        for (input, _expected_pattern) in test_cases {
+            let sanitized = sanitize_for_logging(input);
+            assert!(sanitized.starts_with("[REDACTED-"), 
+                   "Input '{}' should be redacted, got: '{}'", input, sanitized);
+        }
+    }
+    
+    #[test]
+    fn test_url_sanitization_edge_cases() {
+        // Test URLs with sensitive query parameters
+        let url_with_auth = "https://api.opensvm.com/accounts?api_key=secret123";
+        let sanitized = sanitize_for_logging(url_with_auth);
+        assert_eq!(sanitized, "https://api.opensvm.com/[PATH_REDACTED]?[QUERY_REDACTED]");
+        
+        // Test URLs with ports
+        let url_with_port = "https://api.opensvm.com:8080/health";
+        let sanitized_port = sanitize_for_logging(url_with_port);
+        assert_eq!(sanitized_port, "https://api.opensvm.com:8080/[PATH_REDACTED]");
+        
+        // Test localhost URLs
+        let localhost = "https://localhost:3000/api/test";
+        let sanitized_localhost = sanitize_for_logging(localhost);
+        assert_eq!(sanitized_localhost, "https://localhost:3000/[PATH_REDACTED]");
+    }
+    
+    #[test]
+    fn test_no_false_positives_in_sanitization() {
+        // These should NOT be redacted
+        let safe_inputs = vec![
+            "normal text string",
+            "getBalance method call",
+            "public_key=9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
+            "commitment=finalized",
+            "https://api.mainnet-beta.solana.com",
+            "account balance: 1000000",
+        ];
+        
+        for input in safe_inputs {
+            let sanitized = sanitize_for_logging(input);
+            assert!(!sanitized.starts_with("[REDACTED-"), 
+                   "Safe input '{}' should not be redacted, got: '{}'", input, sanitized);
+        }
     }
 
     #[test]

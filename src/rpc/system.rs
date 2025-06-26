@@ -464,9 +464,20 @@ pub async fn request_airdrop(
     client: &RpcClient,
     pubkey: &Pubkey,
     lamports: u64,
-
-    let signature = client.request_airdrop(pubkey, lamports).await?;
-    Ok(serde_json::json!({ "signature": signature }))
+) -> McpResult<Value> {
+    use crate::log_rpc_call;
+    
+    let params_summary = format!("pubkey: {}, lamports: {}", pubkey, lamports);
+    
+    log_rpc_call!(
+        "requestAirdrop",
+        client,
+        async {
+            let signature = client.request_airdrop(pubkey, lamports).await?;
+            Ok::<Value, crate::error::McpError>(serde_json::json!({ "signature": signature }))
+        },
+        &params_summary
+    )
 }
 
 pub async fn request_airdrop_with_config(

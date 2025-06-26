@@ -11,7 +11,6 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     pubkey::Pubkey,
 };
-use solana_account_decoder::UiAccountEncoding;
 use std::time::Instant;
 
 /// Get account balance for a given public key
@@ -367,6 +366,7 @@ pub async fn get_program_accounts_with_config(
             min_context_slot: None,
         },
         with_context: None,
+        sort_results: None, // Use default sorting behavior
     };
     match client.get_program_accounts_with_config(program_id, config).await {
         Ok(accounts) => {
@@ -421,6 +421,7 @@ pub async fn get_largest_accounts(
     let config = solana_client::rpc_config::RpcLargestAccountsConfig {
         commitment: None,
         filter,
+        sort_results: None, // Use default sorting behavior
     };
 
     match client.get_largest_accounts_with_config(config).await {
