@@ -464,9 +464,50 @@ pub async fn request_airdrop(
     client: &RpcClient,
     pubkey: &Pubkey,
     lamports: u64,
-) -> anyhow::Result<Value> {
-    let signature = client.request_airdrop(pubkey, lamports).await?;
-    Ok(serde_json::json!({ "signature": signature }))
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "requestAirdrop";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkey: {}, lamports: {}", pubkey, lamports)),
+    );
+
+    match client.request_airdrop(pubkey, lamports).await {
+        Ok(signature) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "signature": signature });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("airdrop requested"),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                &error.to_string(),
+                duration,
+                None,
+            );
+            
+            Err(error)
+        }
+    }
 }
 
 pub async fn request_airdrop_with_config(

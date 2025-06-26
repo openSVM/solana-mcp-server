@@ -412,6 +412,97 @@ pub fn create_result_summary(result: &Value) -> String {
     }
 }
 
+/// Macro to reduce repetitive boilerplate around timing and logs for RPC calls
+#[macro_export]
+macro_rules! log_rpc_call {
+    ($method:expr, $client:expr, $async_block:expr) => {{
+        let request_id = $crate::logging::new_request_id();
+        let start_time = std::time::Instant::now();
+        
+        $crate::logging::log_rpc_request_start(
+            request_id,
+            $method,
+            Some(&$client.url()),
+            None,
+        );
+
+        match $async_block.await {
+            Ok(result) => {
+                let duration = start_time.elapsed().as_millis() as u64;
+                
+                $crate::logging::log_rpc_request_success(
+                    request_id,
+                    $method,
+                    duration,
+                    Some("request completed"),
+                );
+                
+                Ok(result)
+            }
+            Err(e) => {
+                let duration = start_time.elapsed().as_millis() as u64;
+                let error = $crate::error::McpError::from(e)
+                    .with_request_id(request_id)
+                    .with_method($method)
+                    .with_rpc_url(&$client.url());
+                
+                $crate::logging::log_rpc_request_failure(
+                    request_id,
+                    $method,
+                    duration,
+                    &error.to_string(),
+                    Some("request failed"),
+                );
+                
+                Err(error)
+            }
+        }
+    }};
+    ($method:expr, $client:expr, $async_block:expr, $params:expr) => {{
+        let request_id = $crate::logging::new_request_id();
+        let start_time = std::time::Instant::now();
+        
+        $crate::logging::log_rpc_request_start(
+            request_id,
+            $method,
+            Some(&$client.url()),
+            Some($params),
+        );
+
+        match $async_block.await {
+            Ok(result) => {
+                let duration = start_time.elapsed().as_millis() as u64;
+                
+                $crate::logging::log_rpc_request_success(
+                    request_id,
+                    $method,
+                    duration,
+                    Some("request completed"),
+                );
+                
+                Ok(result)
+            }
+            Err(e) => {
+                let duration = start_time.elapsed().as_millis() as u64;
+                let error = $crate::error::McpError::from(e)
+                    .with_request_id(request_id)
+                    .with_method($method)
+                    .with_rpc_url(&$client.url());
+                
+                $crate::logging::log_rpc_request_failure(
+                    request_id,
+                    $method,
+                    duration,
+                    &error.to_string(),
+                    Some("request failed"),
+                );
+                
+                Err(error)
+            }
+        }
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -44,6 +44,10 @@ jobs:
         run: |
           cargo build --release --target ${{ matrix.target }}
 
+      - name: Check for dependency drift
+        run: |
+          cargo update --dry-run
+
       - name: Run tests
         run: |
           cargo test --target ${{ matrix.target }}

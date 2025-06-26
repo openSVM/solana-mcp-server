@@ -1,5 +1,6 @@
 pub mod config;
 pub mod error;
+#[macro_use]
 pub mod logging;
 pub mod protocol;
 pub mod rpc;
