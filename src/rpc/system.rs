@@ -464,7 +464,7 @@ pub async fn request_airdrop(
     client: &RpcClient,
     pubkey: &Pubkey,
     lamports: u64,
-
+) -> anyhow::Result<Value> {
     let signature = client.request_airdrop(pubkey, lamports).await?;
     Ok(serde_json::json!({ "signature": signature }))
 }
