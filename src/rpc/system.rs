@@ -500,9 +500,9 @@ pub async fn request_airdrop(
             log_rpc_request_failure(
                 request_id,
                 method,
-                &error.to_string(),
+                error.error_type(),
                 duration,
-                None,
+                Some(&error.to_log_value()),
             );
             
             Err(error)

@@ -22,7 +22,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cargo/bin/cargo-audit
-          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('~/.cargo/bin/cargo-audit') }}
+          key: ${{ runner.os }}-cargo-audit-v1
         
       - name: Install cargo-audit
         run: |

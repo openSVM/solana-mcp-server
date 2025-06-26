@@ -59,11 +59,17 @@ impl Metrics {
     /// Increment failed calls counter by error type and record duration
     pub fn increment_failed_calls(&self, error_type: &str, method: Option<&str>, duration_ms: u64) {
         // Increment by error type using dashmap for concurrent access
-        *self.failed_calls_by_type.entry(error_type.to_string()).or_insert(0) += 1;
+        self.failed_calls_by_type
+            .entry(error_type.to_string())
+            .and_modify(|e| *e += 1)
+            .or_insert(1);
         
         // Increment by method if available
         if let Some(method) = method {
-            *self.failed_calls_by_method.entry(method.to_string()).or_insert(0) += 1;
+            self.failed_calls_by_method
+                .entry(method.to_string())
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
         }
         
         // Record duration for failed requests too
@@ -449,9 +455,9 @@ macro_rules! log_rpc_call {
                 $crate::logging::log_rpc_request_failure(
                     request_id,
                     $method,
+                    &error.error_type(),
                     duration,
-                    &error.to_string(),
-                    Some("request failed"),
+                    Some(&error.to_log_value()),
                 );
                 
                 Err(error)
@@ -492,9 +498,9 @@ macro_rules! log_rpc_call {
                 $crate::logging::log_rpc_request_failure(
                     request_id,
                     $method,
+                    &error.error_type(),
                     duration,
-                    &error.to_string(),
-                    Some("request failed"),
+                    Some(&error.to_log_value()),
                 );
                 
                 Err(error)
