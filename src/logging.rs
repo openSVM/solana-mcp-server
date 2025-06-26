@@ -18,9 +18,9 @@ pub struct Metrics {
     /// Number of successful RPC calls
     pub successful_calls: AtomicU64,
     /// Number of failed RPC calls by error type
-    pub failed_calls_by_type: DashMap<String, u64>,
+    pub failed_calls_by_type: DashMap<String, AtomicU64>,
     /// Number of failed RPC calls by method
-    pub failed_calls_by_method: DashMap<String, u64>,
+    pub failed_calls_by_method: DashMap<String, AtomicU64>,
     /// Duration histogram buckets (in milliseconds)
     /// Buckets: <10ms, 10-50ms, 50-100ms, 100-500ms, 500-1000ms, >1000ms
     pub duration_buckets: [AtomicU64; 6],
@@ -58,18 +58,18 @@ impl Metrics {
 
     /// Increment failed calls counter by error type and record duration
     pub fn increment_failed_calls(&self, error_type: &str, method: Option<&str>, duration_ms: u64) {
-        // Increment by error type using dashmap for concurrent access
+        // Increment by error type using dashmap for concurrent access with AtomicU64
         self.failed_calls_by_type
             .entry(error_type.to_string())
-            .and_modify(|e| *e += 1)
-            .or_insert(1);
+            .or_insert_with(|| AtomicU64::new(0))
+            .fetch_add(1, Ordering::Relaxed);
         
         // Increment by method if available
         if let Some(method) = method {
             self.failed_calls_by_method
                 .entry(method.to_string())
-                .and_modify(|e| *e += 1)
-                .or_insert(1);
+                .or_insert_with(|| AtomicU64::new(0))
+                .fetch_add(1, Ordering::Relaxed);
         }
         
         // Record duration for failed requests too
@@ -81,12 +81,12 @@ impl Metrics {
         // Convert DashMap to HashMap for JSON serialization
         let failed_by_type: std::collections::HashMap<String, u64> = self.failed_calls_by_type
             .iter()
-            .map(|entry| (entry.key().clone(), *entry.value()))
+            .map(|entry| (entry.key().clone(), entry.value().load(Ordering::Relaxed)))
             .collect();
             
         let failed_by_method: std::collections::HashMap<String, u64> = self.failed_calls_by_method
             .iter()
-            .map(|entry| (entry.key().clone(), *entry.value()))
+            .map(|entry| (entry.key().clone(), entry.value().load(Ordering::Relaxed)))
             .collect();
 
         let total_calls = self.total_calls.load(Ordering::Relaxed);
@@ -117,6 +117,7 @@ impl Metrics {
     }
 
     /// Reset all metrics (useful for testing)
+    #[cfg(test)]
     pub fn reset(&self) {
         self.total_calls.store(0, Ordering::Relaxed);
         self.successful_calls.store(0, Ordering::Relaxed);
@@ -419,6 +420,65 @@ pub fn create_result_summary(result: &Value) -> String {
 }
 
 /// Macro to reduce repetitive boilerplate around timing and logs for RPC calls
+/// 
+/// This macro provides standardized logging and timing for RPC calls across the codebase.
+/// It automatically handles request ID generation, timing, success/failure logging, 
+/// and error wrapping with proper context.
+/// 
+/// # Input Expectations
+/// 
+/// ## Required Parameters
+/// * `method` - A string literal or expression evaluating to a method name (e.g., "getBalance")
+/// * `client` - A reference to an RpcClient instance that implements `.url()` method
+/// * `async_block` - An async block/expression that returns a Result<T, E>
+/// 
+/// ## Optional Parameters  
+/// * `params` - A string describing the parameters for logging (4th parameter)
+/// 
+/// # Return Value
+/// Returns `McpResult<T>` where T is the success type from the async block.
+/// On error, returns an `McpError` with full context including request ID, method, and RPC URL.
+/// 
+/// # Logging Behavior
+/// * **Start**: Logs request initiation with method, RPC URL, and optional params
+/// * **Success**: Logs completion with duration and success message  
+/// * **Failure**: Logs error with duration, error type, and error details
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// use crate::log_rpc_call;
+/// 
+/// // Simple usage without parameters
+/// let result = log_rpc_call!(
+///     "getHealth",
+///     client,
+///     async { client.get_health().await }
+/// );
+/// 
+/// // With parameter description for logging
+/// let pubkey = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
+/// let result = log_rpc_call!(
+///     "getBalance", 
+///     client,
+///     async { 
+///         let balance = client.get_balance(&pubkey_parsed).await?;
+///         Ok(serde_json::json!({ "balance": balance }))
+///     },
+///     &format!("pubkey: {}", pubkey)
+/// );
+/// ```
+/// 
+/// # Error Handling
+/// The macro automatically:
+/// * Converts any error type implementing Into<McpError> 
+/// * Adds contextual information (request_id, method, rpc_url)
+/// * Logs the failure with proper error categorization
+/// * Returns a fully contextualized McpError
+/// 
+/// # Thread Safety
+/// This macro is thread-safe and can be used in concurrent async contexts.
+/// All logging operations use atomic counters and thread-safe data structures.
 #[macro_export]
 macro_rules! log_rpc_call {
     ($method:expr, $client:expr, $async_block:expr) => {{
@@ -538,9 +598,9 @@ mod tests {
         assert_eq!(metrics.total_calls.load(Ordering::Relaxed), 1);
         assert_eq!(metrics.successful_calls.load(Ordering::Relaxed), 1);
         
-        // Test dashmap access
-        assert_eq!(metrics.failed_calls_by_type.get("validation").map(|v| *v), Some(1));
-        assert_eq!(metrics.failed_calls_by_method.get("getBalance").map(|v| *v), Some(1));
+        // Test dashmap access with AtomicU64
+        assert_eq!(metrics.failed_calls_by_type.get("validation").map(|v| v.load(Ordering::Relaxed)), Some(1));
+        assert_eq!(metrics.failed_calls_by_method.get("getBalance").map(|v| v.load(Ordering::Relaxed)), Some(1));
     }
 
     #[test]
@@ -641,5 +701,54 @@ mod tests {
         // (5+25+75+200+750+1500)/6 = 425
         let avg_duration = performance.get("avg_duration_ms").unwrap().as_u64().unwrap();
         assert_eq!(avg_duration, 425);
+    }
+
+    #[test]
+    fn test_spl_token_compatibility() {
+        // Test that we can import and use basic spl-token types from version 7.0
+        use spl_token::state::{Account, Mint};
+        use spl_token::instruction::{TokenInstruction};
+        use solana_sdk::program_pack::Pack;
+        
+        // Test that we can create instruction types (this would fail if there were breaking changes)
+        let _instruction = TokenInstruction::InitializeMint { 
+            decimals: 9, 
+            mint_authority: solana_sdk::pubkey::Pubkey::default(),
+            freeze_authority: solana_sdk::program_option::COption::None,
+        };
+        
+        // Test account size calculation still works
+        let account_size = std::mem::size_of::<Account>();
+        assert!(account_size > 0);
+        
+        let mint_size = std::mem::size_of::<Mint>();
+        assert!(mint_size > 0);
+        
+        // Test basic constants are accessible using Pack trait
+        assert!(Account::LEN > 0);
+        assert!(Mint::LEN > 0);
+    }
+    
+    #[test] 
+    fn test_solana_dependency_compatibility() {
+        // Test that basic Solana SDK functionality works with version 2.2
+        use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::Transaction};
+        use solana_client::rpc_client::RpcClient;
+        
+        // Test pubkey creation and validation
+        let pubkey = Pubkey::default();
+        assert_eq!(pubkey.to_string(), "11111111111111111111111111111111");
+        
+        // Test signature creation  
+        let signature = Signature::default();
+        assert_eq!(signature.to_string().len(), 64); // Base58 encoded signature length
+        
+        // Test RPC client can be instantiated (constructor compatibility)
+        let _client = RpcClient::new("https://api.mainnet-beta.solana.com".to_string());
+        
+        // Test that transaction types are compatible
+        let transaction = Transaction::default();
+        assert!(transaction.signatures.is_empty());
+        assert!(transaction.message.instructions.is_empty());
     }
 }
