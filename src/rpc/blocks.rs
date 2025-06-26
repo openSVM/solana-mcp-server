@@ -83,7 +83,11 @@ pub async fn get_block_production(
     Ok(serde_json::json!({ "production": production }))
 }
 
-pub async fn get_blocks(client: &RpcClient, start_slot: u64, end_slot: Option<u64>) -> Result<Value> {
+pub async fn get_blocks(
+    client: &RpcClient,
+    start_slot: u64,
+    end_slot: Option<u64>,
+) -> Result<Value> {
     let blocks = client.get_blocks(start_slot, end_slot).await?;
     Ok(serde_json::json!({ "blocks": blocks }))
 }
@@ -94,7 +98,9 @@ pub async fn get_blocks_with_commitment(
     end_slot: Option<u64>,
     commitment: CommitmentConfig,
 ) -> Result<Value> {
-    let blocks = client.get_blocks_with_commitment(start_slot, end_slot, commitment).await?;
+    let blocks = client
+        .get_blocks_with_commitment(start_slot, end_slot, commitment)
+        .await?;
     Ok(serde_json::json!({ "blocks": blocks }))
 }
 
@@ -113,7 +119,9 @@ pub async fn get_blocks_with_limit_and_commitment(
     limit: usize,
     commitment: CommitmentConfig,
 ) -> Result<Value> {
-    let blocks = client.get_blocks_with_limit_and_commitment(start_slot, limit, commitment).await?;
+    let blocks = client
+        .get_blocks_with_limit_and_commitment(start_slot, limit, commitment)
+        .await?;
     Ok(serde_json::json!({ "blocks": blocks }))
 }
 

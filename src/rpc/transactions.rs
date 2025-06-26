@@ -5,8 +5,8 @@ use solana_client::{
     nonblocking::rpc_client::RpcClient,
     rpc_client::GetConfirmedSignaturesForAddress2Config,
     rpc_config::{
-        RpcSendTransactionConfig, RpcSimulateTransactionConfig,
-        RpcTransactionConfig, RpcSimulateTransactionAccountsConfig,
+        RpcSendTransactionConfig, RpcSimulateTransactionAccountsConfig,
+        RpcSimulateTransactionConfig, RpcTransactionConfig,
     },
 };
 use solana_sdk::{
@@ -18,7 +18,9 @@ use solana_sdk::{
 use solana_transaction_status::UiTransactionEncoding;
 
 pub async fn get_transaction(client: &RpcClient, signature: &Signature) -> Result<Value> {
-    let tx = client.get_transaction(signature, UiTransactionEncoding::Json).await?;
+    let tx = client
+        .get_transaction(signature, UiTransactionEncoding::Json)
+        .await?;
     Ok(serde_json::json!({ "transaction": tx }))
 }
 
@@ -34,7 +36,9 @@ pub async fn get_transaction_with_config(
         commitment,
         max_supported_transaction_version,
     };
-    let tx = client.get_transaction_with_config(signature, config).await?;
+    let tx = client
+        .get_transaction_with_config(signature, config)
+        .await?;
     Ok(serde_json::json!({ "transaction": tx }))
 }
 
@@ -51,7 +55,9 @@ pub async fn get_signatures_for_address(
         limit: limit.map(|l| l as usize),
         commitment: None,
     };
-    let signatures = client.get_signatures_for_address_with_config(address, config).await?;
+    let signatures = client
+        .get_signatures_for_address_with_config(address, config)
+        .await?;
     Ok(serde_json::json!({ "signatures": signatures }))
 }
 
@@ -63,22 +69,28 @@ pub async fn send_transaction(
     let wire_transaction = match encoding {
         "base58" => bs58::decode(transaction_data).into_vec()?,
         "base64" => base64::engine::general_purpose::STANDARD.decode(transaction_data)?,
-        _ => return Err(anyhow::anyhow!("Invalid encoding. Must be base58 or base64")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid encoding. Must be base58 or base64"
+            ))
+        }
     };
 
     let tx: Transaction = bincode::deserialize(&wire_transaction)?;
 
-    let signature = client.send_transaction_with_config(
-        &tx,
-        RpcSendTransactionConfig {
-            skip_preflight: false,
-            preflight_commitment: Some(CommitmentLevel::Finalized),
-            encoding: None,
-            max_retries: None,
-            min_context_slot: None,
-        },
-    ).await?;
-    
+    let signature = client
+        .send_transaction_with_config(
+            &tx,
+            RpcSendTransactionConfig {
+                skip_preflight: false,
+                preflight_commitment: Some(CommitmentLevel::Finalized),
+                encoding: None,
+                max_retries: None,
+                min_context_slot: None,
+            },
+        )
+        .await?;
+
     Ok(serde_json::json!({ "signature": signature }))
 }
 
@@ -94,22 +106,28 @@ pub async fn send_transaction_with_config(
     let wire_transaction = match encoding {
         "base58" => bs58::decode(transaction_data).into_vec()?,
         "base64" => base64::engine::general_purpose::STANDARD.decode(transaction_data)?,
-        _ => return Err(anyhow::anyhow!("Invalid encoding. Must be base58 or base64")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid encoding. Must be base58 or base64"
+            ))
+        }
     };
 
     let tx: Transaction = bincode::deserialize(&wire_transaction)?;
 
-    let signature = client.send_transaction_with_config(
-        &tx,
-        RpcSendTransactionConfig {
-            skip_preflight,
-            preflight_commitment,
-            encoding: None,
-            max_retries,
-            min_context_slot,
-        },
-    ).await?;
-    
+    let signature = client
+        .send_transaction_with_config(
+            &tx,
+            RpcSendTransactionConfig {
+                skip_preflight,
+                preflight_commitment,
+                encoding: None,
+                max_retries,
+                min_context_slot,
+            },
+        )
+        .await?;
+
     Ok(serde_json::json!({ "signature": signature }))
 }
 
@@ -121,7 +139,11 @@ pub async fn simulate_transaction(
     let wire_transaction = match encoding {
         "base58" => bs58::decode(transaction_data).into_vec()?,
         "base64" => base64::engine::general_purpose::STANDARD.decode(transaction_data)?,
-        _ => return Err(anyhow::anyhow!("Invalid encoding. Must be base58 or base64")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid encoding. Must be base58 or base64"
+            ))
+        }
     };
 
     let tx: Transaction = bincode::deserialize(&wire_transaction)?;
@@ -143,7 +165,11 @@ pub async fn simulate_transaction_with_config(
     let wire_transaction = match encoding {
         "base58" => bs58::decode(transaction_data).into_vec()?,
         "base64" => base64::engine::general_purpose::STANDARD.decode(transaction_data)?,
-        _ => return Err(anyhow::anyhow!("Invalid encoding. Must be base58 or base64")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid encoding. Must be base58 or base64"
+            ))
+        }
     };
 
     let tx: Transaction = bincode::deserialize(&wire_transaction)?;
@@ -190,7 +216,11 @@ pub async fn get_fee_for_message(
     let wire_transaction = match encoding {
         "base58" => bs58::decode(transaction_data).into_vec()?,
         "base64" => base64::engine::general_purpose::STANDARD.decode(transaction_data)?,
-        _ => return Err(anyhow::anyhow!("Invalid encoding. Must be base58 or base64")),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid encoding. Must be base58 or base64"
+            ))
+        }
     };
 
     let tx: Transaction = bincode::deserialize(&wire_transaction)?;
