@@ -117,7 +117,6 @@ impl Metrics {
     }
 
     /// Reset all metrics (useful for testing)
-    #[cfg(test)]
     pub fn reset(&self) {
         self.total_calls.store(0, Ordering::Relaxed);
         self.successful_calls.store(0, Ordering::Relaxed);
