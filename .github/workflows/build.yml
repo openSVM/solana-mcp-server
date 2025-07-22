@@ -62,4 +62,5 @@ jobs:
           else
             echo "Skipping integration tests for cross-compilation target ${{ matrix.target }}"
           fi
+        shell: bash
 
