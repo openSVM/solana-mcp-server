@@ -145,10 +145,10 @@ impl ServerState {
     }
 }
 
-/// Starts the Solana MCP server with stdio transport
+/// Starts the Solana MCP server with stdio transport and metrics server
 ///
 /// Initializes the server with configuration validation, sets up transport,
-/// sends protocol negotiation, and starts the main message loop.
+/// starts the metrics HTTP server, sends protocol negotiation, and starts the main message loop.
 ///
 /// # Returns
 /// * `Result<()>` - Ok if server shuts down cleanly, Err on critical errors
@@ -159,6 +159,10 @@ impl ServerState {
 /// - Implements graceful shutdown on connection close
 pub async fn start_server() -> Result<()> {
     log::info!("Starting Solana MCP server...");
+
+    // Initialize Prometheus metrics
+    crate::metrics::init_prometheus_metrics()
+        .map_err(|e| anyhow::anyhow!("Failed to initialize Prometheus metrics: {}", e))?;
 
     // Load and validate configuration
     let config = Config::load().map_err(|e| {
@@ -173,6 +177,10 @@ pub async fn start_server() -> Result<()> {
     );
 
     let state = Arc::new(RwLock::new(ServerState::new(config.clone())));
+
+    // Start metrics HTTP server on port 8080 in background
+    let _metrics_handle = crate::http_server::start_metrics_server_task(8080);
+    log::info!("Started metrics server on port 8080");
 
     let transport = CustomStdioTransport::new();
     transport.open().map_err(|e| {

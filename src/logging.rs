@@ -217,6 +217,10 @@ pub fn log_rpc_request_success(
 ) {
     METRICS.increment_successful_calls(duration_ms);
     
+    // Also record in Prometheus metrics
+    let duration_seconds = duration_ms as f64 / 1000.0;
+    crate::metrics::PROMETHEUS_METRICS.record_success(method, "mainnet", duration_seconds);
+    
     let span = Span::current();
     span.record("duration_ms", duration_ms);
     
@@ -243,6 +247,10 @@ pub fn log_rpc_request_failure(
     error_details: Option<&Value>,
 ) {
     METRICS.increment_failed_calls(error_type, Some(method), duration_ms);
+    
+    // Also record in Prometheus metrics
+    let duration_seconds = duration_ms as f64 / 1000.0;
+    crate::metrics::PROMETHEUS_METRICS.record_failure(method, "mainnet", error_type, duration_seconds);
     
     let span = Span::current();
     span.record("duration_ms", duration_ms);

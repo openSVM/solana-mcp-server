@@ -40,7 +40,7 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
 # Docker container
 ./scripts/deploy-docker.sh
 
-# Kubernetes
+# Kubernetes with autoscaling
 ./scripts/deploy-k8s.sh
 
 # AWS Lambda
@@ -54,6 +54,39 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
 ```
 
 See [`scripts/README.md`](scripts/README.md) for detailed usage and requirements for each deployment option.
+
+## ⚡ Autoscaling and Monitoring
+
+The Solana MCP Server supports dynamic scaling to handle variable load efficiently:
+
+### Features
+- **Prometheus metrics** exposed at `/metrics` endpoint
+- **Kubernetes HPA** with CPU, memory, and custom metrics
+- **Docker scaling** guidelines and automation scripts
+- **Health checks** at `/health` endpoint
+
+### Metrics Exposed
+- `solana_mcp_rpc_requests_total` - Total RPC requests by method and network
+- `solana_mcp_rpc_request_duration_seconds` - Request latency histogram
+- `solana_mcp_rpc_requests_failed_total` - Failed requests by error type
+- Standard resource metrics (CPU, memory)
+
+### Quick Start with Autoscaling
+
+```bash
+# Deploy with Kubernetes autoscaling
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/hpa.yaml
+
+# Check autoscaling status
+kubectl get hpa solana-mcp-server-hpa --watch
+
+# Access metrics
+kubectl port-forward svc/solana-mcp-service 8080:8080
+curl http://localhost:8080/metrics
+```
+
+📊 **[Complete Autoscaling Documentation](./docs/metrics.md)** | 🐳 **[Docker Scaling Guide](./docs/docker-scaling.md)**
 
 ## Available RPC Methods
 

@@ -27,3 +27,6 @@ base64 = "0.22"
 bs58 = "0.5"
 bincode = "1.3"
 reqwest = { version = "0.11", features = ["json"] }
+prometheus = "0.13"
+axum = "0.7"
+tower = "0.5"

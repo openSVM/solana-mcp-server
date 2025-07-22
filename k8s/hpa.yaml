@@ -1,0 +1,98 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: solana-mcp-server-hpa
+  labels:
+    app: solana-mcp-server
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: solana-mcp-server
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling  
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Custom metrics-based scaling (requires Prometheus Adapter)
+  - type: Pods
+    pods:
+      metric:
+        name: solana_mcp_rpc_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+  - type: Pods
+    pods:
+      metric:
+        name: solana_mcp_rpc_request_duration_seconds_p95
+      target:
+        type: AverageValue
+        averageValue: "0.5"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+      selectPolicy: Min
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-adapter-config
+  labels:
+    app: solana-mcp-server
+data:
+  config.yaml: |
+    rules:
+    - seriesQuery: 'solana_mcp_rpc_requests_total{namespace!="",pod!=""}'
+      seriesFilters: []
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
+          pod:
+            resource: pod
+      name:
+        matches: "^solana_mcp_rpc_requests_total"
+        as: "solana_mcp_rpc_requests_per_second"
+      metricsQuery: 'rate(solana_mcp_rpc_requests_total{<<.LabelMatchers>>}[1m])'
+    - seriesQuery: 'solana_mcp_rpc_request_duration_seconds{namespace!="",pod!=""}'
+      seriesFilters: []
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
+          pod:
+            resource: pod
+      name:
+        matches: "^solana_mcp_rpc_request_duration_seconds"
+        as: "solana_mcp_rpc_request_duration_seconds_p95"
+      metricsQuery: 'histogram_quantile(0.95, rate(solana_mcp_rpc_request_duration_seconds_bucket{<<.LabelMatchers>>}[1m]))'
