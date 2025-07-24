@@ -36,6 +36,7 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
                 method,
                 duration,
                 Some("balance retrieved"),
+                None,
             );
             
             Ok(result)
@@ -53,6 +54,7 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -83,6 +85,7 @@ pub async fn get_account_info(client: &RpcClient, pubkey: &Pubkey) -> McpResult<
                 method,
                 duration,
                 Some("account info retrieved"),
+                None,
             );
             
             Ok(result)
@@ -100,6 +103,7 @@ pub async fn get_account_info(client: &RpcClient, pubkey: &Pubkey) -> McpResult<
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -142,6 +146,7 @@ pub async fn get_account_info_with_config(
                 method,
                 duration,
                 Some("account info with config retrieved"),
+                None,
             );
             
             Ok(result)
@@ -159,6 +164,7 @@ pub async fn get_account_info_with_config(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -198,6 +204,7 @@ pub async fn get_multiple_accounts(client: &RpcClient, pubkeys: &[Pubkey]) -> Mc
                 method,
                 duration,
                 Some(&format!("{} accounts retrieved", pubkeys.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -215,6 +222,7 @@ pub async fn get_multiple_accounts(client: &RpcClient, pubkeys: &[Pubkey]) -> Mc
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -283,6 +291,7 @@ pub async fn get_multiple_accounts_with_config(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -330,6 +339,7 @@ pub async fn get_program_accounts(client: &RpcClient, program_id: &Pubkey) -> Mc
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -395,6 +405,7 @@ pub async fn get_program_accounts_with_config(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -434,6 +445,7 @@ pub async fn get_largest_accounts(
                 method,
                 duration,
                 Some("largest accounts retrieved"),
+                None,
             );
             
             Ok(result)
@@ -451,6 +463,7 @@ pub async fn get_largest_accounts(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -484,6 +497,7 @@ pub async fn get_minimum_balance_for_rent_exemption(
                 method,
                 duration,
                 Some("minimum balance calculated"),
+                None,
             );
             
             Ok(result)
@@ -501,6 +515,7 @@ pub async fn get_minimum_balance_for_rent_exemption(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)

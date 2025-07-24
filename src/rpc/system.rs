@@ -35,6 +35,7 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("health status retrieved"),
+                None,
             );
             
             Ok(result)
@@ -52,6 +53,7 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -82,6 +84,7 @@ pub async fn get_version(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("version info retrieved"),
+                None,
             );
             
             Ok(result)
@@ -99,6 +102,7 @@ pub async fn get_version(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -129,6 +133,7 @@ pub async fn get_identity(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("identity retrieved"),
+                None,
             );
             
             Ok(result)
@@ -146,6 +151,7 @@ pub async fn get_identity(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -193,6 +199,7 @@ pub async fn get_cluster_nodes(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -223,6 +230,7 @@ pub async fn get_epoch_info(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("epoch info retrieved"),
+                None,
             );
             
             Ok(result)
@@ -240,6 +248,7 @@ pub async fn get_epoch_info(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -270,6 +279,7 @@ pub async fn get_epoch_schedule(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("epoch schedule retrieved"),
+                None,
             );
             
             Ok(result)
@@ -287,6 +297,7 @@ pub async fn get_epoch_schedule(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -317,6 +328,7 @@ pub async fn get_inflation_governor(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("inflation governor retrieved"),
+                None,
             );
             
             Ok(result)
@@ -334,6 +346,7 @@ pub async fn get_inflation_governor(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -364,6 +377,7 @@ pub async fn get_inflation_rate(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("inflation rate retrieved"),
+                None,
             );
             
             Ok(result)
@@ -381,6 +395,7 @@ pub async fn get_inflation_rate(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -415,6 +430,7 @@ pub async fn get_inflation_reward(
                 method,
                 duration,
                 Some("inflation rewards retrieved"),
+                None,
             );
             
             Ok(result)
@@ -432,6 +448,7 @@ pub async fn get_inflation_reward(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
