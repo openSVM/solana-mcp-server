@@ -274,6 +274,7 @@ pub async fn get_multiple_accounts_with_config(
                 method,
                 duration,
                 Some(&format!("{} accounts with config retrieved", pubkeys.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -322,6 +323,7 @@ pub async fn get_program_accounts(client: &RpcClient, program_id: &Pubkey) -> Mc
                 method,
                 duration,
                 Some(&format!("{} program accounts retrieved", accounts.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -388,6 +390,7 @@ pub async fn get_program_accounts_with_config(
                 method,
                 duration,
                 Some(&format!("{} filtered program accounts retrieved", accounts.len())),
+                Some(&client.url()),
             );
             
             Ok(result)

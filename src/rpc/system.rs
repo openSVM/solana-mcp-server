@@ -182,6 +182,7 @@ pub async fn get_cluster_nodes(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some(&format!("{} cluster nodes retrieved", nodes.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
