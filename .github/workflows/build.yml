@@ -39,11 +39,18 @@ jobs:
           echo "OPENSSL_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
 
+      - name: Install Perl dependencies for OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cpan install Locale::Maketext::Simple
+        continue-on-error: true
+
       - name: Install OpenSSL (Windows)
         if: runner.os == 'Windows'
         run: |
           choco install openssl
           echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
+          echo "OPENSSL_ROOT_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
           echo "OPENSSL_INCLUDE_DIR=C:\Program Files\OpenSSL-Win64\include" >> $env:GITHUB_ENV
           echo "OPENSSL_LIB_DIR=C:\Program Files\OpenSSL-Win64\lib" >> $env:GITHUB_ENV
 
