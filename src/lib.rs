@@ -12,8 +12,8 @@ pub mod validation;
 
 pub use config::{Config, SvmNetwork};
 pub use error::{McpError, McpResult};
-pub use http_server::{start_metrics_server_task};
+pub use http_server::{start_metrics_server_task, start_mcp_server_task};
 pub use logging::{init_logging, get_metrics};
 pub use metrics::{init_prometheus_metrics, get_metrics_text, PROMETHEUS_METRICS};
-pub use server::start_server;
+pub use server::{start_server, ServerState};
 pub use transport::CustomStdioTransport;

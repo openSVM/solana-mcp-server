@@ -30,3 +30,4 @@ reqwest = { version = "0.11", features = ["json"] }
 prometheus = "0.13"
 axum = "0.7"
 tower = "0.5"
+clap = { version = "4.0", features = ["derive"] }

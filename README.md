@@ -2,6 +2,33 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive access to Solana blockchain data through Cline. This server implements a wide range of Solana RPC methods, making it easy to query blockchain information directly through natural language conversations.
 
+## 🚀 Usage Modes
+
+The Solana MCP Server supports two modes of operation:
+
+### 📡 Stdio Mode (Default)
+For integration with Claude Desktop and other MCP clients:
+```bash
+solana-mcp-server stdio  # or just: solana-mcp-server
+```
+
+### 🌐 Web Service Mode  
+For HTTP API access and integration with web applications:
+```bash
+# Run on default port 3000
+solana-mcp-server web
+
+# Run on custom port
+solana-mcp-server web --port 8080
+```
+
+**Web Service Endpoints:**
+- `POST /api/mcp` - MCP JSON-RPC API
+- `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
+
+📖 **[Complete Web Service Documentation](./docs/web-service.md)**
+
 ## Installation
 
 ### Using Pre-built Binaries
