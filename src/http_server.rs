@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use serde_json::Value;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tracing::{info, error, debug};
@@ -95,7 +96,10 @@ async fn mcp_api_handler(
     // Validate Content-Type header (should be application/json for MCP)
     if let Some(content_type) = headers.get(CONTENT_TYPE) {
         if let Ok(ct_str) = content_type.to_str() {
-            if !ct_str.starts_with("application/json") {
+            // Be more strict about content type validation
+            let is_valid = ct_str == "application/json" || 
+                          ct_str.starts_with("application/json;");
+            if !is_valid {
                 return create_json_rpc_error_response(
                     -32600,
                     "Invalid Request: Content-Type must be application/json",
@@ -117,14 +121,20 @@ async fn mcp_api_handler(
             // Convert JsonRpcMessage back to proper JSON-RPC 2.0 format
             match serde_json::to_value(&response_message) {
                 Ok(json_response) => {
-                    create_json_rpc_success_response(json_response)
+                    // The response_message is already a properly formatted JSON-RPC response
+                    // Don't double-wrap it in create_json_rpc_success_response
+                    (
+                        StatusCode::OK,
+                        [(CONTENT_TYPE, "application/json")],
+                        Json(json_response)
+                    ).into_response()
                 }
                 Err(e) => {
                     error!("Failed to serialize MCP response: {}", e);
                     create_json_rpc_error_response(
                         -32603,
                         "Internal error: Failed to serialize response",
-                        Some(json_rpc_request.id),
+                        Some(json_rpc_request.id.clone()),
                     )
                 }
             }
@@ -134,7 +144,7 @@ async fn mcp_api_handler(
             create_json_rpc_error_response(
                 -32603,
                 &format!("Internal error: {}", e),
-                Some(json_rpc_request.id),
+                Some(json_rpc_request.id.clone()),
             )
         }
     }
@@ -168,8 +178,8 @@ fn parse_json_rpc_request(request: &serde_json::Value) -> Result<JsonRpcRequest,
         ))?;
 
     let id = request.get("id")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+        .cloned()
+        .unwrap_or(Value::Null); // Default to null if no ID provided
 
     let params = request.get("params").cloned();
 
@@ -181,19 +191,9 @@ fn parse_json_rpc_request(request: &serde_json::Value) -> Result<JsonRpcRequest,
     })
 }
 
-/// Create a properly formatted JSON-RPC 2.0 success response
-fn create_json_rpc_success_response(result: serde_json::Value) -> Response {
-    (
-        StatusCode::OK,
-        [
-            (CONTENT_TYPE, "application/json"),
-        ],
-        Json(result)
-    ).into_response()
-}
 
 /// Create a properly formatted JSON-RPC 2.0 error response
-fn create_json_rpc_error_response(code: i32, message: &str, id: Option<u64>) -> Response {
+fn create_json_rpc_error_response(code: i32, message: &str, id: Option<Value>) -> Response {
     let error_response = serde_json::json!({
         "jsonrpc": "2.0",
         "error": {
@@ -203,7 +203,7 @@ fn create_json_rpc_error_response(code: i32, message: &str, id: Option<u64>) -> 
                 "protocolVersion": crate::protocol::LATEST_PROTOCOL_VERSION
             }
         },
-        "id": id
+        "id": id.unwrap_or(Value::Null)
     });
 
     (
@@ -277,9 +277,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_api_handler() {
-        use crate::Config;
-        use crate::server::ServerState;
-        
         // Create a test server state using Config::load() or a minimal config
         // For testing purposes, we'll skip the actual test since it requires valid config
         // In a real test environment, you'd want to create a minimal test config

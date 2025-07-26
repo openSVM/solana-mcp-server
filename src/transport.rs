@@ -21,7 +21,7 @@ impl Default for JsonRpcVersion {
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcRequest {
     pub jsonrpc: JsonRpcVersion,
-    pub id: u64,
+    pub id: Value, // JSON-RPC 2.0 allows string, number, or null
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<Value>,
@@ -31,7 +31,7 @@ pub struct JsonRpcRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcResponse {
     pub jsonrpc: JsonRpcVersion,
-    pub id: u64,
+    pub id: Value, // JSON-RPC 2.0 allows string, number, or null
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

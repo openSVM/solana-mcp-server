@@ -25,8 +25,8 @@ use url::Url;
 ///
 /// # Returns
 /// * `JsonRpcMessage` - Formatted success response
-pub fn create_success_response(result: Value, id: u64) -> JsonRpcMessage {
-    log::debug!("Creating success response with id {}", id);
+pub fn create_success_response(result: Value, id: Value) -> JsonRpcMessage {
+    log::debug!("Creating success response with id {:?}", id);
     JsonRpcMessage::Response(JsonRpcResponse {
         jsonrpc: JsonRpcVersion::V2,
         id,
@@ -52,7 +52,7 @@ pub fn create_success_response(result: Value, id: u64) -> JsonRpcMessage {
 pub fn create_error_response(
     code: i32,
     message: String,
-    id: u64,
+    id: Value,
     protocol_version: Option<&str>,
 ) -> JsonRpcMessage {
     log::error!("Creating error response: {} (code: {})", message, code);
@@ -93,7 +93,7 @@ pub async fn handle_initialize(
                 return Ok(create_error_response(
                     -32602,
                     "Invalid params: protocolVersion is required".to_string(),
-                    id.and_then(|v| v.as_u64()).unwrap_or(0),
+                    id.unwrap_or(Value::Null),
                     Some(state.protocol_version.as_str()),
                 ));
             }
@@ -119,7 +119,7 @@ pub async fn handle_initialize(
                     "Protocol version mismatch. Server: {}, Client: {}",
                     state.protocol_version, init_params.protocol_version
                 ),
-                id.and_then(|v| v.as_u64()).unwrap_or(0),
+                id.unwrap_or(Value::Null),
                 Some(state.protocol_version.as_str()),
             ));
         }
@@ -1216,14 +1216,14 @@ pub async fn handle_initialize(
         log::info!("Server initialized successfully");
         Ok(create_success_response(
             serde_json::to_value(response).unwrap(),
-            id.and_then(|v| v.as_u64()).unwrap_or(0),
+            id.unwrap_or(Value::Null),
         ))
     } else {
         log::error!("Missing initialization params");
         Ok(create_error_response(
             -32602,
             "Invalid params".to_string(),
-            id.and_then(|v| v.as_u64()).unwrap_or(0),
+            id.unwrap_or(Value::Null),
             Some(state.protocol_version.as_str()),
         ))
     }
@@ -1239,14 +1239,14 @@ pub async fn handle_cancelled(
         let _cancel_params: CancelledParams = serde_json::from_value(params)?;
         Ok(create_success_response(
             Value::Null,
-            id.and_then(|v| v.as_u64()).unwrap_or(0),
+            id.unwrap_or(Value::Null),
         ))
     } else {
         log::error!("Missing cancelled params");
         Ok(create_error_response(
             -32602,
             "Invalid params".to_string(),
-            id.and_then(|v| v.as_u64()).unwrap_or(0),
+            id.unwrap_or(Value::Null),
             Some(state.protocol_version.as_str()),
         ))
     }
@@ -2031,7 +2031,7 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
 
     Ok(create_success_response(
         serde_json::to_value(response).unwrap(),
-        id.and_then(|v| v.as_u64()).unwrap_or(0),
+        id.unwrap_or(Value::Null),
     ))
 }
 
@@ -2297,7 +2297,7 @@ pub async fn handle_request(
                 "initialize" => {
                     let response = handle_initialize(
                         req.params,
-                        Some(serde_json::Value::Number(req.id.into())),
+                        Some(req.id.clone()),
                         &state_guard,
                     )
                     .await?;
@@ -2313,13 +2313,13 @@ pub async fn handle_request(
                 "cancelled" => {
                     handle_cancelled(
                         req.params,
-                        Some(serde_json::Value::Number(req.id.into())),
+                        Some(req.id.clone()),
                         &state_guard,
                     )
                     .await
                 }
                 "tools/list" => {
-                    handle_tools_list(Some(serde_json::Value::Number(req.id.into())), &state_guard)
+                    handle_tools_list(Some(req.id.clone()), &state_guard)
                         .await
                 }
 
@@ -3698,7 +3698,7 @@ pub async fn handle_request(
             Ok(create_error_response(
                 -32600,
                 "Invalid Request: expected request message".to_string(),
-                0,
+                Value::Null,
                 None,
             ))
         }
@@ -3712,7 +3712,7 @@ pub async fn handle_request(
                 Ok(create_error_response(
                     -32600,
                     format!("Unsupported notification: {}", notification.method),
-                    0,
+                    Value::Null,
                     None,
                 ))
             }
