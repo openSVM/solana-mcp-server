@@ -2035,6 +2035,125 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
     ))
 }
 
+/// Handles the tools/call MCP method to execute a specific tool
+pub async fn handle_tools_call(
+    params: Option<Value>,
+    id: Option<Value>,
+    state: Arc<RwLock<ServerState>>,
+) -> Result<JsonRpcMessage> {
+    log::info!("Handling tools/call request");
+    
+    let params = params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+    
+    let tool_name = params
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("Missing tool name parameter"))?;
+        
+    let arguments = params.get("arguments").cloned().unwrap_or(serde_json::json!({}));
+    
+    log::info!("Executing tool: {}", tool_name);
+    
+    // Execute the specific tool based on the tool name
+    let result = match tool_name {
+        "getHealth" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_health(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Health check failed: {}", e))
+        }
+        "getVersion" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_version(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Version check failed: {}", e))
+        }
+        "getBalance" => {
+            let pubkey_str = arguments
+                .get("pubkey")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?;
+            let pubkey = Pubkey::try_from(pubkey_str)?;
+            
+            let state_guard = state.read().await;
+            crate::rpc::accounts::get_balance(&state_guard.rpc_client, &pubkey).await
+                .map_err(|e| anyhow::anyhow!("Get balance failed: {}", e))
+        }
+        "getAccountInfo" => {
+            let pubkey_str = arguments
+                .get("pubkey")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?;
+            let pubkey = Pubkey::try_from(pubkey_str)?;
+            
+            let state_guard = state.read().await;
+            crate::rpc::accounts::get_account_info(&state_guard.rpc_client, &pubkey).await
+                .map_err(|e| anyhow::anyhow!("Get account info failed: {}", e))
+        }
+        "getMultipleAccounts" => {
+            let pubkeys_array = arguments
+                .get("pubkeys")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkeys parameter"))?;
+
+            let mut pubkeys = Vec::new();
+            for pubkey_val in pubkeys_array {
+                let pubkey_str = pubkey_val
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid pubkey in array"))?;
+                pubkeys.push(Pubkey::try_from(pubkey_str)?);
+            }
+
+            let state_guard = state.read().await;
+            crate::rpc::accounts::get_multiple_accounts(&state_guard.rpc_client, &pubkeys).await
+                .map_err(|e| anyhow::anyhow!("Get multiple accounts failed: {}", e))
+        }
+        "getSlot" => {
+            let state_guard = state.read().await;
+            crate::rpc::blocks::get_slot(&state_guard.rpc_client).await
+        }
+        "getTransactionCount" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_transaction_count(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get transaction count failed: {}", e))
+        }
+        "getLatestBlockhash" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_latest_blockhash(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get latest blockhash failed: {}", e))
+        }
+        "getEpochInfo" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_epoch_info(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get epoch info failed: {}", e))
+        }
+        "getClusterNodes" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_cluster_nodes(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get cluster nodes failed: {}", e))
+        }
+        _ => {
+            return Ok(create_error_response(
+                -32601,
+                format!("Tool not found: {}", tool_name),
+                id.unwrap_or(Value::Null),
+                None,
+            ));
+        }
+    };
+    
+    match result {
+        Ok(result_value) => Ok(create_success_response(result_value, id.unwrap_or(Value::Null))),
+        Err(e) => {
+            log::error!("Tool execution failed: {}", e);
+            Ok(create_error_response(
+                -32603,
+                format!("Tool execution failed: {}", e),
+                id.unwrap_or(Value::Null),
+                None,
+            ))
+        }
+    }
+}
+
 use solana_sdk::pubkey::Pubkey;
 
 // SVM Network Management Functions
@@ -2320,6 +2439,10 @@ pub async fn handle_request(
                 }
                 "tools/list" => {
                     handle_tools_list(Some(req.id.clone()), &state_guard)
+                        .await
+                }
+                "tools/call" => {
+                    handle_tools_call(req.params, Some(req.id.clone()), state.clone())
                         .await
                 }
 
