@@ -91,6 +91,26 @@ The Solana MCP Server supports dynamic scaling to handle variable load efficient
 - **Kubernetes HPA** with CPU, memory, and custom metrics
 - **Docker scaling** guidelines and automation scripts
 - **Health checks** at `/health` endpoint
+- **MCP JSON-RPC API** for web service integration
+
+### Web Service API
+
+The server now supports both traditional stdio transport and HTTP JSON-RPC mode:
+
+```bash
+# Run as stdio transport (default)
+solana-mcp-server stdio
+
+# Run as web service
+solana-mcp-server web --port 3000
+```
+
+**API Endpoints:**
+- `POST /api/mcp` - Full MCP JSON-RPC 2.0 API
+- `GET /health` - Health check with capability information  
+- `GET /metrics` - Prometheus metrics
+
+**[📚 Complete MCP JSON-RPC API Documentation](./docs/mcp-json-rpc-api.md)**
 
 ### Metrics Exposed
 - `solana_mcp_rpc_requests_total` - Total RPC requests by method and network

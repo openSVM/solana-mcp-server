@@ -4,6 +4,55 @@ use url::Url;
 
 pub const LATEST_PROTOCOL_VERSION: &str = "2024-11-05";
 
+/// Describes who the intended customer of this object or data is
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    User,
+    Assistant,
+}
+
+/// Optional annotations for the client
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Annotations {
+    /// Describes who the intended customer of this object or data is
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audience: Option<Vec<Role>>,
+    /// The moment the resource was last modified, as an ISO 8601 formatted string
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_modified: Option<String>,
+    /// Describes how important this data is for operating the server
+    /// A value of 1 means "most important," and 0 means "least important"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<f64>,
+}
+
+/// Content that can be sent in MCP messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Content {
+    #[serde(rename = "text")]
+    Text {
+        text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
+    #[serde(rename = "image")]
+    Image {
+        data: String,
+        mime_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
+    #[serde(rename = "resource")]
+    Resource {
+        resource: ResourceContents,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
@@ -99,7 +148,7 @@ pub struct CallToolRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CallToolResponse {
-    pub content: Vec<ToolResponseContent>,
+    pub content: Vec<Content>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_error: Option<bool>,
     #[serde(rename = "_meta", skip_serializing_if = "Option::is_none")]
@@ -110,11 +159,24 @@ pub struct CallToolResponse {
 #[serde(tag = "type")]
 pub enum ToolResponseContent {
     #[serde(rename = "text")]
-    Text { text: String },
+    Text {
+        text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
     #[serde(rename = "image")]
-    Image { data: String, mime_type: String },
+    Image {
+        data: String,
+        mime_type: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
     #[serde(rename = "resource")]
-    Resource { resource: ResourceContents },
+    Resource {
+        resource: ResourceContents,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotations: Option<Annotations>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

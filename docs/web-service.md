@@ -1,6 +1,15 @@
 # Solana MCP Server - Web Service Mode
 
-The Solana MCP Server can run in web service mode, providing HTTP endpoints for MCP JSON-RPC communication alongside the traditional stdio transport.
+The Solana MCP Server supports running as an HTTP web service, providing full MCP JSON-RPC 2.0 API compliance for web-based integrations.
+
+## Overview
+
+When running in web service mode, the server provides:
+- **Full MCP JSON-RPC 2.0 compliance** following the official specification  
+- **Proper content type handling** with annotations support
+- **Standards-compliant error responses** with protocol versioning
+- **Health checks** with capability information
+- **Prometheus metrics** integration
 
 ## Running as Web Service
 
@@ -10,7 +19,7 @@ The Solana MCP Server can run in web service mode, providing HTTP endpoints for 
 # Run on default port 3000
 solana-mcp-server web
 
-# Run on custom port
+# Run on custom port  
 solana-mcp-server web --port 8000
 ```
 
@@ -19,14 +28,15 @@ solana-mcp-server web --port 8000
 When running in web service mode, the server provides:
 
 #### POST /api/mcp
-- **Purpose**: MCP JSON-RPC API endpoint
-- **Content-Type**: `application/json`
-- **Description**: Accepts MCP JSON-RPC requests and returns responses
+- **Purpose**: MCP JSON-RPC 2.0 API endpoint
+- **Content-Type**: `application/json` (required)
+- **Description**: Accepts MCP JSON-RPC requests following the 2024-11-05 specification
+- **Features**: Full protocol validation, proper error handling, content annotations
 
 #### GET /health
-- **Purpose**: Health check endpoint
-- **Response**: `{"status":"ok","service":"solana-mcp-server"}`
-- **Description**: Returns server health status
+- **Purpose**: Health check and capability information
+- **Response**: Detailed server status including protocol version and capabilities
+- **Description**: Returns comprehensive server health and MCP capability information
 
 #### GET /metrics
 - **Purpose**: Prometheus metrics endpoint

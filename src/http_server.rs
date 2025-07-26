@@ -1,16 +1,17 @@
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{StatusCode, HeaderMap, header::CONTENT_TYPE},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tracing::{info, error};
+use tracing::{info, error, debug};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::server::ServerState;
+use crate::transport::{JsonRpcRequest, JsonRpcVersion};
 
 /// HTTP server for metrics, health, and MCP API endpoints
 pub struct McpHttpServer {
@@ -83,77 +84,154 @@ async fn metrics_handler() -> Response {
 }
 
 /// Handler for /api/mcp endpoint - processes MCP JSON-RPC requests over HTTP
+/// Follows the MCP protocol specification for proper JSON-RPC 2.0 handling
 async fn mcp_api_handler(
     State(server_state): State<Arc<RwLock<ServerState>>>,
+    headers: HeaderMap,
     Json(request): Json<serde_json::Value>,
 ) -> Response {
-    info!("Received MCP API request");
+    debug!("Received MCP API request: {}", serde_json::to_string(&request).unwrap_or_default());
     
-    // Convert the JSON request to string for processing by handle_request
-    let request_str = match serde_json::to_string(&request) {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Failed to serialize request: {}", e);
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32700,
-                        "message": "Parse error"
-                    },
-                    "id": null
-                }))
-            ).into_response();
+    // Validate Content-Type header (should be application/json for MCP)
+    if let Some(content_type) = headers.get(CONTENT_TYPE) {
+        if let Ok(ct_str) = content_type.to_str() {
+            if !ct_str.starts_with("application/json") {
+                return create_json_rpc_error_response(
+                    -32600,
+                    "Invalid Request: Content-Type must be application/json",
+                    None,
+                );
+            }
         }
+    }
+
+    // Parse and validate JSON-RPC request structure
+    let json_rpc_request = match parse_json_rpc_request(&request) {
+        Ok(req) => req,
+        Err(error_response) => return error_response,
     };
 
-    // Process the request using the existing MCP request handler
-    match crate::tools::handle_request(&request_str, server_state).await {
+    // Process the MCP request through the existing handler
+    match crate::tools::handle_request(&serde_json::to_string(&request).unwrap_or_default(), server_state).await {
         Ok(response_message) => {
-            // Convert JsonRpcMessage back to JSON for HTTP response
+            // Convert JsonRpcMessage back to proper JSON-RPC 2.0 format
             match serde_json::to_value(&response_message) {
                 Ok(json_response) => {
-                    (StatusCode::OK, Json(json_response)).into_response()
+                    create_json_rpc_success_response(json_response)
                 }
                 Err(e) => {
-                    error!("Failed to serialize response: {}", e);
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "error": {
-                                "code": -32603,
-                                "message": "Internal error"
-                            },
-                            "id": null
-                        }))
-                    ).into_response()
+                    error!("Failed to serialize MCP response: {}", e);
+                    create_json_rpc_error_response(
+                        -32603,
+                        "Internal error: Failed to serialize response",
+                        Some(json_rpc_request.id),
+                    )
                 }
             }
         }
         Err(e) => {
             error!("Failed to handle MCP request: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32603,
-                        "message": "Internal error"
-                    },
-                    "id": null
-                }))
-            ).into_response()
+            create_json_rpc_error_response(
+                -32603,
+                &format!("Internal error: {}", e),
+                Some(json_rpc_request.id),
+            )
         }
     }
 }
 
-/// Handler for /health endpoint
-async fn health_handler() -> Response {
+/// Parse and validate JSON-RPC 2.0 request according to MCP specification
+fn parse_json_rpc_request(request: &serde_json::Value) -> Result<JsonRpcRequest, Response> {
+    // Validate required fields for JSON-RPC 2.0
+    let jsonrpc = request.get("jsonrpc")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| create_json_rpc_error_response(
+            -32600,
+            "Invalid Request: missing 'jsonrpc' field",
+            None,
+        ))?;
+
+    if jsonrpc != "2.0" {
+        return Err(create_json_rpc_error_response(
+            -32600,
+            "Invalid Request: 'jsonrpc' must be '2.0'",
+            None,
+        ));
+    }
+
+    let method = request.get("method")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| create_json_rpc_error_response(
+            -32600,
+            "Invalid Request: missing 'method' field",
+            None,
+        ))?;
+
+    let id = request.get("id")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
+    let params = request.get("params").cloned();
+
+    Ok(JsonRpcRequest {
+        jsonrpc: JsonRpcVersion::V2,
+        id,
+        method: method.to_string(),
+        params,
+    })
+}
+
+/// Create a properly formatted JSON-RPC 2.0 success response
+fn create_json_rpc_success_response(result: serde_json::Value) -> Response {
     (
-        [("content-type", "application/json")],
-        r#"{"status":"ok","service":"solana-mcp-server"}"#,
+        StatusCode::OK,
+        [
+            (CONTENT_TYPE, "application/json"),
+        ],
+        Json(result)
+    ).into_response()
+}
+
+/// Create a properly formatted JSON-RPC 2.0 error response
+fn create_json_rpc_error_response(code: i32, message: &str, id: Option<u64>) -> Response {
+    let error_response = serde_json::json!({
+        "jsonrpc": "2.0",
+        "error": {
+            "code": code,
+            "message": message,
+            "data": {
+                "protocolVersion": crate::protocol::LATEST_PROTOCOL_VERSION
+            }
+        },
+        "id": id
+    });
+
+    (
+        StatusCode::OK,
+        [(CONTENT_TYPE, "application/json")],
+        Json(error_response)
+    ).into_response()
+}
+
+/// Handler for /health endpoint - MCP-compliant health check
+async fn health_handler() -> Response {
+    let health_response = serde_json::json!({
+        "status": "ok",
+        "service": "solana-mcp-server",
+        "version": env!("CARGO_PKG_VERSION"),
+        "protocol": crate::protocol::LATEST_PROTOCOL_VERSION,
+        "capabilities": {
+            "tools": true,
+            "resources": true,
+            "prompts": false,
+            "sampling": false
+        }
+    });
+
+    (
+        StatusCode::OK,
+        [(CONTENT_TYPE, "application/json")],
+        Json(health_response)
     ).into_response()
 }
 
