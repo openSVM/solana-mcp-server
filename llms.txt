@@ -1,0 +1,131 @@
+# Solana MCP Server - LLM Documentation
+
+## Overview
+The Solana MCP Server provides access to Solana blockchain data through the Model Context Protocol (MCP). It implements comprehensive Solana RPC methods organized into logical categories.
+
+## Currently Implemented RPC Methods (51 total)
+
+### Account Methods (7)
+- `getAccountInfo` - Returns all information associated with an account
+- `getBalance` - Returns the balance of an account
+- `getProgramAccounts` - Returns all accounts owned by a program
+- `getMultipleAccounts` - Returns account information for multiple accounts
+- `getLargestAccounts` - Returns the 20 largest accounts by lamport balance
+- `getMinimumBalanceForRentExemption` - Returns minimum balance for rent exemption
+
+### Block Methods (11)
+- `getSlot` - Returns the current slot the node is processing
+- `getBlock` - Returns identity and transaction information about a confirmed block
+- `getBlockHeight` - Returns current block height
+- `getBlocks` - Returns a list of confirmed blocks between two slots
+- `getFirstAvailableBlock` - Returns the lowest confirmed block still available
+- `getGenesisHash` - Returns the genesis hash of the ledger
+- `getSlotLeaders` - Returns slot leaders for a given slot range
+- `getBlockProduction` - Returns recent block production information
+- `getVoteAccounts` - Returns account info and stake for all voting accounts
+- `getLeaderSchedule` - Returns the leader schedule for an epoch
+- `getBlocksWithLimit` - Returns a list of confirmed blocks starting at given slot
+
+### System Methods (14)
+- `getHealth` - Returns the current health of the node
+- `getVersion` - Returns the current Solana version
+- `getIdentity` - Returns identity pubkey for the current node
+- `getEpochInfo` - Returns information about the current epoch
+- `getLatestBlockhash` - Returns the latest blockhash
+- `getSupply` - Returns information about current supply
+- `getClusterNodes` - Returns information about all cluster nodes
+- `getEpochSchedule` - Returns epoch schedule information
+- `getInflationGovernor` - Returns current inflation governor
+- `getInflationRate` - Returns specific inflation values for current epoch
+- `getInflationReward` - Returns inflation reward for list of addresses
+- `getTransactionCount` - Returns current transaction count from ledger
+- `requestAirdrop` - Request an airdrop of lamports to a Pubkey
+- `getStakeMinimumDelegation` - Returns stake minimum delegation
+
+### Transaction Methods (7)
+- `getTransaction` - Returns transaction details
+- `getSignaturesForAddress` - Returns signatures for address's transactions
+- `sendTransaction` - Send a transaction
+- `simulateTransaction` - Simulate sending a transaction
+- `getBlockTime` - Returns estimated production time of a block
+- `getFeeForMessage` - Get the fee for a message
+- `getTransactionWithConfig` - Returns transaction details with additional configuration
+
+### Token Methods (6)
+- `getTokenAccountsByOwner` - Returns all token accounts by token owner
+- `getTokenSupply` - Returns total supply of an SPL Token type
+- `getTokenAccountBalance` - Returns token balance of an SPL Token account
+- `getTokenAccountsByDelegate` - Returns all token accounts by approved delegate
+- `getTokenLargestAccounts` - Returns 20 largest accounts of a token type
+
+### Network Management Methods (4)
+- `listSvmNetworks` - List all available SVM networks from awesome-svm repository
+- `enableSvmNetwork` - Enable an SVM network for use in RPC requests
+- `disableSvmNetwork` - Disable an SVM network
+- `setNetworkRpcUrl` - Override RPC URL for a specific network
+
+### MCP Protocol Methods (2)
+- `initialize` - Initialize MCP session
+- `tools/call` - Execute tool calls via MCP
+
+## Missing RPC Methods from Standard Solana API
+
+The following methods from the official Solana RPC API are NOT currently implemented:
+
+### Critical Missing Methods
+1. `isBlockhashValid` - Check if a blockhash is still valid
+2. `getSlotLeader` - Get the current slot leader
+3. `getMaxRetransmitSlot` - Get the max slot seen from retransmit stage
+4. `getMaxShredInsertSlot` - Get the max slot seen from shred insert
+5. `minimumLedgerSlot` - Get the lowest slot that contains a block
+6. `getSnapshotSlot` - Get the highest snapshot slot
+7. `getHighestSnapshotSlot` - Get the highest slot with a snapshot
+
+### Deprecated but Still Used Methods  
+8. `getConfirmedBlock` - Deprecated version of getBlock
+9. `getConfirmedTransaction` - Deprecated version of getTransaction
+10. `getRecentBlockhash` - Deprecated version of getLatestBlockhash
+11. `getFees` - Deprecated method for getting fees
+12. `getConfirmedBlocks` - Deprecated version of getBlocks
+13. `getConfirmedBlocksWithLimit` - Deprecated version of getBlocksWithLimit
+14. `getConfirmedSignaturesForAddress2` - Deprecated version of getSignaturesForAddress
+
+### Subscription Methods (WebSocket only)
+15. `accountSubscribe` - Subscribe to account changes
+16. `logsSubscribe` - Subscribe to transaction logs
+17. `programSubscribe` - Subscribe to program account changes
+18. `signatureSubscribe` - Subscribe to transaction signature
+19. `slotSubscribe` - Subscribe to slot changes
+20. `rootSubscribe` - Subscribe to root changes
+
+### Advanced/Less Common Methods
+21. `getStakeActivation` - Get stake activation info
+22. `getAccountInfoAndContext` - Get account info with context
+23. `getBalanceAndContext` - Get balance with context
+24. `getProgramAccountsAndContext` - Get program accounts with context
+25. `getMultipleAccountsAndContext` - Get multiple accounts with context
+
+## Recommendations for Implementation Priority
+
+### High Priority (Should Implement)
+1. `isBlockhashValid` - Important for transaction validation
+2. `getSlotLeader` - Useful for network analysis
+3. `getStakeActivation` - Important for staking operations
+
+### Medium Priority (Nice to Have)
+4. `minimumLedgerSlot` - Useful for historical data queries
+5. `getMaxRetransmitSlot` - Network health monitoring
+6. `getMaxShredInsertSlot` - Network health monitoring
+
+### Low Priority (Deprecated/Specialized)
+7. Deprecated methods - Only if backward compatibility is needed
+8. Subscription methods - Only if WebSocket support is added
+9. Context methods - Only if context data is specifically needed
+
+## Architecture Notes
+
+The server supports both single-network and multi-network modes:
+- Single-network: Queries one RPC endpoint
+- Multi-network: Queries multiple SVM-compatible networks simultaneously
+
+Each method includes comprehensive error handling, logging, and Prometheus metrics integration.

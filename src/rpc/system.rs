@@ -569,3 +569,206 @@ pub async fn get_fee_for_message(
     let fee = client.get_fee_for_message(message).await?;
     Ok(serde_json::json!({ "fee": fee }))
 }
+
+/// Check if a blockhash is still valid for submitting transactions
+pub async fn is_blockhash_valid(
+    client: &RpcClient,
+    blockhash: &str,
+    commitment: Option<CommitmentConfig>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "isBlockhashValid";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("blockhash: {}", blockhash)),
+    );
+
+    let blockhash_obj = match blockhash.parse() {
+        Ok(hash) => hash,
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::validation(format!("Invalid blockhash format: {}", e))
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            return Err(error);
+        }
+    };
+
+    match client.is_blockhash_valid(&blockhash_obj, commitment.unwrap_or_default()).await {
+        Ok(is_valid) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "valid": is_valid });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("blockhash validity: {}", is_valid)),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get the current slot leader
+pub async fn get_slot_leader(
+    client: &RpcClient,
+    commitment: Option<CommitmentConfig>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getSlotLeader";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    // Get current slot first, then get slot leaders for that range
+    let current_slot_result = client.get_slot_with_commitment(commitment.unwrap_or_default()).await;
+    
+    match current_slot_result {
+        Ok(slot) => {
+            // Get slot leaders for the current slot (with limit 1)
+            match client.get_slot_leaders(slot, 1).await {
+                Ok(leaders) => {
+                    let duration = start_time.elapsed().as_millis() as u64;
+                    let leader = leaders.first().map(|l| l.to_string()).unwrap_or_else(|| "unknown".to_string());
+                    let result = serde_json::json!({ "leader": leader });
+                    
+                    log_rpc_request_success(
+                        request_id,
+                        method,
+                        duration,
+                        Some(&format!("slot leader for slot {}: {}", slot, leader)),
+                        Some(&client.url()),
+                    );
+                    
+                    Ok(result)
+                }
+                Err(e) => {
+                    let duration = start_time.elapsed().as_millis() as u64;
+                    let error = McpError::from(e)
+                        .with_request_id(request_id)
+                        .with_method(method)
+                        .with_rpc_url(&client.url());
+                    
+                    log_rpc_request_failure(
+                        request_id,
+                        method,
+                        error.error_type(),
+                        duration,
+                        Some(&error.to_log_value()),
+                        Some(&client.url()),
+                    );
+                    
+                    Err(error)
+                }
+            }
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get the minimum ledger slot available
+pub async fn minimum_ledger_slot(client: &RpcClient) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "minimumLedgerSlot";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    match client.minimum_ledger_slot().await {
+        Ok(slot) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "slot": slot });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("minimum ledger slot: {}", slot)),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}

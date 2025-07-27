@@ -12,6 +12,7 @@ use anyhow::Result;
 use reqwest;
 use serde::Deserialize;
 use serde_json::Value;
+use solana_sdk::commitment_config::CommitmentConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -1191,6 +1192,60 @@ pub async fn handle_initialize(
                         },
                     );
 
+                    // New critical missing methods
+                    tools.insert(
+                        "isBlockhashValid".to_string(),
+                        ToolDefinition {
+                            name: "isBlockhashValid".to_string(),
+                            description: Some("Check if a blockhash is still valid".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "blockhash": {
+                                        "type": "string",
+                                        "description": "Base58 encoded blockhash"
+                                    },
+                                    "commitment": {
+                                        "type": "string",
+                                        "description": "Commitment level",
+                                        "enum": ["processed", "confirmed", "finalized"]
+                                    }
+                                },
+                                "required": ["blockhash"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getSlotLeader".to_string(),
+                        ToolDefinition {
+                            name: "getSlotLeader".to_string(),
+                            description: Some("Get the current slot leader".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "commitment": {
+                                        "type": "string",
+                                        "description": "Commitment level",
+                                        "enum": ["processed", "confirmed", "finalized"]
+                                    }
+                                }
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "minimumLedgerSlot".to_string(),
+                        ToolDefinition {
+                            name: "minimumLedgerSlot".to_string(), 
+                            description: Some("Get the minimum ledger slot available".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
                     Some(tools)
                 },
                 resources: {
@@ -2018,6 +2073,48 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["signature"]
             }),
         },
+        // New critical missing methods
+        ToolDefinition {
+            name: "isBlockhashValid".to_string(),
+            description: Some("Check if a blockhash is still valid".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "blockhash": {
+                        "type": "string",
+                        "description": "Base58 encoded blockhash"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                },
+                "required": ["blockhash"]
+            }),
+        },
+        ToolDefinition {
+            name: "getSlotLeader".to_string(),
+            description: Some("Get the current slot leader".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "minimumLedgerSlot".to_string(), 
+            description: Some("Get the minimum ledger slot available".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -2129,6 +2226,43 @@ pub async fn handle_tools_call(
             let state_guard = state.read().await;
             crate::rpc::system::get_cluster_nodes(&state_guard.rpc_client).await
                 .map_err(|e| anyhow::anyhow!("Get cluster nodes failed: {}", e))
+        }
+        // New critical missing methods
+        "isBlockhashValid" => {
+            let blockhash = arguments.get("blockhash")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing blockhash parameter"))?;
+            let commitment = arguments.get("commitment")
+                .and_then(|v| v.as_str())
+                .map(|c| match c {
+                    "processed" => CommitmentConfig::processed(),
+                    "confirmed" => CommitmentConfig::confirmed(),
+                    "finalized" => CommitmentConfig::finalized(),
+                    _ => CommitmentConfig::finalized(),
+                });
+
+            let state_guard = state.read().await;
+            crate::rpc::system::is_blockhash_valid(&state_guard.rpc_client, blockhash, commitment).await
+                .map_err(|e| anyhow::anyhow!("Check blockhash validity failed: {}", e))
+        }
+        "getSlotLeader" => {
+            let commitment = arguments.get("commitment")
+                .and_then(|v| v.as_str())
+                .map(|c| match c {
+                    "processed" => CommitmentConfig::processed(),
+                    "confirmed" => CommitmentConfig::confirmed(),
+                    "finalized" => CommitmentConfig::finalized(),
+                    _ => CommitmentConfig::finalized(),
+                });
+
+            let state_guard = state.read().await;
+            crate::rpc::system::get_slot_leader(&state_guard.rpc_client, commitment).await
+                .map_err(|e| anyhow::anyhow!("Get slot leader failed: {}", e))
+        }
+        "minimumLedgerSlot" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::minimum_ledger_slot(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get minimum ledger slot failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(
@@ -3768,6 +3902,60 @@ pub async fn handle_request(
                         max_supported_transaction_version,
                     )
                     .await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                // New critical missing methods
+                "isBlockhashValid" => {
+                    log::info!("Checking blockhash validity");
+                    let params = req
+                        .params
+                        .ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let blockhash = params
+                        .get("blockhash")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing blockhash parameter"))?;
+                    let commitment = params.get("commitment").and_then(|v| v.as_str()).map(
+                        |c| match c {
+                            "processed" => CommitmentConfig::processed(),
+                            "confirmed" => CommitmentConfig::confirmed(),
+                            "finalized" => CommitmentConfig::finalized(),
+                            _ => CommitmentConfig::finalized(),
+                        },
+                    );
+
+                    let state = state.read().await;
+                    let result = crate::rpc::system::is_blockhash_valid(
+                        &state.rpc_client,
+                        blockhash,
+                        commitment,
+                    )
+                    .await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getSlotLeader" => {
+                    log::info!("Getting slot leader");
+                    let params = req.params.unwrap_or_else(|| serde_json::json!({}));
+                    let commitment = params.get("commitment").and_then(|v| v.as_str()).map(
+                        |c| match c {
+                            "processed" => CommitmentConfig::processed(),
+                            "confirmed" => CommitmentConfig::confirmed(),
+                            "finalized" => CommitmentConfig::finalized(),
+                            _ => CommitmentConfig::finalized(),
+                        },
+                    );
+
+                    let state = state.read().await;
+                    let result =
+                        crate::rpc::system::get_slot_leader(&state.rpc_client, commitment).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "minimumLedgerSlot" => {
+                    log::info!("Getting minimum ledger slot");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::minimum_ledger_slot(&state.rpc_client).await?;
                     Ok(create_success_response(result, req.id))
                 }
 
