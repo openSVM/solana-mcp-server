@@ -18,22 +18,26 @@ tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 uuid = { version = "1.0", features = ["v4"] }
 once_cell = "1.19"
 dashmap = "6.1"
-solana-client = "~2.2"
-solana-sdk = "~2.2"
-solana-account-decoder = "~2.2"
-solana-transaction-status = "~2.2"
-spl-token = "7.0"
+solana-client = "~2.3"
+solana-sdk = "~2.3"
+solana-account-decoder = "~2.3"
+solana-transaction-status = "~2.3"
+spl-token = "8.0"
 base64 = "0.22"
 bs58 = "0.5"
 bincode = "1.3"
 reqwest = { version = "0.11", features = ["json"] }
-prometheus = "0.13"
+prometheus = "0.14"
 axum = { version = "0.7", features = ["ws"] }
 tower = "0.5"
 clap = { version = "4.0", features = ["derive"] }
-solana-pubsub-client = "~2.2"
+solana-pubsub-client = "~2.3"
 tokio-tungstenite = "0.20"
 futures-util = "0.3"
+# Security fix: Force newer version of curve25519-dalek to avoid timing vulnerability
+curve25519-dalek = "4.1.3"
+# Security fix: Replace atty with is-terminal to fix unmaintained dependency
+is-terminal = "0.4"
 
 [dev-dependencies]
 tokio-test = "0.4"
