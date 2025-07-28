@@ -227,3 +227,32 @@ pub async fn get_fee_for_message(
     let fee = client.get_fee_for_message(&tx.message).await?;
     Ok(serde_json::json!({ "fee": fee }))
 }
+/// Get confirmed transaction (deprecated version of getTransaction)
+pub async fn get_confirmed_transaction(client: &RpcClient, signature: &Signature) -> Result<Value> {
+    // Use the same implementation as get_transaction
+    get_transaction(client, signature).await
+}
+
+/// Get confirmed transaction with config (deprecated version of getTransaction)
+pub async fn get_confirmed_transaction_with_config(
+    client: &RpcClient,
+    signature: &Signature,
+    encoding: UiTransactionEncoding,
+    commitment: Option<CommitmentConfig>,
+    max_supported_transaction_version: Option<u8>,
+) -> Result<Value> {
+    // Use the same implementation as get_transaction_with_config
+    get_transaction_with_config(client, signature, encoding, commitment, max_supported_transaction_version).await
+}
+
+/// Get confirmed signatures for address 2 (deprecated version of getSignaturesForAddress)
+pub async fn get_confirmed_signatures_for_address_2(
+    client: &RpcClient,
+    address: &Pubkey,
+    before: Option<Signature>,
+    until: Option<Signature>,
+    limit: Option<u64>,
+) -> Result<Value> {
+    // Use the same implementation as get_signatures_for_address
+    get_signatures_for_address(client, address, before, until, limit).await
+}

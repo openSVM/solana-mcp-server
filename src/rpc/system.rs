@@ -772,3 +772,284 @@ pub async fn minimum_ledger_slot(client: &RpcClient) -> McpResult<Value> {
         }
     }
 }
+/// Get the max slot seen from retransmit stage
+pub async fn get_max_retransmit_slot(client: &RpcClient) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getMaxRetransmitSlot";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    match client.get_max_retransmit_slot().await {
+        Ok(slot) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "slot": slot });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("max retransmit slot retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get the max slot seen from shred insert
+pub async fn get_max_shred_insert_slot(client: &RpcClient) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getMaxShredInsertSlot";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    match client.get_max_shred_insert_slot().await {
+        Ok(slot) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "slot": slot });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("max shred insert slot retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get highest snapshot slot  
+pub async fn get_highest_snapshot_slot(client: &RpcClient) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getHighestSnapshotSlot";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    match client.get_highest_snapshot_slot().await {
+        Ok(snapshot_slot_info) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ 
+                "full": snapshot_slot_info.full,
+                "incremental": snapshot_slot_info.incremental
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("highest snapshot slot retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/// Get recent blockhash (deprecated version of getLatestBlockhash) 
+pub async fn get_recent_blockhash(client: &RpcClient) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getRecentBlockhash";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    // Use the same underlying method as getLatestBlockhash
+    match client.get_latest_blockhash().await {
+        Ok(blockhash) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            // Return in the deprecated format for compatibility
+            let result = serde_json::json!({
+                "context": { "slot": 0 }, // Note: slot info not available in this deprecated method 
+                "value": {
+                    "blockhash": blockhash.to_string(),
+                    "feeCalculator": {
+                        "lamportsPerSignature": 5000 // Default fee, deprecated anyway
+                    }
+                }
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("recent blockhash retrieved (deprecated)"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get fees (deprecated method)
+pub async fn get_fees(client: &RpcClient) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getFees";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        None,
+    );
+
+    // Use the getLatestBlockhash method as basis for deprecated getFees
+    match client.get_latest_blockhash().await {
+        Ok(blockhash) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": { "slot": 0 },
+                "value": {
+                    "blockhash": blockhash.to_string(),
+                    "feeCalculator": {
+                        "lamportsPerSignature": 5000 // Default fee for deprecated method
+                    },
+                    "lastValidSlot": 0,
+                    "lastValidBlockHeight": 0
+                }
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("fees retrieved (deprecated)"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}

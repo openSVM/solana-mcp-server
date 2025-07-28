@@ -1246,6 +1246,169 @@ pub async fn handle_initialize(
                         },
                     );
 
+                    tools.insert(
+                        "getMaxRetransmitSlot".to_string(),
+                        ToolDefinition {
+                            name: "getMaxRetransmitSlot".to_string(), 
+                            description: Some("Get the max slot seen from retransmit stage".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getMaxShredInsertSlot".to_string(),
+                        ToolDefinition {
+                            name: "getMaxShredInsertSlot".to_string(), 
+                            description: Some("Get the max slot seen from shred insert".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getHighestSnapshotSlot".to_string(),
+                        ToolDefinition {
+                            name: "getHighestSnapshotSlot".to_string(), 
+                            description: Some("Get highest snapshot slot".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
+                    // Deprecated methods for backward compatibility
+                    tools.insert(
+                        "getRecentBlockhash".to_string(),
+                        ToolDefinition {
+                            name: "getRecentBlockhash".to_string(), 
+                            description: Some("Get recent blockhash (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getFees".to_string(),
+                        ToolDefinition {
+                            name: "getFees".to_string(), 
+                            description: Some("Get fees (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getConfirmedBlock".to_string(),
+                        ToolDefinition {
+                            name: "getConfirmedBlock".to_string(), 
+                            description: Some("Get confirmed block (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "slot": {
+                                        "type": "integer",
+                                        "description": "Slot number to query"
+                                    }
+                                },
+                                "required": ["slot"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getConfirmedTransaction".to_string(),
+                        ToolDefinition {
+                            name: "getConfirmedTransaction".to_string(), 
+                            description: Some("Get confirmed transaction (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "signature": {
+                                        "type": "string",
+                                        "description": "Transaction signature (base58 encoded)"
+                                    }
+                                },
+                                "required": ["signature"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getConfirmedBlocks".to_string(),
+                        ToolDefinition {
+                            name: "getConfirmedBlocks".to_string(), 
+                            description: Some("Get confirmed blocks (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "startSlot": {
+                                        "type": "integer",
+                                        "description": "Start slot"
+                                    },
+                                    "endSlot": {
+                                        "type": "integer",
+                                        "description": "End slot (optional)"
+                                    }
+                                },
+                                "required": ["startSlot"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getConfirmedBlocksWithLimit".to_string(),
+                        ToolDefinition {
+                            name: "getConfirmedBlocksWithLimit".to_string(), 
+                            description: Some("Get confirmed blocks with limit (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "startSlot": {
+                                        "type": "integer",
+                                        "description": "Start slot"
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "description": "Maximum number of blocks to return"
+                                    }
+                                },
+                                "required": ["startSlot", "limit"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getConfirmedSignaturesForAddress2".to_string(),
+                        ToolDefinition {
+                            name: "getConfirmedSignaturesForAddress2".to_string(), 
+                            description: Some("Get confirmed signatures for address (deprecated)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "address": {
+                                        "type": "string",
+                                        "description": "Account address (base58 encoded)"
+                                    },
+                                    "limit": {
+                                        "type": "integer",
+                                        "description": "Maximum number of signatures to return"
+                                    }
+                                },
+                                "required": ["address"]
+                            }),
+                        },
+                    );
+
                     Some(tools)
                 },
                 resources: {
@@ -2115,6 +2278,129 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "properties": {}
             }),
         },
+        ToolDefinition {
+            name: "getMaxRetransmitSlot".to_string(), 
+            description: Some("Get the max slot seen from retransmit stage".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getMaxShredInsertSlot".to_string(), 
+            description: Some("Get the max slot seen from shred insert".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getHighestSnapshotSlot".to_string(), 
+            description: Some("Get highest snapshot slot".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        // Deprecated methods for backward compatibility
+        ToolDefinition {
+            name: "getRecentBlockhash".to_string(), 
+            description: Some("Get recent blockhash (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getFees".to_string(), 
+            description: Some("Get fees (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getConfirmedBlock".to_string(), 
+            description: Some("Get confirmed block (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "type": "integer",
+                        "description": "Slot number to query"
+                    }
+                },
+                "required": ["slot"]
+            }),
+        },
+        ToolDefinition {
+            name: "getConfirmedTransaction".to_string(), 
+            description: Some("Get confirmed transaction (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "signature": {
+                        "type": "string",
+                        "description": "Transaction signature (base58 encoded)"
+                    }
+                },
+                "required": ["signature"]
+            }),
+        },
+        ToolDefinition {
+            name: "getConfirmedBlocks".to_string(), 
+            description: Some("Get confirmed blocks (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "startSlot": {
+                        "type": "integer",
+                        "description": "Start slot"
+                    },
+                    "endSlot": {
+                        "type": "integer",
+                        "description": "End slot (optional)"
+                    }
+                },
+                "required": ["startSlot"]
+            }),
+        },
+        ToolDefinition {
+            name: "getConfirmedBlocksWithLimit".to_string(), 
+            description: Some("Get confirmed blocks with limit (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "startSlot": {
+                        "type": "integer",
+                        "description": "Start slot"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of blocks to return"
+                    }
+                },
+                "required": ["startSlot", "limit"]
+            }),
+        },
+        ToolDefinition {
+            name: "getConfirmedSignaturesForAddress2".to_string(), 
+            description: Some("Get confirmed signatures for address (deprecated)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Account address (base58 encoded)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of signatures to return"
+                    }
+                },
+                "required": ["address"]
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -2263,6 +2549,73 @@ pub async fn handle_tools_call(
             let state_guard = state.read().await;
             crate::rpc::system::minimum_ledger_slot(&state_guard.rpc_client).await
                 .map_err(|e| anyhow::anyhow!("Get minimum ledger slot failed: {}", e))
+        }
+        "getMaxRetransmitSlot" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_max_retransmit_slot(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get max retransmit slot failed: {}", e))
+        }
+        "getMaxShredInsertSlot" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_max_shred_insert_slot(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get max shred insert slot failed: {}", e))
+        }
+        "getHighestSnapshotSlot" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_highest_snapshot_slot(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get highest snapshot slot failed: {}", e))
+        }
+        // Deprecated methods
+        "getRecentBlockhash" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_recent_blockhash(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get recent blockhash failed: {}", e))
+        }
+        "getFees" => {
+            let state_guard = state.read().await;
+            crate::rpc::system::get_fees(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get fees failed: {}", e))
+        }
+        "getConfirmedBlock" => {
+            let state_guard = state.read().await;
+            let slot = arguments.get("slot").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
+            crate::rpc::blocks::get_confirmed_block(&state_guard.rpc_client, slot).await
+                .map_err(|e| anyhow::anyhow!("Get confirmed block failed: {}", e))
+        }
+        "getConfirmedTransaction" => {
+            let state_guard = state.read().await;
+            let signature_str = arguments.get("signature").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing signature parameter"))?;
+            let signature = signature_str.parse()?;
+            crate::rpc::transactions::get_confirmed_transaction(&state_guard.rpc_client, &signature).await
+                .map_err(|e| anyhow::anyhow!("Get confirmed transaction failed: {}", e))
+        }
+        "getConfirmedBlocks" => {
+            let state_guard = state.read().await;
+            let start_slot = arguments.get("startSlot").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
+            let end_slot = arguments.get("endSlot").and_then(|v| v.as_u64());
+            crate::rpc::blocks::get_confirmed_blocks(&state_guard.rpc_client, start_slot, end_slot).await
+                .map_err(|e| anyhow::anyhow!("Get confirmed blocks failed: {}", e))
+        }
+        "getConfirmedBlocksWithLimit" => {
+            let state_guard = state.read().await;
+            let start_slot = arguments.get("startSlot").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
+            let limit = arguments.get("limit").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))? as usize;
+            crate::rpc::blocks::get_confirmed_blocks_with_limit(&state_guard.rpc_client, start_slot, limit).await
+                .map_err(|e| anyhow::anyhow!("Get confirmed blocks with limit failed: {}", e))
+        }
+        "getConfirmedSignaturesForAddress2" => {
+            let state_guard = state.read().await;
+            let address_str = arguments.get("address").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing address parameter"))?;
+            let address = Pubkey::try_from(address_str)?;
+            let limit = arguments.get("limit").and_then(|v| v.as_u64());
+            crate::rpc::transactions::get_confirmed_signatures_for_address_2(&state_guard.rpc_client, &address, None, None, limit).await
+                .map_err(|e| anyhow::anyhow!("Get confirmed signatures for address failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(
@@ -3956,6 +4309,98 @@ pub async fn handle_request(
                     log::info!("Getting minimum ledger slot");
                     let state = state.read().await;
                     let result = crate::rpc::system::minimum_ledger_slot(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getMaxRetransmitSlot" => {
+                    log::info!("Getting max retransmit slot");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_max_retransmit_slot(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getMaxShredInsertSlot" => {
+                    log::info!("Getting max shred insert slot");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_max_shred_insert_slot(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getHighestSnapshotSlot" => {
+                    log::info!("Getting highest snapshot slot");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_highest_snapshot_slot(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                // Deprecated methods
+                "getRecentBlockhash" => {
+                    log::info!("Getting recent blockhash (deprecated)");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_recent_blockhash(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getFees" => {
+                    log::info!("Getting fees (deprecated)");
+                    let state = state.read().await;
+                    let result = crate::rpc::system::get_fees(&state.rpc_client).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getConfirmedBlock" => {
+                    log::info!("Getting confirmed block (deprecated)");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let slot = params.get("slot").and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
+                    let state = state.read().await;
+                    let result = crate::rpc::blocks::get_confirmed_block(&state.rpc_client, slot).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getConfirmedTransaction" => {
+                    log::info!("Getting confirmed transaction (deprecated)");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let signature_str = params.get("signature").and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing signature parameter"))?;
+                    let signature = signature_str.parse()?;
+                    let state = state.read().await;
+                    let result = crate::rpc::transactions::get_confirmed_transaction(&state.rpc_client, &signature).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getConfirmedBlocks" => {
+                    log::info!("Getting confirmed blocks (deprecated)");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let start_slot = params.get("startSlot").and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
+                    let end_slot = params.get("endSlot").and_then(|v| v.as_u64());
+                    let state = state.read().await;
+                    let result = crate::rpc::blocks::get_confirmed_blocks(&state.rpc_client, start_slot, end_slot).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getConfirmedBlocksWithLimit" => {
+                    log::info!("Getting confirmed blocks with limit (deprecated)");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let start_slot = params.get("startSlot").and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
+                    let limit = params.get("limit").and_then(|v| v.as_u64())
+                        .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))? as usize;
+                    let state = state.read().await;
+                    let result = crate::rpc::blocks::get_confirmed_blocks_with_limit(&state.rpc_client, start_slot, limit).await?;
+                    Ok(create_success_response(result, req.id))
+                }
+
+                "getConfirmedSignaturesForAddress2" => {
+                    log::info!("Getting confirmed signatures for address (deprecated)");
+                    let params = req.params.ok_or_else(|| anyhow::anyhow!("Missing params"))?;
+                    let address_str = params.get("address").and_then(|v| v.as_str())
+                        .ok_or_else(|| anyhow::anyhow!("Missing address parameter"))?;
+                    let address = Pubkey::try_from(address_str)?;
+                    let limit = params.get("limit").and_then(|v| v.as_u64());
+                    let state = state.read().await;
+                    let result = crate::rpc::transactions::get_confirmed_signatures_for_address_2(&state.rpc_client, &address, None, None, limit).await?;
                     Ok(create_success_response(result, req.id))
                 }
 
