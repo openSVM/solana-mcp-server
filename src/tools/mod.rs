@@ -1553,6 +1553,60 @@ pub async fn handle_initialize(
                         },
                     );
 
+                    // Missing methods that supposedly don't exist but we'll implement anyway
+                    tools.insert(
+                        "getBlockCommitment".to_string(),
+                        ToolDefinition {
+                            name: "getBlockCommitment".to_string(),
+                            description: Some("Returns block commitment information for a specific slot".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "slot": {
+                                        "type": "integer",
+                                        "description": "Slot number to get commitment for"
+                                    }
+                                },
+                                "required": ["slot"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getSnapshotSlot".to_string(),
+                        ToolDefinition {
+                            name: "getSnapshotSlot".to_string(),
+                            description: Some("Returns the current snapshot slot".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {}
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getStakeActivation".to_string(),
+                        ToolDefinition {
+                            name: "getStakeActivation".to_string(),
+                            description: Some("Returns stake activation information for a given stake account".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "pubkey": {
+                                        "type": "string",
+                                        "description": "Stake account public key (base58 encoded)"
+                                    },
+                                    "commitment": {
+                                        "type": "string",
+                                        "enum": ["processed", "confirmed", "finalized"],
+                                        "description": "Commitment level"
+                                    }
+                                },
+                                "required": ["pubkey"]
+                            }),
+                        },
+                    );
+
                     Some(tools)
                 },
                 resources: {
@@ -2967,6 +3021,43 @@ pub async fn handle_tools_call(
             crate::rpc::transactions::get_signature_statuses(&state_guard.rpc_client, &signatures, search_transaction_history)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get signature statuses failed: {}", e))
+        }
+        "getBlockCommitment" => {
+            let state_guard = state.read().await;
+            let slot = arguments.get("slot")
+                .and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
+            
+            crate::rpc::missing_methods::get_block_commitment(&state_guard.rpc_client, slot)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get block commitment failed: {}", e))
+        }
+        "getSnapshotSlot" => {
+            let state_guard = state.read().await;
+            
+            crate::rpc::missing_methods::get_snapshot_slot(&state_guard.rpc_client)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get snapshot slot failed: {}", e))
+        }
+        "getStakeActivation" => {
+            let state_guard = state.read().await;
+            let pubkey: String = arguments.get("pubkey")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?
+                .to_string();
+            
+            let commitment = arguments.get("commitment")
+                .and_then(|v| v.as_str())
+                .and_then(|s| match s {
+                    "processed" => Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
+                    "confirmed" => Some(solana_sdk::commitment_config::CommitmentConfig::confirmed()),
+                    "finalized" => Some(solana_sdk::commitment_config::CommitmentConfig::finalized()),
+                    _ => None,
+                });
+            
+            crate::rpc::missing_methods::get_stake_activation(&state_guard.rpc_client, &pubkey, commitment)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get stake activation failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(

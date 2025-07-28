@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use solana_mcp_server::{init_logging, start_server, start_mcp_server_task, Config, ServerState};
+use solana_mcp_server::{init_logging, start_server, start_mcp_server_task, start_websocket_server_task, Config, ServerState};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Parser)]
 #[command(name = "solana-mcp-server")]
-#[command(about = "Solana MCP Server - Run as stdio transport or web service")]
+#[command(about = "Solana MCP Server - Run as stdio transport, web service, or WebSocket server")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -20,6 +20,12 @@ enum Commands {
     Web {
         /// Port to run the web service on
         #[arg(short, long, default_value = "3000")]
+        port: u16,
+    },
+    /// Run as WebSocket server for RPC subscriptions
+    Websocket {
+        /// Port to run the WebSocket server on
+        #[arg(short, long, default_value = "8900")]
         port: u16,
     },
 }
@@ -42,6 +48,10 @@ async fn main() -> Result<()> {
         Commands::Web { port } => {
             tracing::info!("Starting Solana MCP server in web service mode on port {}...", port);
             start_web_service(port).await
+        }
+        Commands::Websocket { port } => {
+            tracing::info!("Starting Solana MCP server in WebSocket mode on port {}...", port);
+            start_websocket_service(port).await
         }
     }
 }
@@ -81,6 +91,47 @@ async fn start_web_service(port: u16) -> Result<()> {
     if let Err(e) = server_handle.await {
         tracing::error!("Web service error: {}", e);
         return Err(anyhow::anyhow!("Web service failed: {}", e));
+    }
+    
+    Ok(())
+}
+
+async fn start_websocket_service(port: u16) -> Result<()> {
+    // Initialize Prometheus metrics
+    solana_mcp_server::init_prometheus_metrics()
+        .map_err(|e| anyhow::anyhow!("Failed to initialize Prometheus metrics: {}", e))?;
+
+    // Load and validate configuration
+    let config = Arc::new(Config::load().map_err(|e| {
+        tracing::error!("Failed to load configuration: {}", e);
+        e
+    })?);
+
+    tracing::info!(
+        "Loaded config: RPC URL: {}, Protocol Version: {}",
+        config.rpc_url,
+        config.protocol_version
+    );
+
+    // Start the WebSocket server
+    let server_handle = start_websocket_server_task(port, config);
+    
+    tracing::info!("WebSocket server started on ws://0.0.0.0:{}", port);
+    tracing::info!("Available subscription methods:");
+    tracing::info!("  accountSubscribe/accountUnsubscribe");
+    tracing::info!("  blockSubscribe/blockUnsubscribe");
+    tracing::info!("  logsSubscribe/logsUnsubscribe");
+    tracing::info!("  programSubscribe/programUnsubscribe");
+    tracing::info!("  rootSubscribe/rootUnsubscribe");
+    tracing::info!("  signatureSubscribe/signatureUnsubscribe");
+    tracing::info!("  slotSubscribe/slotUnsubscribe");
+    tracing::info!("  slotsUpdatesSubscribe/slotsUpdatesUnsubscribe");
+    tracing::info!("  voteSubscribe/voteUnsubscribe");
+    
+    // Wait for the server to complete
+    if let Err(e) = server_handle.await {
+        tracing::error!("WebSocket server error: {}", e);
+        return Err(anyhow::anyhow!("WebSocket server failed: {}", e));
     }
     
     Ok(())

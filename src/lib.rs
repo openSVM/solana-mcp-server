@@ -9,6 +9,7 @@ pub mod server;
 pub mod tools;
 pub mod transport;
 pub mod validation;
+pub mod websocket_server;
 
 pub use config::{Config, SvmNetwork};
 pub use error::{McpError, McpResult};
@@ -17,3 +18,4 @@ pub use logging::{init_logging, get_metrics};
 pub use metrics::{init_prometheus_metrics, get_metrics_text, PROMETHEUS_METRICS};
 pub use server::{start_server, ServerState};
 pub use transport::CustomStdioTransport;
+pub use websocket_server::start_websocket_server_task;

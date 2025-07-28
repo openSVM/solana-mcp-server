@@ -28,9 +28,12 @@ bs58 = "0.5"
 bincode = "1.3"
 reqwest = { version = "0.11", features = ["json"] }
 prometheus = "0.13"
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 tower = "0.5"
 clap = { version = "4.0", features = ["derive"] }
+solana-pubsub-client = "~2.2"
+tokio-tungstenite = "0.20"
+futures-util = "0.3"
 
 [dev-dependencies]
 tokio-test = "0.4"
