@@ -3,7 +3,7 @@
 ## Overview
 The Solana MCP Server provides access to Solana blockchain data through the Model Context Protocol (MCP). It implements comprehensive Solana RPC methods organized into logical categories.
 
-## Currently Implemented RPC Methods (51 total)
+## Currently Implemented RPC Methods (63 total)
 
 ### Account Methods (7)
 - `getAccountInfo` - Returns all information associated with an account
@@ -13,7 +13,7 @@ The Solana MCP Server provides access to Solana blockchain data through the Mode
 - `getLargestAccounts` - Returns the 20 largest accounts by lamport balance
 - `getMinimumBalanceForRentExemption` - Returns minimum balance for rent exemption
 
-### Block Methods (11)
+### Block Methods (14)
 - `getSlot` - Returns the current slot the node is processing
 - `getBlock` - Returns identity and transaction information about a confirmed block
 - `getBlockHeight` - Returns current block height
@@ -25,8 +25,11 @@ The Solana MCP Server provides access to Solana blockchain data through the Mode
 - `getVoteAccounts` - Returns account info and stake for all voting accounts
 - `getLeaderSchedule` - Returns the leader schedule for an epoch
 - `getBlocksWithLimit` - Returns a list of confirmed blocks starting at given slot
+- `getConfirmedBlock` - DEPRECATED version of getBlock
+- `getConfirmedBlocks` - DEPRECATED version of getBlocks
+- `getConfirmedBlocksWithLimit` - DEPRECATED version of getBlocksWithLimit
 
-### System Methods (14)
+### System Methods (20)
 - `getHealth` - Returns the current health of the node
 - `getVersion` - Returns the current Solana version
 - `getIdentity` - Returns identity pubkey for the current node
@@ -41,8 +44,18 @@ The Solana MCP Server provides access to Solana blockchain data through the Mode
 - `getTransactionCount` - Returns current transaction count from ledger
 - `requestAirdrop` - Request an airdrop of lamports to a Pubkey
 - `getStakeMinimumDelegation` - Returns stake minimum delegation
+- `isBlockhashValid` - Check if a blockhash is still valid
+- `getSlotLeader` - Get the current slot leader
+- `minimumLedgerSlot` - Get the minimum ledger slot available
+- `getMaxRetransmitSlot` - Get the max slot seen from retransmit stage
+- `getMaxShredInsertSlot` - Get the max slot seen from shred insert
+- `getHighestSnapshotSlot` - Get highest snapshot slot
 
-### Transaction Methods (7)
+### System Methods (Deprecated) (2)
+- `getRecentBlockhash` - DEPRECATED version of getLatestBlockhash
+- `getFees` - DEPRECATED method for getting fees
+
+### Transaction Methods (9)
 - `getTransaction` - Returns transaction details
 - `getSignaturesForAddress` - Returns signatures for address's transactions
 - `sendTransaction` - Send a transaction
@@ -50,6 +63,8 @@ The Solana MCP Server provides access to Solana blockchain data through the Mode
 - `getBlockTime` - Returns estimated production time of a block
 - `getFeeForMessage` - Get the fee for a message
 - `getTransactionWithConfig` - Returns transaction details with additional configuration
+- `getConfirmedTransaction` - DEPRECATED version of getTransaction
+- `getConfirmedSignaturesForAddress2` - DEPRECATED version of getSignaturesForAddress
 
 ### Token Methods (6)
 - `getTokenAccountsByOwner` - Returns all token accounts by token owner
@@ -72,34 +87,34 @@ The Solana MCP Server provides access to Solana blockchain data through the Mode
 
 The following methods from the official Solana RPC API are NOT currently implemented:
 
-### Critical Missing Methods
-1. `isBlockhashValid` - Check if a blockhash is still valid
-2. `getSlotLeader` - Get the current slot leader
-3. `getMaxRetransmitSlot` - Get the max slot seen from retransmit stage
-4. `getMaxShredInsertSlot` - Get the max slot seen from shred insert
-5. `minimumLedgerSlot` - Get the lowest slot that contains a block
-6. `getSnapshotSlot` - Get the highest snapshot slot
-7. `getHighestSnapshotSlot` - Get the highest slot with a snapshot
+### Critical Missing Methods (MOSTLY IMPLEMENTED)
+1. ✅ `isBlockhashValid` - Check if a blockhash is still valid (IMPLEMENTED)
+2. ✅ `getSlotLeader` - Get the current slot leader (IMPLEMENTED) 
+3. ✅ `getMaxRetransmitSlot` - Get the max slot seen from retransmit stage (IMPLEMENTED)
+4. ✅ `getMaxShredInsertSlot` - Get the max slot seen from shred insert (IMPLEMENTED)
+5. ✅ `minimumLedgerSlot` - Get the lowest slot that contains a block (IMPLEMENTED)
+6. `getSnapshotSlot` - Get snapshot slot (METHOD DOESN'T EXIST IN CLIENT)
+7. ✅ `getHighestSnapshotSlot` - Get the highest slot with a snapshot (IMPLEMENTED)
 
-### Deprecated but Still Used Methods  
-8. `getConfirmedBlock` - Deprecated version of getBlock
-9. `getConfirmedTransaction` - Deprecated version of getTransaction
-10. `getRecentBlockhash` - Deprecated version of getLatestBlockhash
-11. `getFees` - Deprecated method for getting fees
-12. `getConfirmedBlocks` - Deprecated version of getBlocks
-13. `getConfirmedBlocksWithLimit` - Deprecated version of getBlocksWithLimit
-14. `getConfirmedSignaturesForAddress2` - Deprecated version of getSignaturesForAddress
+### Deprecated but Still Used Methods (MOSTLY IMPLEMENTED)
+8. ✅ `getConfirmedBlock` - Deprecated version of getBlock (IMPLEMENTED)
+9. ✅ `getConfirmedTransaction` - Deprecated version of getTransaction (IMPLEMENTED)
+10. ✅ `getRecentBlockhash` - Deprecated version of getLatestBlockhash (IMPLEMENTED)
+11. ✅ `getFees` - Deprecated method for getting fees (IMPLEMENTED)
+12. ✅ `getConfirmedBlocks` - Deprecated version of getBlocks (IMPLEMENTED)
+13. ✅ `getConfirmedBlocksWithLimit` - Deprecated version of getBlocksWithLimit (IMPLEMENTED)
+14. ✅ `getConfirmedSignaturesForAddress2` - Deprecated ersion of getSignaturesForAddress (IMPLEMENTED)
 
-### Subscription Methods (WebSocket only)
-15. `accountSubscribe` - Subscribe to account changes
-16. `logsSubscribe` - Subscribe to transaction logs
-17. `programSubscribe` - Subscribe to program account changes
-18. `signatureSubscribe` - Subscribe to transaction signature
-19. `slotSubscribe` - Subscribe to slot changes
-20. `rootSubscribe` - Subscribe to root changes
+### Subscription Methods (WebSocket only) - NOT IMPLEMENTABLE
+15. `accountSubscribe` - Subscribe to account changes (WEBSOCKET ONLY)
+16. `logsSubscribe` - Subscribe to transaction logs (WEBSOCKET ONLY)
+17. `programSubscribe` - Subscribe to program account changes (WEBSOCKET ONLY)
+18. `signatureSubscribe` - Subscribe to transaction signature (WEBSOCKET ONLY)
+19. `slotSubscribe` - Subscribe to slot changes (WEBSOCKET ONLY)
+20. `rootSubscribe` - Subscribe to root changes (WEBSOCKET ONLY)
 
-### Advanced/Less Common Methods
-21. `getStakeActivation` - Get stake activation info
+### Advanced/Less Common Methods - REMAINING TO IMPLEMENT
+21. `getStakeActivation` - Get stake activation info (METHOD DOESN'T EXIST IN CLIENT)
 22. `getAccountInfoAndContext` - Get account info with context
 23. `getBalanceAndContext` - Get balance with context
 24. `getProgramAccountsAndContext` - Get program accounts with context
@@ -107,20 +122,20 @@ The following methods from the official Solana RPC API are NOT currently impleme
 
 ## Recommendations for Implementation Priority
 
-### High Priority (Should Implement)
-1. `isBlockhashValid` - Important for transaction validation
-2. `getSlotLeader` - Useful for network analysis
-3. `getStakeActivation` - Important for staking operations
+### High Priority (COMPLETED) ✅
+1. ✅ `isBlockhashValid` - Important for transaction validation (IMPLEMENTED)
+2. ✅ `getSlotLeader` - Useful for network analysis (IMPLEMENTED)
+3. ✅ All deprecated methods - For backward compatibility (7 IMPLEMENTED)
 
-### Medium Priority (Nice to Have)
-4. `minimumLedgerSlot` - Useful for historical data queries
-5. `getMaxRetransmitSlot` - Network health monitoring
-6. `getMaxShredInsertSlot` - Network health monitoring
+### Medium Priority (MOSTLY COMPLETED) ✅
+4. ✅ `minimumLedgerSlot` - Useful for historical data queries (IMPLEMENTED)
+5. ✅ `getMaxRetransmitSlot` - Network health monitoring (IMPLEMENTED)
+6. ✅ `getMaxShredInsertSlot` - Network health monitoring (IMPLEMENTED)
 
-### Low Priority (Deprecated/Specialized)
-7. Deprecated methods - Only if backward compatibility is needed
-8. Subscription methods - Only if WebSocket support is added
-9. Context methods - Only if context data is specifically needed
+### Low Priority (Only implement if needed)
+7. Context methods - Only if context data is specifically needed by users
+8. Subscription methods - Only if WebSocket support is added (would require major architecture changes)
+9. `getStakeActivation` - Method doesn't exist in Solana client library
 
 ## Architecture Notes
 
