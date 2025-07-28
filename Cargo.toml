@@ -37,6 +37,9 @@ tokio-tungstenite = "0.27"
 futures-util = "0.3"
 # Security fix: Replace atty with is-terminal to fix unmaintained dependency
 is-terminal = "0.4"
+# Explicit OpenSSL dependencies for better Windows compatibility
+openssl = "0.10"
+openssl-sys = "0.9"
 
 [dev-dependencies]
 tokio-test = "0.4"
