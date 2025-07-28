@@ -28,15 +28,13 @@ bs58 = "0.5"
 bincode = "1.3"
 reqwest = { version = "0.11", features = ["json"] }
 prometheus = "0.14"
-axum = { version = "0.7", features = ["ws"] }
+axum = { version = "0.8", features = ["ws"] }
 tower = "0.5"
-tower-http = { version = "0.5", features = ["timeout"] }
+tower-http = { version = "0.6", features = ["timeout"] }
 clap = { version = "4.0", features = ["derive"] }
 solana-pubsub-client = "~2.3"
-tokio-tungstenite = "0.20"
+tokio-tungstenite = "0.27"
 futures-util = "0.3"
-# Security fix: Force newer version of curve25519-dalek to avoid timing vulnerability
-curve25519-dalek = "4.1.3"
 # Security fix: Replace atty with is-terminal to fix unmaintained dependency
 is-terminal = "0.4"
 
@@ -58,3 +56,8 @@ harness = false
 [[bench]]
 name = "websocket_bench"
 harness = false
+
+# Security patches to force secure versions of vulnerable dependencies
+[patch.crates-io.atty] 
+git = "https://github.com/softprops/atty"
+branch = "master"

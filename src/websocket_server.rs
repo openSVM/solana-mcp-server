@@ -144,7 +144,7 @@ async fn handle_websocket(socket: WebSocket, config: Arc<Config>) {
                                 "id": null
                             });
                             if let Ok(error_msg) = serde_json::to_string(&error_response) {
-                                let _ = tx.send(Message::Text(error_msg));
+                                let _ = tx.send(Message::Text(error_msg.into()));
                             }
                         }
                     }
@@ -173,7 +173,7 @@ async fn handle_websocket(socket: WebSocket, config: Arc<Config>) {
             }
             Err(_) => {
                 // Message timeout - check if connection is still alive with ping
-                if tx.send(Message::Ping(vec![])).is_err() {
+                if tx.send(Message::Ping(vec![].into())).is_err() {
                     error!("Failed to send ping - connection lost");
                     break;
                 }
@@ -238,7 +238,7 @@ async fn handle_message(
                 "id": id
             });
             let error_msg = serde_json::to_string(&error_response)?;
-            tx.send(Message::Text(error_msg))?;
+            tx.send(Message::Text(error_msg.into()))?;
         }
     }
 
@@ -291,7 +291,7 @@ async fn handle_account_subscribe(
                     });
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
-                        if tx_clone.send(Message::Text(msg)).is_err() {
+                        if tx_clone.send(Message::Text(msg.into())).is_err() {
                             debug!("Client disconnected, stopping account subscription {}", subscription_id_clone);
                             break;
                         }
@@ -322,7 +322,7 @@ async fn handle_account_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -370,7 +370,7 @@ async fn handle_block_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -447,7 +447,7 @@ async fn handle_logs_subscribe(
                     });
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
-                        if tx_clone.send(Message::Text(msg)).is_err() {
+                        if tx_clone.send(Message::Text(msg.into())).is_err() {
                             break;
                         }
                     }
@@ -474,7 +474,7 @@ async fn handle_logs_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -518,7 +518,7 @@ async fn handle_program_subscribe(
                     });
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
-                        if tx_clone.send(Message::Text(msg)).is_err() {
+                        if tx_clone.send(Message::Text(msg.into())).is_err() {
                             break;
                         }
                     }
@@ -545,7 +545,7 @@ async fn handle_program_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -581,7 +581,7 @@ async fn handle_root_subscribe(
                     });
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
-                        if tx_clone.send(Message::Text(msg)).is_err() {
+                        if tx_clone.send(Message::Text(msg.into())).is_err() {
                             break;
                         }
                     }
@@ -608,7 +608,7 @@ async fn handle_root_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -652,7 +652,7 @@ async fn handle_signature_subscribe(
                     });
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
-                        if tx_clone.send(Message::Text(msg)).is_err() {
+                        if tx_clone.send(Message::Text(msg.into())).is_err() {
                             break;
                         }
                     }
@@ -679,7 +679,7 @@ async fn handle_signature_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -714,7 +714,7 @@ async fn handle_slot_subscribe(
                     });
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
-                        if tx_clone.send(Message::Text(msg)).is_err() {
+                        if tx_clone.send(Message::Text(msg.into())).is_err() {
                             break;
                         }
                     }
@@ -741,7 +741,7 @@ async fn handle_slot_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -772,7 +772,7 @@ async fn handle_slots_updates_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -803,7 +803,7 @@ async fn handle_vote_subscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
@@ -831,7 +831,7 @@ async fn handle_unsubscribe(
         "id": id
     });
     let response_msg = serde_json::to_string(&response)?;
-    tx.send(Message::Text(response_msg))?;
+    tx.send(Message::Text(response_msg.into()))?;
 
     Ok(())
 }
