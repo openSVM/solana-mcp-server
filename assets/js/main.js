@@ -23,6 +23,10 @@
         initializeLLMsButton();
     }
 
+    // Global functions that need to be accessible outside their initialization scopes
+    let performSearch = null;
+    let toggleBookmark = null;
+
     // Search functionality
     function initializeSearch() {
         const searchToggle = document.getElementById('search-toggle');
@@ -97,7 +101,8 @@
             }, 150);
         });
 
-        function performSearch(query) {
+        // Define performSearch and assign to global variable
+        performSearch = function(query) {
             if (!searchIndex) {
                 searchResults.innerHTML = '<div class="search-result"><div class="search-result-title">Search not available</div></div>';
                 return;
@@ -110,7 +115,7 @@
                 console.error('Search error:', e);
                 searchResults.innerHTML = '<div class="search-result"><div class="search-result-title">Search error occurred</div></div>';
             }
-        }
+        };
 
         function displaySearchResults(results, query) {
             if (results.length === 0) {
@@ -197,7 +202,8 @@
             toggleBookmark(currentUrl, currentTitle);
         });
 
-        function toggleBookmark(url, title) {
+        // Define toggleBookmark and assign to global variable
+        toggleBookmark = function(url, title) {
             let bookmarks = JSON.parse(localStorage.getItem('solana-mcp-bookmarks') || '[]');
             const existingIndex = bookmarks.findIndex(b => b.url === url);
 
@@ -219,7 +225,7 @@
 
             localStorage.setItem('solana-mcp-bookmarks', JSON.stringify(bookmarks));
             window.bookmarks = bookmarks;
-        }
+        };
 
         function updateBookmarkIcon() {
             const bookmarks = JSON.parse(localStorage.getItem('solana-mcp-bookmarks') || '[]');
@@ -556,14 +562,17 @@
 
     // Export for global access
     window.SolanaMCPDocs = {
-        search: performSearch,
-        toggleBookmark: (url, title) => toggleBookmark(url, title),
+        search: (query) => performSearch && performSearch(query),
+        toggleBookmark: (url, title) => toggleBookmark && toggleBookmark(url, title),
         getBookmarks: () => JSON.parse(localStorage.getItem('solana-mcp-bookmarks') || '[]'),
         clearBookmarks: () => {
             localStorage.removeItem('solana-mcp-bookmarks');
             window.bookmarks = [];
         }
     };
+
+    // Also expose performSearch globally for backward compatibility
+    window.performSearch = (query) => performSearch && performSearch(query);
 
     // Micro-animations and interactive enhancements
     function initializeMicroAnimations() {
