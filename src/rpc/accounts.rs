@@ -525,3 +525,244 @@ pub async fn get_minimum_balance_for_rent_exemption(
         }
     }
 }
+
+/// Get account info with context (slot information)
+pub async fn get_account_info_and_context(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getAccountInfoAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkey: {}", pubkey)),
+    );
+
+    match client.get_account_with_commitment(pubkey, CommitmentConfig::confirmed()).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("account info with context retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get account balance with context (slot information)  
+pub async fn get_balance_and_context(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getBalanceAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkey: {}", pubkey)),
+    );
+
+    match client.get_balance_with_commitment(pubkey, CommitmentConfig::confirmed()).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("balance with context retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get multiple accounts with context (slot information)
+pub async fn get_multiple_accounts_and_context(
+    client: &RpcClient,
+    pubkeys: &[Pubkey],
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getMultipleAccountsAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkeys: {} accounts", pubkeys.len())),
+    );
+
+    match client.get_multiple_accounts_with_commitment(pubkeys, CommitmentConfig::confirmed()).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} accounts with context retrieved", pubkeys.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get program accounts with context (slot information)
+pub async fn get_program_accounts_and_context(
+    client: &RpcClient,
+    program_id: &Pubkey,
+    config: Option<RpcProgramAccountsConfig>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getProgramAccountsAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("program_id: {}", program_id)),
+    );
+
+    let default_config = RpcProgramAccountsConfig {
+        filters: None,
+        account_config: RpcAccountInfoConfig {
+            encoding: Some(UiAccountEncoding::Base64),
+            commitment: Some(CommitmentConfig::confirmed()),
+            data_slice: None,
+            min_context_slot: None,
+        },
+        with_context: Some(true),
+        sort_results: None,
+    };
+
+    let final_config = config.unwrap_or(default_config);
+
+    match client.get_program_accounts_with_config(program_id, final_config).await {
+        Ok(accounts) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            
+            let result = serde_json::json!({
+                "accounts": accounts
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} program accounts with context retrieved", accounts.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}

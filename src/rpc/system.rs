@@ -1053,3 +1053,137 @@ pub async fn get_fees(client: &RpcClient) -> McpResult<Value> {
         }
     }
 }
+/// Get recent performance samples
+pub async fn get_recent_performance_samples(
+    client: &RpcClient,
+    limit: Option<usize>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getRecentPerformanceSamples";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("limit: {:?}", limit)),
+    );
+
+    match client.get_recent_performance_samples(limit).await {
+        Ok(samples) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "samples": samples });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} performance samples retrieved", samples.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get recent prioritization fees
+pub async fn get_recent_prioritization_fees(
+    client: &RpcClient,
+    addresses: Option<Vec<String>>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getRecentPrioritizationFees";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("addresses: {:?}", addresses)),
+    );
+
+    // Convert string addresses to Pubkeys if provided
+    let pubkeys: Option<Vec<solana_sdk::pubkey::Pubkey>> = if let Some(addrs) = addresses {
+        let parsed_keys: Result<Vec<_>, _> = addrs.iter()
+            .map(|addr| addr.parse::<solana_sdk::pubkey::Pubkey>())
+            .collect();
+        match parsed_keys {
+            Ok(keys) => Some(keys),
+            Err(e) => {
+                let duration = start_time.elapsed().as_millis() as u64;
+                let error = McpError::InvalidParameter(format!("Invalid pubkey: {}", e))
+                    .with_request_id(request_id)
+                    .with_method(method)
+                    .with_rpc_url(&client.url());
+                
+                log_rpc_request_failure(
+                    request_id,
+                    method,
+                    error.error_type(),
+                    duration,
+                    Some(&error.to_log_value()),
+                    Some(&client.url()),
+                );
+                
+                return Err(error);
+            }
+        }
+    } else {
+        None
+    };
+
+    match client.get_recent_prioritization_fees(&pubkeys.unwrap_or_default()).await {
+        Ok(fees) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({ "fees": fees });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} prioritization fees retrieved", fees.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+

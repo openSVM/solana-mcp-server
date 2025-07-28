@@ -1409,6 +1409,150 @@ pub async fn handle_initialize(
                         },
                     );
 
+                    tools.insert(
+                        "getAccountInfoAndContext".to_string(),
+                        ToolDefinition {
+                            name: "getAccountInfoAndContext".to_string(),
+                            description: Some("Returns account information with context (slot info)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "pubkey": {
+                                        "type": "string",
+                                        "description": "Account public key (base58 encoded)"
+                                    }
+                                },
+                                "required": ["pubkey"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getBalanceAndContext".to_string(),
+                        ToolDefinition {
+                            name: "getBalanceAndContext".to_string(),
+                            description: Some("Returns account balance with context (slot info)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "pubkey": {
+                                        "type": "string",
+                                        "description": "Account public key (base58 encoded)"
+                                    }
+                                },
+                                "required": ["pubkey"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getMultipleAccountsAndContext".to_string(),
+                        ToolDefinition {
+                            name: "getMultipleAccountsAndContext".to_string(),
+                            description: Some("Returns multiple account information with context (slot info)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "pubkeys": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "Array of account public keys (base58 encoded)"
+                                    }
+                                },
+                                "required": ["pubkeys"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getProgramAccountsAndContext".to_string(),
+                        ToolDefinition {
+                            name: "getProgramAccountsAndContext".to_string(),
+                            description: Some("Returns all accounts owned by program with context (slot info)".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "program_id": {
+                                        "type": "string",
+                                        "description": "Program public key (base58 encoded)"
+                                    },
+                                    "filters": {
+                                        "type": "array",
+                                        "description": "Optional filters to apply",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "required": ["program_id"]
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getRecentPerformanceSamples".to_string(),
+                        ToolDefinition {
+                            name: "getRecentPerformanceSamples".to_string(),
+                            description: Some("Returns recent performance samples from the cluster".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "limit": {
+                                        "type": "integer",
+                                        "description": "Maximum number of samples to return"
+                                    }
+                                }
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getRecentPrioritizationFees".to_string(),
+                        ToolDefinition {
+                            name: "getRecentPrioritizationFees".to_string(),
+                            description: Some("Returns recent prioritization fees".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "addresses": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "Array of account addresses (base58 encoded)"
+                                    }
+                                }
+                            }),
+                        },
+                    );
+
+                    tools.insert(
+                        "getSignatureStatuses".to_string(),
+                        ToolDefinition {
+                            name: "getSignatureStatuses".to_string(),
+                            description: Some("Returns signature statuses for transaction signatures".to_string()),
+                            input_schema: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "signatures": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "Array of transaction signatures (base58 encoded)"
+                                    },
+                                    "search_transaction_history": {
+                                        "type": "boolean",
+                                        "description": "Search transaction history (default: false)"
+                                    }
+                                },
+                                "required": ["signatures"]
+                            }),
+                        },
+                    );
+
                     Some(tools)
                 },
                 resources: {
@@ -2401,6 +2545,122 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["address"]
             }),
         },
+        ToolDefinition {
+            name: "getAccountInfoAndContext".to_string(),
+            description: Some("Returns account information with context (slot info)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "description": "Account public key (base58 encoded)"
+                    }
+                },
+                "required": ["pubkey"]
+            }),
+        },
+        ToolDefinition {
+            name: "getBalanceAndContext".to_string(),
+            description: Some("Returns account balance with context (slot info)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "description": "Account public key (base58 encoded)"
+                    }
+                },
+                "required": ["pubkey"]
+            }),
+        },
+        ToolDefinition {
+            name: "getMultipleAccountsAndContext".to_string(),
+            description: Some("Returns multiple account information with context (slot info)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkeys": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Array of account public keys (base58 encoded)"
+                    }
+                },
+                "required": ["pubkeys"]
+            }),
+        },
+        ToolDefinition {
+            name: "getProgramAccountsAndContext".to_string(),
+            description: Some("Returns all accounts owned by program with context (slot info)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "program_id": {
+                        "type": "string",
+                        "description": "Program public key (base58 encoded)"
+                    },
+                    "filters": {
+                        "type": "array",
+                        "description": "Optional filters to apply",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "required": ["program_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "getRecentPerformanceSamples".to_string(),
+            description: Some("Returns recent performance samples from the cluster".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of samples to return"
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "getRecentPrioritizationFees".to_string(),
+            description: Some("Returns recent prioritization fees".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "addresses": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Array of account addresses (base58 encoded)"
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "getSignatureStatuses".to_string(),
+            description: Some("Returns signature statuses for transaction signatures".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "signatures": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Array of transaction signatures (base58 encoded)"
+                    },
+                    "search_transaction_history": {
+                        "type": "boolean",
+                        "description": "Search transaction history (default: false)"
+                    }
+                },
+                "required": ["signatures"]
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -2616,6 +2876,97 @@ pub async fn handle_tools_call(
             let limit = arguments.get("limit").and_then(|v| v.as_u64());
             crate::rpc::transactions::get_confirmed_signatures_for_address_2(&state_guard.rpc_client, &address, None, None, limit).await
                 .map_err(|e| anyhow::anyhow!("Get confirmed signatures for address failed: {}", e))
+        }
+        "getAccountInfoAndContext" => {
+            let state_guard = state.read().await;
+            let pubkey: String = arguments.get("pubkey")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?
+                .to_string();
+            
+            let parsed_pubkey = pubkey.parse::<solana_sdk::pubkey::Pubkey>()
+                .map_err(|e| anyhow::anyhow!("Invalid pubkey: {}", e))?;
+            
+            crate::rpc::accounts::get_account_info_and_context(&state_guard.rpc_client, &parsed_pubkey)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get account info with context failed: {}", e))
+        }
+        "getBalanceAndContext" => {
+            let state_guard = state.read().await;
+            let pubkey: String = arguments.get("pubkey")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?
+                .to_string();
+            
+            let parsed_pubkey = pubkey.parse::<solana_sdk::pubkey::Pubkey>()
+                .map_err(|e| anyhow::anyhow!("Invalid pubkey: {}", e))?;
+            
+            crate::rpc::accounts::get_balance_and_context(&state_guard.rpc_client, &parsed_pubkey)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get balance with context failed: {}", e))
+        }
+        "getMultipleAccountsAndContext" => {
+            let state_guard = state.read().await;
+            let pubkeys: Vec<String> = arguments.get("pubkeys")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .ok_or_else(|| anyhow::anyhow!("Missing or invalid pubkeys parameter"))?;
+            
+            let parsed_pubkeys: Result<Vec<_>, _> = pubkeys.iter()
+                .map(|key| key.parse::<solana_sdk::pubkey::Pubkey>())
+                .collect();
+            
+            let parsed_pubkeys = parsed_pubkeys
+                .map_err(|e| anyhow::anyhow!("Invalid pubkey: {}", e))?;
+            
+            crate::rpc::accounts::get_multiple_accounts_and_context(&state_guard.rpc_client, &parsed_pubkeys)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get multiple accounts with context failed: {}", e))
+        }
+        "getProgramAccountsAndContext" => {
+            let state_guard = state.read().await;
+            let program_id: String = arguments.get("program_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing program_id parameter"))?
+                .to_string();
+            
+            let parsed_program_id = program_id.parse::<solana_sdk::pubkey::Pubkey>()
+                .map_err(|e| anyhow::anyhow!("Invalid program_id: {}", e))?;
+            
+            crate::rpc::accounts::get_program_accounts_and_context(&state_guard.rpc_client, &parsed_program_id, None)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get program accounts with context failed: {}", e))
+        }
+        "getRecentPerformanceSamples" => {
+            let state_guard = state.read().await;
+            let limit = arguments.get("limit")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize);
+            
+            crate::rpc::system::get_recent_performance_samples(&state_guard.rpc_client, limit)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get recent performance samples failed: {}", e))
+        }
+        "getRecentPrioritizationFees" => {
+            let state_guard = state.read().await;
+            let addresses: Option<Vec<String>> = arguments.get("addresses")
+                .and_then(|v| serde_json::from_value(v.clone()).ok());
+            
+            crate::rpc::system::get_recent_prioritization_fees(&state_guard.rpc_client, addresses)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get recent prioritization fees failed: {}", e))
+        }
+        "getSignatureStatuses" => {
+            let state_guard = state.read().await;
+            let signatures: Vec<String> = arguments.get("signatures")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .ok_or_else(|| anyhow::anyhow!("Missing or invalid signatures parameter"))?;
+            
+            let search_transaction_history = arguments.get("search_transaction_history")
+                .and_then(|v| v.as_bool());
+            
+            crate::rpc::transactions::get_signature_statuses(&state_guard.rpc_client, &signatures, search_transaction_history)
+                .await
+                .map_err(|e| anyhow::anyhow!("Get signature statuses failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(

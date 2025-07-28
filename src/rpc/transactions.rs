@@ -1,3 +1,5 @@
+use crate::error::{McpError, McpResult};
+use crate::logging::{log_rpc_request_start, log_rpc_request_success, log_rpc_request_failure, new_request_id};
 use anyhow::Result;
 use base64::Engine;
 use serde_json::Value;
@@ -16,6 +18,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_transaction_status::UiTransactionEncoding;
+use std::time::Instant;
 
 pub async fn get_transaction(client: &RpcClient, signature: &Signature) -> Result<Value> {
     let tx = client
@@ -255,4 +258,93 @@ pub async fn get_confirmed_signatures_for_address_2(
 ) -> Result<Value> {
     // Use the same implementation as get_signatures_for_address
     get_signatures_for_address(client, address, before, until, limit).await
+}
+
+/// Get signature statuses for a list of transaction signatures
+pub async fn get_signature_statuses(
+    client: &RpcClient,
+    signatures: &[String],
+    search_transaction_history: Option<bool>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getSignatureStatuses";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("signatures: {} to check", signatures.len())),
+    );
+
+    // Parse signature strings to Signature objects
+    let parsed_signatures: Result<Vec<_>, _> = signatures.iter()
+        .map(|sig| sig.parse::<solana_sdk::signature::Signature>())
+        .collect();
+
+    let signature_objects = match parsed_signatures {
+        Ok(sigs) => sigs,
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::InvalidParameter(format!("Invalid signature: {}", e))
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            return Err(error);
+        }
+    };
+
+    let _config = solana_client::rpc_config::RpcSignatureStatusConfig {
+        search_transaction_history: search_transaction_history.unwrap_or(false),
+    };
+
+    match client.get_signature_statuses_with_history(&signature_objects).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} signature statuses retrieved", signatures.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(&client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
 }
