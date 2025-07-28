@@ -92,7 +92,7 @@ impl Config {
         // Validate all SVM network configurations
         for (network_id, network) in &self.svm_networks {
             validate_rpc_url(&network.rpc_url)
-                .with_context(|| format!("Invalid RPC URL for network '{}'", network_id))?;
+                .with_context(|| format!("Invalid RPC URL for network '{network_id}'"))?;
 
             if network.name.is_empty() {
                 return Err(anyhow::anyhow!(

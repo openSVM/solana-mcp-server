@@ -23,7 +23,7 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}", pubkey)),
+        Some(&format!("pubkey: {pubkey}")),
     );
 
     match client.get_balance(pubkey).await {
@@ -72,7 +72,7 @@ pub async fn get_account_info(client: &RpcClient, pubkey: &Pubkey) -> McpResult<
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}", pubkey)),
+        Some(&format!("pubkey: {pubkey}")),
     );
 
     match client.get_account(pubkey).await {
@@ -126,7 +126,7 @@ pub async fn get_account_info_with_config(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}, commitment: {:?}, encoding: {:?}", pubkey, commitment, encoding)),
+        Some(&format!("pubkey: {pubkey}, commitment: {commitment:?}, encoding: {encoding:?}")),
     );
 
     let config = RpcAccountInfoConfig {
@@ -310,7 +310,7 @@ pub async fn get_program_accounts(client: &RpcClient, program_id: &Pubkey) -> Mc
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("program_id: {}", program_id)),
+        Some(&format!("program_id: {program_id}")),
     );
 
     match client.get_program_accounts(program_id).await {
@@ -429,7 +429,7 @@ pub async fn get_largest_accounts(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("filter: {:?}", filter)),
+        Some(&format!("filter: {filter:?}")),
     );
 
     let config = solana_client::rpc_config::RpcLargestAccountsConfig {
@@ -487,7 +487,7 @@ pub async fn get_minimum_balance_for_rent_exemption(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("data_len: {}", data_len)),
+        Some(&format!("data_len: {data_len}")),
     );
 
     match client.get_minimum_balance_for_rent_exemption(data_len).await {
@@ -539,7 +539,7 @@ pub async fn get_account_info_and_context(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}", pubkey)),
+        Some(&format!("pubkey: {pubkey}")),
     );
 
     match client.get_account_with_commitment(pubkey, CommitmentConfig::confirmed()).await {
@@ -596,7 +596,7 @@ pub async fn get_balance_and_context(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}", pubkey)),
+        Some(&format!("pubkey: {pubkey}")),
     );
 
     match client.get_balance_with_commitment(pubkey, CommitmentConfig::confirmed()).await {
@@ -711,7 +711,7 @@ pub async fn get_program_accounts_and_context(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("program_id: {}", program_id)),
+        Some(&format!("program_id: {program_id}")),
     );
 
     let default_config = RpcProgramAccountsConfig {

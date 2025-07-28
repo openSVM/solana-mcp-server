@@ -131,7 +131,7 @@ impl Metrics {
 }
 
 /// Global metrics instance
-static METRICS: once_cell::sync::Lazy<Metrics> = once_cell::sync::Lazy::new(|| Metrics::default());
+static METRICS: once_cell::sync::Lazy<Metrics> = once_cell::sync::Lazy::new(Metrics::default);
 
 /// Detect network name from RPC URL
 /// 
@@ -305,7 +305,7 @@ pub fn log_rpc_request_failure(
     span.record("duration_ms", duration_ms);
     
     if let Some(details) = error_details {
-        span.record("error_details", &details.to_string());
+        span.record("error_details", details.to_string());
     }
     
     error!("RPC request failed");
@@ -787,8 +787,9 @@ mod tests {
         assert!(mint_size > 0);
         
         // Test basic constants are accessible using Pack trait
-        assert!(Account::LEN > 0);
-        assert!(Mint::LEN > 0);
+        // Note: These constants are always > 0 but we verify compile-time access
+        let _account_len = Account::LEN; // Always 165
+        let _mint_len = Mint::LEN; // Always 82
     }
 
     #[test]

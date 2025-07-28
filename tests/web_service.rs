@@ -1,11 +1,8 @@
-use std::time::Duration;
-use tokio::time::timeout;
-
 /// Test that the web service binary accepts the correct CLI arguments
 #[tokio::test]
 async fn test_web_service_cli_args() {
     let output = std::process::Command::new("cargo")
-        .args(&["run", "--", "web", "--help"])
+        .args(["run", "--", "web", "--help"])
         .output()
         .expect("Failed to execute command");
 
@@ -18,7 +15,7 @@ async fn test_web_service_cli_args() {
 #[tokio::test]
 async fn test_main_cli_help() {
     let output = std::process::Command::new("cargo")
-        .args(&["run", "--", "--help"])
+        .args(["run", "--", "--help"])
         .output()
         .expect("Failed to execute command");
 
@@ -36,7 +33,7 @@ async fn test_web_service_startup_validation() {
     
     // Just verify the binary can be built and help is shown correctly
     let output = std::process::Command::new("cargo")
-        .args(&["build", "--release"])
+        .args(["build", "--release"])
         .output()
         .expect("Failed to build binary");
 
@@ -44,7 +41,7 @@ async fn test_web_service_startup_validation() {
     
     // Verify web subcommand parsing
     let help_output = std::process::Command::new("cargo")
-        .args(&["run", "--", "web", "--help"])
+        .args(["run", "--", "web", "--help"])
         .output()
         .expect("Failed to run web help");
 
@@ -57,7 +54,7 @@ async fn test_web_service_startup_validation() {
 #[tokio::test]
 async fn test_stdio_mode_default() {
     let output = std::process::Command::new("cargo")
-        .args(&["run", "--", "stdio", "--help"])
+        .args(["run", "--", "stdio", "--help"])
         .output()
         .expect("Failed to execute command");
 
@@ -87,12 +84,12 @@ async fn test_http_server_instantiation() {
             
             // Just verify it compiles and can be created
             // In a real test environment, you'd start this and make HTTP requests
-            assert!(true, "Server task created successfully");
+            // Server task created successfully
         }
         Err(_) => {
             // Config loading might fail in CI environment, that's ok
             // The important thing is that the types compile
-            assert!(true, "Types compile correctly even if config fails");
+            // Types compile correctly even if config fails
         }
     }
 }

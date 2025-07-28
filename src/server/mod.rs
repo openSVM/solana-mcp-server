@@ -44,7 +44,7 @@ impl ServerState {
             "Creating RPC client for: {}",
             sanitize_for_logging(&config.rpc_url)
         );
-        let rpc_client = RpcClient::new_with_commitment(config.rpc_url.clone(), commitment.clone());
+        let rpc_client = RpcClient::new_with_commitment(config.rpc_url.clone(), commitment);
 
         // Create RPC clients for enabled SVM networks
         let mut svm_clients = HashMap::new();
@@ -56,7 +56,7 @@ impl ServerState {
                     sanitize_for_logging(&network.rpc_url)
                 );
                 let client =
-                    RpcClient::new_with_commitment(network.rpc_url.clone(), commitment.clone());
+                    RpcClient::new_with_commitment(network.rpc_url.clone(), commitment);
                 svm_clients.insert(network_id.clone(), client);
             }
         }
@@ -88,7 +88,7 @@ impl ServerState {
                 sanitize_for_logging(&new_config.rpc_url)
             );
             self.rpc_client =
-                RpcClient::new_with_commitment(new_config.rpc_url.clone(), commitment.clone());
+                RpcClient::new_with_commitment(new_config.rpc_url.clone(), commitment);
         }
 
         // Update SVM clients
@@ -101,7 +101,7 @@ impl ServerState {
                     sanitize_for_logging(&network.rpc_url)
                 );
                 let client =
-                    RpcClient::new_with_commitment(network.rpc_url.clone(), commitment.clone());
+                    RpcClient::new_with_commitment(network.rpc_url.clone(), commitment);
                 self.svm_clients.insert(network_id.clone(), client);
             }
         }
@@ -136,8 +136,7 @@ impl ServerState {
             "finalized" => CommitmentConfig::finalized(),
             _ => {
                 log::warn!(
-                    "Invalid commitment '{}', using default (finalized)",
-                    commitment_str
+                    "Invalid commitment '{commitment_str}', using default (finalized)"
                 );
                 CommitmentConfig::finalized()
             }
@@ -166,7 +165,7 @@ pub async fn start_server() -> Result<()> {
 
     // Load and validate configuration
     let config = Config::load().map_err(|e| {
-        log::error!("Failed to load configuration: {}", e);
+        log::error!("Failed to load configuration: {e}");
         e
     })?;
 
@@ -184,7 +183,7 @@ pub async fn start_server() -> Result<()> {
 
     let transport = CustomStdioTransport::new();
     transport.open().map_err(|e| {
-        log::error!("Failed to open transport: {}", e);
+        log::error!("Failed to open transport: {e}");
         e
     })?;
     log::info!("Opened stdio transport");
@@ -203,7 +202,7 @@ pub async fn start_server() -> Result<()> {
             })),
         }))
         .map_err(|e| {
-            log::error!("Failed to send protocol notification: {}", e);
+            log::error!("Failed to send protocol notification: {e}");
             e
         })?;
 
@@ -219,12 +218,12 @@ pub async fn start_server() -> Result<()> {
                     Ok(response) => {
                         log::debug!("Sending response");
                         if let Err(e) = transport.send(&response) {
-                            log::error!("Failed to send response: {}", e);
+                            log::error!("Failed to send response: {e}");
                             break;
                         }
                     }
                     Err(e) => {
-                        log::error!("Error handling message: {}", e);
+                        log::error!("Error handling message: {e}");
                         // Continue processing other messages
                     }
                 }
@@ -235,7 +234,7 @@ pub async fn start_server() -> Result<()> {
                     log::info!("Client disconnected gracefully");
                     break;
                 } else {
-                    log::error!("Error receiving message: {}", e);
+                    log::error!("Error receiving message: {e}");
                     // For non-connection errors, continue trying
                 }
             }
@@ -244,7 +243,7 @@ pub async fn start_server() -> Result<()> {
 
     log::info!("Closing transport");
     if let Err(e) = transport.close() {
-        log::warn!("Error closing transport: {}", e);
+        log::warn!("Error closing transport: {e}");
     }
 
     log::info!("Solana MCP server stopped");

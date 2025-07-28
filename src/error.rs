@@ -286,11 +286,10 @@ impl McpError {
         }
 
         match self {
-            McpError::Validation { parameter, .. } => {
-                if let Some(param) = parameter {
-                    log_data.insert("parameter".to_string(), Value::String(param.clone()));
-                }
+            McpError::Validation { parameter: Some(param), .. } => {
+                log_data.insert("parameter".to_string(), Value::String(param.clone()));
             },
+            McpError::Validation { parameter: None, .. } => {},
             McpError::Rpc { rpc_url, source_message, .. } => {
                 if let Some(url) = rpc_url {
                     // Sanitize URL for logging
@@ -301,17 +300,15 @@ impl McpError {
                     log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
                 }
             },
-            McpError::Network { endpoint, .. } => {
-                if let Some(ep) = endpoint {
-                    let sanitized = crate::validation::sanitize_for_logging(ep);
-                    log_data.insert("endpoint".to_string(), Value::String(sanitized));
-                }
+            McpError::Network { endpoint: Some(ep), .. } => {
+                let sanitized = crate::validation::sanitize_for_logging(ep);
+                log_data.insert("endpoint".to_string(), Value::String(sanitized));
             },
-            McpError::Server { source_message, .. } => {
-                if let Some(source_msg) = source_message {
-                    log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
-                }
+            McpError::Network { endpoint: None, .. } => {},
+            McpError::Server { source_message: Some(source_msg), .. } => {
+                log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
             },
+            McpError::Server { source_message: None, .. } => {},
             McpError::InvalidParameter(_) => {
                 // No additional fields for InvalidParameter
             },

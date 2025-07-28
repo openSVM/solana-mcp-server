@@ -155,6 +155,7 @@ pub async fn simulate_transaction(
     Ok(serde_json::json!({ "result": result }))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn simulate_transaction_with_config(
     client: &RpcClient,
     transaction_data: &str,
@@ -286,10 +287,10 @@ pub async fn get_signature_statuses(
         Ok(sigs) => sigs,
         Err(e) => {
             let duration = start_time.elapsed().as_millis() as u64;
-            let error = McpError::InvalidParameter(format!("Invalid signature: {}", e))
+            let error = McpError::InvalidParameter(format!("Invalid signature: {e}"))
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -333,7 +334,7 @@ pub async fn get_signature_statuses(
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,

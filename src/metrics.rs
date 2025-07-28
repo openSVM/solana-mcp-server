@@ -6,8 +6,8 @@ use once_cell::sync::Lazy;
 
 /// Prometheus metrics registry for the application
 pub static METRICS_REGISTRY: Lazy<Registry> = Lazy::new(|| {
-    let registry = Registry::new();
-    registry
+    
+    Registry::new()
 });
 
 /// Prometheus metrics for RPC operations
@@ -110,7 +110,7 @@ impl PrometheusMetrics {
 pub static PROMETHEUS_METRICS: Lazy<Arc<PrometheusMetrics>> = Lazy::new(|| {
     Arc::new(PrometheusMetrics::new().unwrap_or_else(|e| {
         // In tests, metrics might already be registered, so create a new instance without registration
-        eprintln!("Warning: Failed to create Prometheus metrics ({}), creating basic instance", e);
+        eprintln!("Warning: Failed to create Prometheus metrics ({e}), creating basic instance");
         PrometheusMetrics::new_unregistered()
     }))
 });

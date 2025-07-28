@@ -1,40 +1,46 @@
-use std::time::Duration;
 use serde_json::{json, Value};
 use solana_mcp_server::{Config, ServerState, start_mcp_server_task};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 /// Comprehensive end-to-end tests for the MCP JSON-RPC API
 /// 
 /// These tests start an actual HTTP server and make real HTTP requests
 /// to test the complete MCP protocol implementation
-
-const TEST_PORT: u16 = 8888;
-const TEST_SERVER_URL: &str = "http://localhost:8888";
+///
+/// Get a unique port for each test to avoid conflicts when running in parallel
+fn get_test_port() -> u16 {
+    use std::sync::atomic::{AtomicU16, Ordering};
+    static PORT_COUNTER: AtomicU16 = AtomicU16::new(8888);
+    PORT_COUNTER.fetch_add(1, Ordering::SeqCst)
+}
 
 /// Test setup helper that starts the MCP HTTP server
-async fn setup_test_server() -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error + Send + Sync>> {
+async fn setup_test_server() -> Result<(tokio::task::JoinHandle<()>, u16), Box<dyn std::error::Error + Send + Sync>> {
+    let port = get_test_port();
+    
     // Load configuration
-    let config = Config::load().map_err(|e| format!("Failed to load config: {}", e))?;
+    let config = Config::load().map_err(|e| format!("Failed to load config: {e}"))?;
     
     // Create server state
     let server_state = ServerState::new(config);
     let state = Arc::new(RwLock::new(server_state));
     
     // Start HTTP server with MCP API
-    let handle = start_mcp_server_task(TEST_PORT, state);
+    let handle = start_mcp_server_task(port, state);
     
     // Give server time to start
     tokio::time::sleep(Duration::from_millis(100)).await;
     
-    Ok(handle)
+    Ok((handle, port))
 }
 
 /// Helper function to make HTTP requests to the MCP API
-async fn make_mcp_request(request: Value) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
+async fn make_mcp_request(request: Value, port: u16) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
     let client = reqwest::Client::new();
     let response = client
-        .post(&format!("{}/api/mcp", TEST_SERVER_URL))
+        .post(format!("http://localhost:{port}/api/mcp"))
         .header("Content-Type", "application/json")
         .json(&request)
         .send()
@@ -51,12 +57,12 @@ async fn make_mcp_request(request: Value) -> Result<Value, Box<dyn std::error::E
 /// Test 1: Basic server connectivity and health check
 #[tokio::test]
 async fn test_basic_connectivity() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Test health endpoint
     let client = reqwest::Client::new();
     let response = client
-        .get(&format!("{}/health", TEST_SERVER_URL))
+        .get(format!("http://localhost:{port}/health"))
         .send()
         .await
         .expect("Failed to connect to health endpoint");
@@ -72,7 +78,7 @@ async fn test_basic_connectivity() {
 /// Test 2: MCP Initialize Protocol
 #[tokio::test]
 async fn test_mcp_initialize_protocol() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Test initialize request
     let init_request = json!({
@@ -89,7 +95,7 @@ async fn test_mcp_initialize_protocol() {
         }
     });
     
-    let response = make_mcp_request(init_request).await.expect("Failed to initialize");
+    let response = make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Validate response structure
     assert_eq!(response["jsonrpc"], "2.0");
@@ -105,7 +111,7 @@ async fn test_mcp_initialize_protocol() {
 /// Test 3: Tools List Endpoint
 #[tokio::test] 
 async fn test_tools_list() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // First initialize
     let init_request = json!({
@@ -119,7 +125,7 @@ async fn test_tools_list() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Now test tools/list
     let tools_request = json!({
@@ -128,7 +134,7 @@ async fn test_tools_list() {
         "method": "tools/list"
     });
     
-    let response = make_mcp_request(tools_request).await.expect("Failed to get tools list");
+    let response = make_mcp_request(tools_request, port).await.expect("Failed to get tools list");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -151,7 +157,7 @@ async fn test_tools_list() {
 /// Test 4: Tool Execution - getHealth
 #[tokio::test]
 async fn test_tool_execution_get_health() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -165,7 +171,7 @@ async fn test_tool_execution_get_health() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Execute getHealth tool
     let tool_request = json!({
@@ -178,7 +184,7 @@ async fn test_tool_execution_get_health() {
         }
     });
     
-    let response = make_mcp_request(tool_request).await.expect("Failed to call getHealth tool");
+    let response = make_mcp_request(tool_request, port).await.expect("Failed to call getHealth tool");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -188,7 +194,7 @@ async fn test_tool_execution_get_health() {
 /// Test 5: Tool Execution - getBalance with System Program
 #[tokio::test] 
 async fn test_tool_execution_get_balance() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -202,7 +208,7 @@ async fn test_tool_execution_get_balance() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Execute getBalance tool for System Program
     let tool_request = json!({
@@ -217,7 +223,7 @@ async fn test_tool_execution_get_balance() {
         }
     });
     
-    let response = make_mcp_request(tool_request).await.expect("Failed to call getBalance tool");
+    let response = make_mcp_request(tool_request, port).await.expect("Failed to call getBalance tool");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -227,7 +233,7 @@ async fn test_tool_execution_get_balance() {
 /// Test 6: Error Handling - Invalid JSON-RPC
 #[tokio::test]
 async fn test_error_handling_invalid_jsonrpc() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Send invalid JSON-RPC request (missing jsonrpc field)
     let invalid_request = json!({
@@ -235,7 +241,7 @@ async fn test_error_handling_invalid_jsonrpc() {
         "method": "initialize"
     });
     
-    let response = make_mcp_request(invalid_request).await.expect("Should get error response");
+    let response = make_mcp_request(invalid_request, port).await.expect("Should get error response");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], Value::Null);
@@ -247,7 +253,7 @@ async fn test_error_handling_invalid_jsonrpc() {
 /// Test 7: Error Handling - Wrong Protocol Version
 #[tokio::test]
 async fn test_error_handling_wrong_protocol_version() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Send initialize with wrong protocol version
     let wrong_version_request = json!({
@@ -261,7 +267,7 @@ async fn test_error_handling_wrong_protocol_version() {
         }
     });
     
-    let response = make_mcp_request(wrong_version_request).await.expect("Should get error response");
+    let response = make_mcp_request(wrong_version_request, port).await.expect("Should get error response");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 1);
@@ -273,7 +279,7 @@ async fn test_error_handling_wrong_protocol_version() {
 /// Test 8: Error Handling - Server Not Initialized
 #[tokio::test]
 async fn test_error_handling_not_initialized() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Try to call a tool without initializing first
     let tool_request = json!({
@@ -282,7 +288,7 @@ async fn test_error_handling_not_initialized() {
         "method": "tools/list"
     });
     
-    let response = make_mcp_request(tool_request).await.expect("Should get error response");
+    let response = make_mcp_request(tool_request, port).await.expect("Should get error response");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 1);
@@ -294,7 +300,7 @@ async fn test_error_handling_not_initialized() {
 /// Test 9: Error Handling - Method Not Found
 #[tokio::test]
 async fn test_error_handling_method_not_found() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -308,7 +314,7 @@ async fn test_error_handling_method_not_found() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Try to call non-existent method
     let invalid_method_request = json!({
@@ -317,7 +323,7 @@ async fn test_error_handling_method_not_found() {
         "method": "nonexistent/method"
     });
     
-    let response = make_mcp_request(invalid_method_request).await.expect("Should get error response");
+    let response = make_mcp_request(invalid_method_request, port).await.expect("Should get error response");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -329,7 +335,7 @@ async fn test_error_handling_method_not_found() {
 /// Test 10: Error Handling - Invalid Tool Parameters
 #[tokio::test]
 async fn test_error_handling_invalid_tool_params() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -343,7 +349,7 @@ async fn test_error_handling_invalid_tool_params() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Call getBalance without required pubkey parameter
     let tool_request = json!({
@@ -356,7 +362,7 @@ async fn test_error_handling_invalid_tool_params() {
         }
     });
     
-    let response = make_mcp_request(tool_request).await.expect("Should get error response");
+    let response = make_mcp_request(tool_request, port).await.expect("Should get error response");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -368,7 +374,7 @@ async fn test_error_handling_invalid_tool_params() {
 /// Test 11: Content-Type Validation
 #[tokio::test]
 async fn test_content_type_validation() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     let client = reqwest::Client::new();
     let request = json!({
@@ -384,7 +390,7 @@ async fn test_content_type_validation() {
     
     // Send request with incorrect content type
     let response = client
-        .post(&format!("{}/api/mcp", TEST_SERVER_URL))
+        .post(format!("http://localhost:{port}/api/mcp"))
         .header("Content-Type", "text/plain")
         .body(serde_json::to_string(&request).unwrap())
         .send()
@@ -406,11 +412,11 @@ async fn test_content_type_validation() {
 /// Test 12: Metrics Endpoint
 #[tokio::test]
 async fn test_metrics_endpoint() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     let client = reqwest::Client::new();
     let response = client
-        .get(&format!("{}/metrics", TEST_SERVER_URL))
+        .get(format!("http://localhost:{port}/metrics"))
         .send()
         .await
         .expect("Failed to connect to metrics endpoint");
@@ -425,7 +431,7 @@ async fn test_metrics_endpoint() {
 /// Test 13: Resources List
 #[tokio::test]
 async fn test_resources_list() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -439,7 +445,7 @@ async fn test_resources_list() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Test resources/list
     let resources_request = json!({
@@ -448,7 +454,7 @@ async fn test_resources_list() {
         "method": "resources/list"
     });
     
-    let response = make_mcp_request(resources_request).await.expect("Failed to get resources list");
+    let response = make_mcp_request(resources_request, port).await.expect("Failed to get resources list");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -458,7 +464,7 @@ async fn test_resources_list() {
 /// Test 14: Complex Tool - Multiple Account Info
 #[tokio::test]
 async fn test_complex_tool_multiple_accounts() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -472,7 +478,7 @@ async fn test_complex_tool_multiple_accounts() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Test getMultipleAccounts with System Program and SPL Token Program
     let tool_request = json!({
@@ -490,7 +496,7 @@ async fn test_complex_tool_multiple_accounts() {
         }
     });
     
-    let response = make_mcp_request(tool_request).await.expect("Failed to call getMultipleAccounts tool");
+    let response = make_mcp_request(tool_request, port).await.expect("Failed to call getMultipleAccounts tool");
     
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 2);
@@ -500,7 +506,7 @@ async fn test_complex_tool_multiple_accounts() {
 /// Test 15: Concurrent Requests
 #[tokio::test]
 async fn test_concurrent_requests() {
-    let _server_handle = setup_test_server().await.expect("Failed to start test server");
+    let (_server_handle, port) = setup_test_server().await.expect("Failed to start test server");
     
     // Initialize first
     let init_request = json!({
@@ -514,7 +520,7 @@ async fn test_concurrent_requests() {
         }
     });
     
-    make_mcp_request(init_request).await.expect("Failed to initialize");
+    make_mcp_request(init_request, port).await.expect("Failed to initialize");
     
     // Make multiple concurrent requests
     let mut tasks = Vec::new();
@@ -531,7 +537,7 @@ async fn test_concurrent_requests() {
                 }
             });
             
-            make_mcp_request(request).await
+            make_mcp_request(request, port).await
         });
         tasks.push(task);
     }
@@ -562,26 +568,26 @@ async fn test_solana_operations_legacy() {
 
     println!("\nTesting health check:");
     match client.get_health().await {
-        Ok(health) => println!("Health status: {:?}", health),
+        Ok(health) => println!("Health status: {health:?}"),
         Err(err) => {
-            println!("Error details: {:?}", err);
+            println!("Error details: {err:?}");
             // Don't panic in CI, just log the error
-            println!("Health check failed: {}", err);
+            println!("Health check failed: {err}");
             return;
         }
     }
 
     println!("\nTesting version info:");
     let version = client.get_version().await.unwrap();
-    println!("Version info: {:?}", version);
+    println!("Version info: {version:?}");
 
     println!("\nTesting latest blockhash:");
     let blockhash = client.get_latest_blockhash().await.unwrap();
-    println!("Latest blockhash: {:?}", blockhash);
+    println!("Latest blockhash: {blockhash:?}");
 
     println!("\nTesting transaction count:");
     let count = client.get_transaction_count().await.unwrap();
-    println!("Transaction count: {}", count);
+    println!("Transaction count: {count}");
 
     // Get info about the System Program
     println!("\nTesting account info for System Program:");
@@ -605,7 +611,7 @@ async fn test_solana_operations_legacy() {
         println!("  Signature: {}", sig.signature);
         println!("  Slot: {}", sig.slot);
         if let Some(err) = &sig.err {
-            println!("  Error: {:?}", err);
+            println!("  Error: {err:?}");
         }
     }
 
@@ -613,12 +619,12 @@ async fn test_solana_operations_legacy() {
     println!("\nTesting keypair operations:");
     let keypair = Keypair::new();
     let pubkey = keypair.pubkey();
-    println!("Generated keypair with pubkey: {}", pubkey);
+    println!("Generated keypair with pubkey: {pubkey}");
 
     // Get account info (should be empty/not found)
     match client.get_account(&pubkey).await {
         Ok(account) => println!("Account exists with {} lamports", account.lamports),
-        Err(e) => println!("Account not found as expected: {}", e),
+        Err(e) => println!("Account not found as expected: {e}"),
     }
 
     // Get minimum rent
@@ -627,17 +633,17 @@ async fn test_solana_operations_legacy() {
         .get_minimum_balance_for_rent_exemption(0)
         .await
         .unwrap();
-    println!("Minimum balance for rent exemption: {} lamports", rent);
+    println!("Minimum balance for rent exemption: {rent} lamports");
 
     // Get recent block
     println!("\nTesting block info:");
     let slot = client.get_slot().await.unwrap();
-    println!("Current slot: {}", slot);
+    println!("Current slot: {slot}");
 
     // Get block production
     println!("\nTesting block production:");
     let production = client.get_block_production().await.unwrap();
-    println!("Block production: {:?}", production);
+    println!("Block production: {production:?}");
 
     // Get cluster nodes
     println!("\nTesting cluster info:");

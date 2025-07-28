@@ -112,7 +112,7 @@ async fn mcp_api_handler(
     // Parse and validate JSON-RPC request structure
     let json_rpc_request = match parse_json_rpc_request(&request) {
         Ok(req) => req,
-        Err(error_response) => return error_response,
+        Err(error_response) => return *error_response,
     };
 
     // Process the MCP request through the existing handler
@@ -143,7 +143,7 @@ async fn mcp_api_handler(
             error!("Failed to handle MCP request: {}", e);
             create_json_rpc_error_response(
                 -32603,
-                &format!("Internal error: {}", e),
+                &format!("Internal error: {e}"),
                 Some(json_rpc_request.id.clone()),
             )
         }
@@ -151,31 +151,31 @@ async fn mcp_api_handler(
 }
 
 /// Parse and validate JSON-RPC 2.0 request according to MCP specification
-fn parse_json_rpc_request(request: &serde_json::Value) -> Result<JsonRpcRequest, Response> {
+fn parse_json_rpc_request(request: &serde_json::Value) -> Result<JsonRpcRequest, Box<Response>> {
     // Validate required fields for JSON-RPC 2.0
     let jsonrpc = request.get("jsonrpc")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| create_json_rpc_error_response(
+        .ok_or_else(|| Box::new(create_json_rpc_error_response(
             -32600,
             "Invalid Request: missing 'jsonrpc' field",
             None,
-        ))?;
+        )))?;
 
     if jsonrpc != "2.0" {
-        return Err(create_json_rpc_error_response(
+        return Err(Box::new(create_json_rpc_error_response(
             -32600,
             "Invalid Request: 'jsonrpc' must be '2.0'",
             None,
-        ));
+        )));
     }
 
     let method = request.get("method")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| create_json_rpc_error_response(
+        .ok_or_else(|| Box::new(create_json_rpc_error_response(
             -32600,
             "Invalid Request: missing 'method' field",
             None,
-        ))?;
+        )))?;
 
     let id = request.get("id")
         .cloned()

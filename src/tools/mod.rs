@@ -27,7 +27,7 @@ use url::Url;
 /// # Returns
 /// * `JsonRpcMessage` - Formatted success response
 pub fn create_success_response(result: Value, id: Value) -> JsonRpcMessage {
-    log::debug!("Creating success response with id {:?}", id);
+    log::debug!("Creating success response with id {id:?}");
     JsonRpcMessage::Response(JsonRpcResponse {
         jsonrpc: JsonRpcVersion::V2,
         id,
@@ -56,7 +56,7 @@ pub fn create_error_response(
     id: Value,
     protocol_version: Option<&str>,
 ) -> JsonRpcMessage {
-    log::error!("Creating error response: {} (code: {})", message, code);
+    log::error!("Creating error response: {message} (code: {code})");
     let error = JsonRpcError {
         code,
         message,
@@ -90,7 +90,7 @@ pub async fn handle_initialize(
         let init_params = match serde_json::from_value::<InitializeRequest>(params.clone()) {
             Ok(params) => params,
             Err(e) => {
-                log::error!("Failed to parse initialize params: {}", e);
+                log::error!("Failed to parse initialize params: {e}");
                 return Ok(create_error_response(
                     -32602,
                     "Invalid params: protocolVersion is required".to_string(),
@@ -2664,7 +2664,7 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
     ];
 
     let tools_len = tools.len();
-    log::debug!("Returning {} tools", tools_len);
+    log::debug!("Returning {tools_len} tools");
 
     let response = ToolsListResponse {
         tools,
@@ -2695,7 +2695,7 @@ pub async fn handle_tools_call(
         
     let arguments = params.get("arguments").cloned().unwrap_or(serde_json::json!({}));
     
-    log::info!("Executing tool: {}", tool_name);
+    log::info!("Executing tool: {tool_name}");
     
     // Execute the specific tool based on the tool name
     let result = match tool_name {
@@ -2971,7 +2971,7 @@ pub async fn handle_tools_call(
         _ => {
             return Ok(create_error_response(
                 -32601,
-                format!("Tool not found: {}", tool_name),
+                format!("Tool not found: {tool_name}"),
                 id.unwrap_or(Value::Null),
                 None,
             ));
@@ -2981,10 +2981,10 @@ pub async fn handle_tools_call(
     match result {
         Ok(result_value) => Ok(create_success_response(result_value, id.unwrap_or(Value::Null))),
         Err(e) => {
-            log::error!("Tool execution failed: {}", e);
+            log::error!("Tool execution failed: {e}");
             Ok(create_error_response(
                 -32603,
-                format!("Tool execution failed: {}", e),
+                format!("Tool execution failed: {e}"),
                 id.unwrap_or(Value::Null),
                 None,
             ))
@@ -3097,7 +3097,7 @@ async fn enable_svm_network(
 
     state_guard.update_config(new_config);
 
-    log::info!("Successfully enabled network '{}'", network_id);
+    log::info!("Successfully enabled network '{network_id}'");
     Ok(serde_json::json!({
         "success": true,
         "message": format!("Network '{}' enabled successfully", network_id)
@@ -3115,7 +3115,7 @@ async fn enable_svm_network(
 async fn disable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str) -> Result<Value> {
     validate_network_id(network_id).map_err(|e| anyhow::anyhow!("Invalid network ID: {}", e))?;
 
-    log::info!("Disabling SVM network '{}'", network_id);
+    log::info!("Disabling SVM network '{network_id}'");
 
     let mut state_guard = state.write().await;
 
@@ -3135,7 +3135,7 @@ async fn disable_svm_network(state: Arc<RwLock<ServerState>>, network_id: &str) 
 
     state_guard.update_config(new_config);
 
-    log::info!("Successfully disabled network '{}'", network_id);
+    log::info!("Successfully disabled network '{network_id}'");
     Ok(serde_json::json!({
         "success": true,
         "message": format!("Network '{}' disabled successfully", network_id)
@@ -3189,7 +3189,7 @@ async fn set_network_rpc_url(
 
     state_guard.update_config(new_config);
 
-    log::info!("Successfully updated RPC URL for network '{}'", network_id);
+    log::info!("Successfully updated RPC URL for network '{network_id}'");
     Ok(serde_json::json!({
         "success": true,
         "message": format!("RPC URL for network '{}' updated successfully", network_id)
@@ -3219,7 +3219,7 @@ pub async fn handle_request(
     // Sanitize request for logging to avoid exposing sensitive data
     log::debug!("Received request: {}", sanitize_for_logging(request));
     let message: JsonRpcMessage = serde_json::from_str(request).map_err(|e| {
-        log::error!("Failed to parse JSON-RPC request: {}", e);
+        log::error!("Failed to parse JSON-RPC request: {e}");
         anyhow::anyhow!("Invalid JSON-RPC request: {}", e)
     })?;
 

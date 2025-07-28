@@ -62,7 +62,7 @@ pub fn validate_rpc_url(url_str: &str) -> Result<()> {
 
     // Prevent localhost/internal addresses in production
     if is_internal_address(host) {
-        log::warn!("Using internal/localhost address: {}", host);
+        log::warn!("Using internal/localhost address: {host}");
     }
 
     // Basic format validation
@@ -177,7 +177,7 @@ pub fn sanitize_for_logging(input: &str) -> String {
         if let Some(host) = url.host_str() {
             let mut sanitized = format!("{}://{}", url.scheme(), host);
             if let Some(port) = url.port() {
-                sanitized.push_str(&format!(":{}", port));
+                sanitized.push_str(&format!(":{port}"));
             }
             // Indicate if there were paths/queries without revealing them
             if !url.path().is_empty() && url.path() != "/" {
@@ -195,9 +195,9 @@ pub fn sanitize_for_logging(input: &str) -> String {
     for sensitive_name in SENSITIVE_PARAM_NAMES {
         // Check for exact word matches or parameter-like patterns
         if input_lower == *sensitive_name || 
-           input_lower.contains(&format!("{}=", sensitive_name)) ||
-           input_lower.contains(&format!("{}_", sensitive_name)) ||
-           input_lower.contains(&format!("_{}", sensitive_name)) ||
+           input_lower.contains(&format!("{sensitive_name}=")) ||
+           input_lower.contains(&format!("{sensitive_name}_")) ||
+           input_lower.contains(&format!("_{sensitive_name}")) ||
            (input_lower.contains(sensitive_name) && input_lower.len() == sensitive_name.len()) {
             return format!("[REDACTED-{}]", sensitive_name.to_uppercase());
         }
@@ -307,7 +307,7 @@ mod tests {
         for (input, _expected_pattern) in test_cases {
             let sanitized = sanitize_for_logging(input);
             assert!(sanitized.starts_with("[REDACTED-"), 
-                   "Input '{}' should be redacted, got: '{}'", input, sanitized);
+                   "Input '{input}' should be redacted, got: '{sanitized}'");
         }
     }
     
@@ -344,7 +344,7 @@ mod tests {
         for input in safe_inputs {
             let sanitized = sanitize_for_logging(input);
             assert!(!sanitized.starts_with("[REDACTED-"), 
-                   "Safe input '{}' should not be redacted, got: '{}'", input, sanitized);
+                   "Safe input '{input}' should not be redacted, got: '{sanitized}'");
         }
     }
 

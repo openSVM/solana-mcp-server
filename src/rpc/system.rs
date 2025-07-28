@@ -45,7 +45,7 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -94,7 +94,7 @@ pub async fn get_version(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -143,7 +143,7 @@ pub async fn get_identity(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -192,7 +192,7 @@ pub async fn get_cluster_nodes(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -241,7 +241,7 @@ pub async fn get_epoch_info(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -290,7 +290,7 @@ pub async fn get_epoch_schedule(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -339,7 +339,7 @@ pub async fn get_inflation_governor(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -388,7 +388,7 @@ pub async fn get_inflation_rate(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -441,7 +441,7 @@ pub async fn get_inflation_reward(
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -485,7 +485,7 @@ pub async fn request_airdrop(
 ) -> McpResult<Value> {
     use crate::log_rpc_call;
     
-    let params_summary = format!("pubkey: {}, lamports: {}", pubkey, lamports);
+    let params_summary = format!("pubkey: {pubkey}, lamports: {lamports}");
     
     log_rpc_call!(
         "requestAirdrop",
@@ -584,17 +584,17 @@ pub async fn is_blockhash_valid(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("blockhash: {}", blockhash)),
+        Some(&format!("blockhash: {blockhash}")),
     );
 
     let blockhash_obj = match blockhash.parse() {
         Ok(hash) => hash,
         Err(e) => {
             let duration = start_time.elapsed().as_millis() as u64;
-            let error = McpError::validation(format!("Invalid blockhash format: {}", e))
+            let error = McpError::validation(format!("Invalid blockhash format: {e}"))
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -618,7 +618,7 @@ pub async fn is_blockhash_valid(
                 request_id,
                 method,
                 duration,
-                Some(&format!("blockhash validity: {}", is_valid)),
+                Some(&format!("blockhash validity: {is_valid}")),
                 Some(&client.url()),
             );
             
@@ -629,7 +629,7 @@ pub async fn is_blockhash_valid(
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -677,7 +677,7 @@ pub async fn get_slot_leader(
                         request_id,
                         method,
                         duration,
-                        Some(&format!("slot leader for slot {}: {}", slot, leader)),
+                        Some(&format!("slot leader for slot {slot}: {leader}")),
                         Some(&client.url()),
                     );
                     
@@ -688,7 +688,7 @@ pub async fn get_slot_leader(
                     let error = McpError::from(e)
                         .with_request_id(request_id)
                         .with_method(method)
-                        .with_rpc_url(&client.url());
+                        .with_rpc_url(client.url());
                     
                     log_rpc_request_failure(
                         request_id,
@@ -708,7 +708,7 @@ pub async fn get_slot_leader(
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -746,7 +746,7 @@ pub async fn minimum_ledger_slot(client: &RpcClient) -> McpResult<Value> {
                 request_id,
                 method,
                 duration,
-                Some(&format!("minimum ledger slot: {}", slot)),
+                Some(&format!("minimum ledger slot: {slot}")),
                 Some(&client.url()),
             );
             
@@ -757,7 +757,7 @@ pub async fn minimum_ledger_slot(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -805,7 +805,7 @@ pub async fn get_max_retransmit_slot(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -854,7 +854,7 @@ pub async fn get_max_shred_insert_slot(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -906,7 +906,7 @@ pub async fn get_highest_snapshot_slot(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -978,7 +978,7 @@ pub async fn get_recent_blockhash(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -1038,7 +1038,7 @@ pub async fn get_fees(client: &RpcClient) -> McpResult<Value> {
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -1066,7 +1066,7 @@ pub async fn get_recent_performance_samples(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("limit: {:?}", limit)),
+        Some(&format!("limit: {limit:?}")),
     );
 
     match client.get_recent_performance_samples(limit).await {
@@ -1089,7 +1089,7 @@ pub async fn get_recent_performance_samples(
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
@@ -1118,7 +1118,7 @@ pub async fn get_recent_prioritization_fees(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("addresses: {:?}", addresses)),
+        Some(&format!("addresses: {addresses:?}")),
     );
 
     // Convert string addresses to Pubkeys if provided
@@ -1130,10 +1130,10 @@ pub async fn get_recent_prioritization_fees(
             Ok(keys) => Some(keys),
             Err(e) => {
                 let duration = start_time.elapsed().as_millis() as u64;
-                let error = McpError::InvalidParameter(format!("Invalid pubkey: {}", e))
+                let error = McpError::InvalidParameter(format!("Invalid pubkey: {e}"))
                     .with_request_id(request_id)
                     .with_method(method)
-                    .with_rpc_url(&client.url());
+                    .with_rpc_url(client.url());
                 
                 log_rpc_request_failure(
                     request_id,
@@ -1171,7 +1171,7 @@ pub async fn get_recent_prioritization_fees(
             let error = McpError::from(e)
                 .with_request_id(request_id)
                 .with_method(method)
-                .with_rpc_url(&client.url());
+                .with_rpc_url(client.url());
             
             log_rpc_request_failure(
                 request_id,
