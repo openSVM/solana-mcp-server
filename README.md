@@ -347,6 +347,20 @@ Once configured, you can interact with the Solana blockchain through natural lan
 - "Find all accounts owned by the SPL Token program"
 - "Check the block production stats for a validator"
 
+## Security
+
+This project undergoes regular security audits using `cargo audit`. Our CI/CD pipeline automatically scans for vulnerabilities and generates reports.
+
+### Current Security Status
+- ✅ **Active monitoring**: Weekly automated security scans
+- ✅ **Dependency updates**: Regular updates to latest secure versions
+- ⚠️ **Known acceptable risks**: Some vulnerabilities exist in deep Solana ecosystem dependencies
+- 📋 **Full audit reports**: Available as CI artifacts and in `docs/security-audit.md`
+
+For detailed security information, vulnerability assessments, and risk analysis, see:
+
+📋 **[Security Audit Documentation](./docs/security-audit.md)**
+
 ## Documentation
 
 For comprehensive documentation including architecture, deployment guides, and complete API reference, see:
