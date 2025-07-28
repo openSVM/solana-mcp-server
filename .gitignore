@@ -17,3 +17,7 @@ nohup.out
 
 # macOS specific files
 .DS_Store
+
+# Test configurations
+config.test.json
+*.test.json
