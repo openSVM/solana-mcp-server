@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "MCP JSON-RPC API Specification"
+description: "Model Context Protocol JSON-RPC API implementation details and compliance"
+order: 31
+category: api
+---
+
 # MCP JSON-RPC API Specification
 
 This document describes the Model Context Protocol (MCP) JSON-RPC API implementation for the Solana MCP Server.

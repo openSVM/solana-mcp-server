@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Docker Scaling Guide"
+description: "Scaling strategies for Docker environments with autoscaling and orchestration"
+order: 12
+category: deployment
+---
+
 # Docker Scaling Guide
 
 This guide covers scaling strategies for the Solana MCP Server in Docker environments.

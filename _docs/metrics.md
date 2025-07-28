@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Metrics & Monitoring"
+description: "Prometheus metrics, Kubernetes autoscaling, and observability setup"
+order: 13
+category: deployment
+---
+
 # Metrics Documentation
 
 The Solana MCP Server exposes comprehensive metrics for monitoring, alerting, and autoscaling. This document describes the available metrics and how to use them.

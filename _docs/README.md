@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Documentation Overview"
+description: "Table of contents and navigation guide for all documentation"
+order: 0
+category: getting_started
+---
+
 # Solana MCP Server Documentation
 
 ## Table of Contents

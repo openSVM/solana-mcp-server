@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Error Handling and Logging Guidelines"
+description: "Robust error handling and logging patterns for development and production"
+order: 101
+category: developer
+---
+
 # Error Handling and Logging Guidelines
 
 ## Overview

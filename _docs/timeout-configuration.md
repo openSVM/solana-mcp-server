@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Timeout Configuration"
+description: "Comprehensive timeout configurations for reliable performance"
+order: 15
+category: configuration
+---
+
 # Timeout Configuration
 
 The Solana MCP Server provides comprehensive timeout configurations to prevent hanging operations and ensure reliable performance in production environments.

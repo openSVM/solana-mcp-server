@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Web Service Mode"
+description: "HTTP API mode with JSON-RPC endpoints, health checks, and metrics integration"
+order: 11
+category: deployment
+---
+
 # Solana MCP Server - Web Service Mode
 
 The Solana MCP Server supports running as an HTTP web service, providing full MCP JSON-RPC 2.0 API compliance for web-based integrations.

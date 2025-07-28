@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Benchmark Tests"
+description: "Comprehensive performance benchmarks and testing results"
+order: 20
+category: architecture
+---
+
 # Benchmark Tests
 
 This directory contains comprehensive performance benchmarks for the Solana MCP Server.

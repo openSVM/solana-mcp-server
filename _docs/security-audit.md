@@ -1,3 +1,11 @@
+---
+layout: docs
+title: "Security Audit"
+description: "Security audit reports, vulnerability assessments, and compliance information"
+order: 14
+category: deployment
+---
+
 # Security Audit Documentation
 
 ## Overview
