@@ -21,7 +21,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
     <span class="feature-icon">🚀</span>
     <h3 class="feature-title">Comprehensive RPC Coverage</h3>
     <p class="feature-description">
-      47 Solana RPC methods across all major categories including accounts, blocks, transactions, tokens, and system operations. Real-time blockchain data with configurable commitment levels.
+      73+ Solana RPC methods across all major categories including accounts, blocks, transactions, tokens, and system operations. Real-time blockchain data with configurable commitment levels plus full WebSocket subscription support.
     </p>
   </div>
   
@@ -90,7 +90,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
       <span class="docs-card-icon">📖</span>
       <h3 class="docs-card-title">API Reference</h3>
       <p class="docs-card-description">
-        Complete documentation of all 47 RPC methods with parameters, examples, and response formats.
+        Complete documentation of all 73+ RPC methods with parameters, examples, and response formats including JSON-RPC API support.
       </p>
     </a>
     
@@ -120,9 +120,9 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
     
     <a href="{{ '/docs/web-service/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">🌐</span>
-      <h3 class="docs-card-title">Web Service</h3>
+      <h3 class="docs-card-title">Web Service & JSON-RPC</h3>
       <p class="docs-card-description">
-        HTTP API mode with JSON-RPC endpoints, health checks, and Prometheus metrics integration.
+        HTTP API mode with JSON-RPC 2.0 endpoints, WebSocket subscriptions, health checks, and Prometheus metrics integration.
       </p>
     </a>
     

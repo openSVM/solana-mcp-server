@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "API Reference"
-description: "Complete documentation of all 47 RPC methods with parameters, examples, and response formats"
+description: "Complete documentation of all 73+ RPC methods with parameters, examples, and response formats including JSON-RPC 2.0 support"
 order: 3
 category: api
 ---
@@ -10,7 +10,44 @@ category: api
 
 ## Overview
 
-The Solana MCP Server exposes 47 comprehensive RPC methods across 6 major categories, plus 4 network management methods. All methods support both single-network and multi-network execution modes.
+The Solana MCP Server exposes 73+ comprehensive RPC methods across 6 major categories, plus 4 network management methods and 18 WebSocket subscription methods. All methods support both single-network and multi-network execution modes with full JSON-RPC 2.0 compatibility.
+
+## JSON-RPC 2.0 API Support
+
+The server provides complete JSON-RPC 2.0 API compatibility when running in web service mode:
+
+### HTTP Mode
+- **Endpoint**: `http://localhost:3000` (configurable port)
+- **Method**: POST with `Content-Type: application/json`
+- **Format**: Standard JSON-RPC 2.0 request/response
+
+```bash
+# Example HTTP request
+curl -X POST http://localhost:3000 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "getBalance",
+    "params": ["Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"]
+  }'
+```
+
+### WebSocket Mode
+- **Endpoint**: `ws://localhost:8900` (configurable port)
+- **Format**: JSON-RPC 2.0 with subscription support
+- **Features**: Real-time account, block, transaction, and program subscriptions
+
+```javascript
+// Example WebSocket subscription
+const ws = new WebSocket('ws://localhost:8900');
+ws.send(JSON.stringify({
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "accountSubscribe",
+  "params": ["11111111111111111111111111111111"]
+}));
+```
 
 ## Network Management Methods
 

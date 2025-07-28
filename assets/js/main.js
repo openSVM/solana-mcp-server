@@ -20,6 +20,7 @@
         initializeScrollSpy();
         initializeTableOfContents();
         initializeMicroAnimations();
+        initializeLLMsButton();
     }
 
     // Search functionality
@@ -892,6 +893,268 @@
             }
         `;
         document.head.appendChild(animationStyles);
+    }
+
+    // LLMs.txt floating button functionality
+    function initializeLLMsButton() {
+        const llmsButton = document.getElementById('llms-floating-btn');
+        if (!llmsButton) return;
+        
+        let llmsContent = null;
+        
+        // Fetch the llms.txt content
+        async function fetchLLMsContent() {
+            if (llmsContent) return llmsContent;
+            
+            try {
+                const response = await fetch('/llms.txt');
+                if (response.ok) {
+                    llmsContent = await response.text();
+                    return llmsContent;
+                } else {
+                    throw new Error('Failed to fetch llms.txt');
+                }
+            } catch (error) {
+                console.error('Error fetching llms.txt:', error);
+                return 'LLMs.txt content not available';
+            }
+        }
+        
+        // Copy to clipboard functionality
+        async function copyToClipboard(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } else {
+                    // Fallback for older browsers or non-secure contexts
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    
+                    const success = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    return success;
+                }
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                return false;
+            }
+        }
+        
+        // Button click handler
+        llmsButton.addEventListener('click', async function() {
+            // Prevent multiple clicks
+            if (this.classList.contains('copying') || this.classList.contains('copied')) {
+                return;
+            }
+            
+            // Show copying state
+            this.classList.add('copying');
+            const originalText = this.querySelector('.llms-text').textContent;
+            this.querySelector('.llms-text').textContent = 'Copying...';
+            
+            try {
+                // Fetch and copy content
+                const content = await fetchLLMsContent();
+                const success = await copyToClipboard(content);
+                
+                // Update button state
+                this.classList.remove('copying');
+                
+                if (success) {
+                    this.classList.add('copied');
+                    this.querySelector('.llms-text').textContent = 'Copied!';
+                    
+                    // Show success toast
+                    showToast('LLMs.txt content copied to clipboard!', 'success');
+                    
+                    // Track the action
+                    if (typeof gtag !== 'undefined') {
+                        gtag('event', 'llms_copy', {
+                            event_category: 'Engagement',
+                            event_label: 'llms.txt',
+                            value: content.length
+                        });
+                    }
+                } else {
+                    this.querySelector('.llms-text').textContent = 'Failed';
+                    showToast('Failed to copy content. Please try again.', 'error');
+                }
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    this.classList.remove('copied');
+                    this.querySelector('.llms-text').textContent = originalText;
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error copying LLMs content:', error);
+                this.classList.remove('copying');
+                this.querySelector('.llms-text').textContent = 'Error';
+                showToast('Error occurred while copying. Please try again.', 'error');
+                
+                setTimeout(() => {
+                    this.querySelector('.llms-text').textContent = originalText;
+                }, 2000);
+            }
+        });
+        
+        // Add hover effects
+        llmsButton.addEventListener('mouseenter', function() {
+            if (!this.classList.contains('copying') && !this.classList.contains('copied')) {
+                this.style.transform = 'translateY(-2px) scale(1.05)';
+            }
+        });
+        
+        llmsButton.addEventListener('mouseleave', function() {
+            if (!this.classList.contains('copying') && !this.classList.contains('copied')) {
+                this.style.transform = 'translateY(0) scale(1)';
+            }
+        });
+        
+        // Keyboard accessibility
+        llmsButton.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.click();
+            }
+        });
+    }
+    
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        // Remove existing toast if any
+        const existingToast = document.querySelector('.toast-notification');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <span class="toast-icon">${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}</span>
+                <span class="toast-message">${message}</span>
+            </div>
+        `;
+        
+        // Add toast styles
+        const toastStyles = `
+            .toast-notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--eink-white);
+                border: 1px solid var(--eink-medium-gray);
+                border-radius: var(--border-radius-md);
+                padding: var(--spacing-md);
+                box-shadow: var(--shadow-lg);
+                z-index: 10000;
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                max-width: 300px;
+                font-family: var(--font-family-sans);
+            }
+            
+            .toast-notification.show {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            
+            .toast-success {
+                border-left: 4px solid #22c55e;
+            }
+            
+            .toast-error {
+                border-left: 4px solid #ef4444;
+            }
+            
+            .toast-info {
+                border-left: 4px solid var(--accent-teal);
+            }
+            
+            .toast-content {
+                display: flex;
+                align-items: center;
+                gap: var(--spacing-sm);
+            }
+            
+            .toast-icon {
+                font-weight: bold;
+                font-size: var(--font-size-lg);
+            }
+            
+            .toast-success .toast-icon {
+                color: #22c55e;
+            }
+            
+            .toast-error .toast-icon {
+                color: #ef4444;
+            }
+            
+            .toast-info .toast-icon {
+                color: var(--accent-teal);
+            }
+            
+            .toast-message {
+                font-size: var(--font-size-sm);
+                color: var(--eink-dark-charcoal);
+                line-height: var(--line-height-normal);
+            }
+            
+            @media (max-width: 768px) {
+                .toast-notification {
+                    top: 10px;
+                    right: 10px;
+                    left: 10px;
+                    max-width: none;
+                }
+            }
+        `;
+        
+        // Add styles if not already added
+        if (!document.querySelector('#toast-styles')) {
+            const styleElement = document.createElement('style');
+            styleElement.id = 'toast-styles';
+            styleElement.textContent = toastStyles;
+            document.head.appendChild(styleElement);
+        }
+        
+        // Add to document
+        document.body.appendChild(toast);
+        
+        // Trigger animation
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+        
+        // Allow manual dismiss by clicking
+        toast.addEventListener('click', () => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        });
     }
 
 })();
