@@ -45,6 +45,10 @@ pub enum McpError {
         parameter: Option<String>,
     },
 
+    /// Invalid parameter errors (specific parameter validation failures)
+    #[error("Invalid parameter: {0}")]
+    InvalidParameter(String),
+
     /// Network errors (connectivity issues, timeouts)
     #[error("Network error: {message}")]
     Network {
@@ -132,6 +136,15 @@ impl McpError {
             McpError::Validation { request_id: ref mut id, .. } => *id = Some(request_id),
             McpError::Network { request_id: ref mut id, .. } => *id = Some(request_id),
             McpError::Auth { request_id: ref mut id, .. } => *id = Some(request_id),
+            McpError::InvalidParameter(message) => {
+                // Convert to Validation error with context
+                return McpError::Validation {
+                    message: message.clone(),
+                    request_id: Some(request_id),
+                    method: None,
+                    parameter: None,
+                };
+            }
         }
         self
     }
@@ -146,6 +159,15 @@ impl McpError {
             McpError::Validation { method: ref mut m, .. } => *m = Some(method),
             McpError::Network { method: ref mut m, .. } => *m = Some(method),
             McpError::Auth { method: ref mut m, .. } => *m = Some(method),
+            McpError::InvalidParameter(message) => {
+                // Convert to Validation error with context
+                return McpError::Validation {
+                    message: message.clone(),
+                    request_id: None,
+                    method: Some(method),
+                    parameter: None,
+                };
+            }
         }
         self
     }
@@ -160,8 +182,19 @@ impl McpError {
 
     /// Adds RPC URL context to RPC errors
     pub fn with_rpc_url(mut self, rpc_url: impl Into<String>) -> Self {
-        if let McpError::Rpc { rpc_url: ref mut url, .. } = &mut self {
-            *url = Some(rpc_url.into());
+        match &mut self {
+            McpError::Rpc { rpc_url: ref mut url, .. } => *url = Some(rpc_url.into()),
+            McpError::InvalidParameter(message) => {
+                // Convert to RPC error with context
+                return McpError::Rpc {
+                    message: message.clone(),
+                    request_id: None,
+                    method: None,
+                    rpc_url: Some(rpc_url.into()),
+                    source_message: None,
+                };
+            }
+            _ => {}
         }
         self
     }
@@ -190,6 +223,7 @@ impl McpError {
         match self {
             McpError::Client { .. } => -32602, // Invalid params
             McpError::Validation { .. } => -32602, // Invalid params
+            McpError::InvalidParameter(_) => -32602, // Invalid params
             McpError::Auth { .. } => -32601, // Method not found (for security)
             McpError::Server { .. } => -32603, // Internal error
             McpError::Rpc { .. } => -32603, // Internal error
@@ -202,6 +236,7 @@ impl McpError {
         match self {
             McpError::Client { message, .. } => message.clone(),
             McpError::Validation { message, .. } => message.clone(),
+            McpError::InvalidParameter(message) => message.clone(),
             McpError::Auth { .. } => "Authentication required".to_string(),
             McpError::Server { .. } => "Internal server error".to_string(),
             McpError::Rpc { .. } => "RPC service temporarily unavailable".to_string(),
@@ -218,6 +253,7 @@ impl McpError {
             McpError::Validation { request_id, .. } => *request_id,
             McpError::Network { request_id, .. } => *request_id,
             McpError::Auth { request_id, .. } => *request_id,
+            McpError::InvalidParameter(_) => None,
         }
     }
 
@@ -230,6 +266,7 @@ impl McpError {
             McpError::Validation { method, .. } => method.as_deref(),
             McpError::Network { method, .. } => method.as_deref(),
             McpError::Auth { method, .. } => method.as_deref(),
+            McpError::InvalidParameter(_) => None,
         }
     }
 
@@ -249,11 +286,10 @@ impl McpError {
         }
 
         match self {
-            McpError::Validation { parameter, .. } => {
-                if let Some(param) = parameter {
-                    log_data.insert("parameter".to_string(), Value::String(param.clone()));
-                }
+            McpError::Validation { parameter: Some(param), .. } => {
+                log_data.insert("parameter".to_string(), Value::String(param.clone()));
             },
+            McpError::Validation { parameter: None, .. } => {},
             McpError::Rpc { rpc_url, source_message, .. } => {
                 if let Some(url) = rpc_url {
                     // Sanitize URL for logging
@@ -264,16 +300,17 @@ impl McpError {
                     log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
                 }
             },
-            McpError::Network { endpoint, .. } => {
-                if let Some(ep) = endpoint {
-                    let sanitized = crate::validation::sanitize_for_logging(ep);
-                    log_data.insert("endpoint".to_string(), Value::String(sanitized));
-                }
+            McpError::Network { endpoint: Some(ep), .. } => {
+                let sanitized = crate::validation::sanitize_for_logging(ep);
+                log_data.insert("endpoint".to_string(), Value::String(sanitized));
             },
-            McpError::Server { source_message, .. } => {
-                if let Some(source_msg) = source_message {
-                    log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
-                }
+            McpError::Network { endpoint: None, .. } => {},
+            McpError::Server { source_message: Some(source_msg), .. } => {
+                log_data.insert("source_error".to_string(), Value::String(source_msg.clone()));
+            },
+            McpError::Server { source_message: None, .. } => {},
+            McpError::InvalidParameter(_) => {
+                // No additional fields for InvalidParameter
             },
             _ => {}
         }
@@ -290,6 +327,7 @@ impl McpError {
             McpError::Validation { .. } => "validation",
             McpError::Network { .. } => "network",
             McpError::Auth { .. } => "auth",
+            McpError::InvalidParameter(_) => "invalid_parameter",
         }
     }
 }

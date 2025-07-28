@@ -18,12 +18,52 @@ tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 uuid = { version = "1.0", features = ["v4"] }
 once_cell = "1.19"
 dashmap = "6.1"
-solana-client = "~2.2"
-solana-sdk = "~2.2"
-solana-account-decoder = "~2.2"
-solana-transaction-status = "~2.2"
-spl-token = "7.0"
+solana-client = "~2.3"
+solana-sdk = "~2.3"
+solana-account-decoder = "~2.3"
+solana-transaction-status = "~2.3"
+spl-token = "8.0"
 base64 = "0.22"
 bs58 = "0.5"
 bincode = "1.3"
 reqwest = { version = "0.11", features = ["json"] }
+prometheus = "0.14"
+axum = { version = "0.8", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["timeout"] }
+clap = { version = "4.0", features = ["derive"] }
+solana-pubsub-client = "~2.3"
+tokio-tungstenite = "0.27"
+futures-util = "0.3"
+# Security fix: Replace atty with is-terminal to fix unmaintained dependency
+is-terminal = "0.4"
+# Explicit OpenSSL dependencies for better Windows compatibility
+openssl = "0.10"
+openssl-sys = "0.9"
+# Force secure versions of cryptographic dependencies
+curve25519-dalek = "4.1.3"
+ed25519-dalek = "2.1.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+futures-util = "0.3"
+
+[[bench]]
+name = "http_api_bench"  
+harness = false
+
+[[bench]]
+name = "rpc_methods_bench"
+harness = false
+
+[[bench]]
+name = "websocket_bench"
+harness = false
+
+# Security patches to force secure versions of vulnerable dependencies
+[patch.crates-io.atty] 
+git = "https://github.com/softprops/atty"
+branch = "master"

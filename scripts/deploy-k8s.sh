@@ -1,60 +1,32 @@
 #!/bin/bash
-# One-liner deployment script for Kubernetes
+# One-liner deployment script for Kubernetes with autoscaling
 set -e
 
-echo "☸️ Deploying Solana MCP Server to Kubernetes..."
+echo "☸️ Deploying Solana MCP Server to Kubernetes with autoscaling..."
 
-# Create Kubernetes deployment and service, then apply
-cat > k8s-deployment.yaml << 'EOF'
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: solana-mcp-server
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: solana-mcp-server
-  template:
-    metadata:
-      labels:
-        app: solana-mcp-server
-    spec:
-      containers:
-      - name: solana-mcp-server
-        image: solana-mcp-server:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: SOLANA_RPC_URL
-          value: "https://api.mainnet-beta.solana.com"
-        - name: SOLANA_COMMITMENT
-          value: "confirmed"
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "128Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: solana-mcp-service
-spec:
-  selector:
-    app: solana-mcp-server
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 8080
-  type: LoadBalancer
-EOF
-docker build -t solana-mcp-server:latest . && kubectl apply -f k8s-deployment.yaml && echo "✅ Kubernetes deployment complete! Check status: kubectl get pods,svc -l app=solana-mcp-server"
+# Build and tag the image
+echo "🔨 Building Docker image..."
+docker build -t solana-mcp-server:latest .
+
+# Deploy the application and autoscaling
+echo "🚀 Deploying to Kubernetes..."
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/hpa.yaml
+
+echo "⏳ Waiting for deployment to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment/solana-mcp-server
+
+echo "✅ Kubernetes deployment with autoscaling complete!"
+echo ""
+echo "📊 Check status:"
+echo "  kubectl get pods,svc,hpa -l app=solana-mcp-server"
+echo ""
+echo "📈 Monitor autoscaling:"
+echo "  kubectl get hpa solana-mcp-server-hpa --watch"
+echo ""
+echo "🔍 Check metrics:"
+echo "  kubectl port-forward svc/solana-mcp-service 8080:8080"
+echo "  curl http://localhost:8080/metrics"
+echo ""
+echo "🏥 Check health:"
+echo "  curl http://localhost:8080/health"

@@ -23,7 +23,7 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}", pubkey)),
+        Some(&format!("pubkey: {pubkey}")),
     );
 
     match client.get_balance(pubkey).await {
@@ -36,6 +36,7 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
                 method,
                 duration,
                 Some("balance retrieved"),
+                None,
             );
             
             Ok(result)
@@ -53,6 +54,7 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -70,7 +72,7 @@ pub async fn get_account_info(client: &RpcClient, pubkey: &Pubkey) -> McpResult<
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}", pubkey)),
+        Some(&format!("pubkey: {pubkey}")),
     );
 
     match client.get_account(pubkey).await {
@@ -83,6 +85,7 @@ pub async fn get_account_info(client: &RpcClient, pubkey: &Pubkey) -> McpResult<
                 method,
                 duration,
                 Some("account info retrieved"),
+                None,
             );
             
             Ok(result)
@@ -100,6 +103,7 @@ pub async fn get_account_info(client: &RpcClient, pubkey: &Pubkey) -> McpResult<
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -122,7 +126,7 @@ pub async fn get_account_info_with_config(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("pubkey: {}, commitment: {:?}, encoding: {:?}", pubkey, commitment, encoding)),
+        Some(&format!("pubkey: {pubkey}, commitment: {commitment:?}, encoding: {encoding:?}")),
     );
 
     let config = RpcAccountInfoConfig {
@@ -142,6 +146,7 @@ pub async fn get_account_info_with_config(
                 method,
                 duration,
                 Some("account info with config retrieved"),
+                None,
             );
             
             Ok(result)
@@ -159,6 +164,7 @@ pub async fn get_account_info_with_config(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -198,6 +204,7 @@ pub async fn get_multiple_accounts(client: &RpcClient, pubkeys: &[Pubkey]) -> Mc
                 method,
                 duration,
                 Some(&format!("{} accounts retrieved", pubkeys.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -215,6 +222,7 @@ pub async fn get_multiple_accounts(client: &RpcClient, pubkeys: &[Pubkey]) -> Mc
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -266,6 +274,7 @@ pub async fn get_multiple_accounts_with_config(
                 method,
                 duration,
                 Some(&format!("{} accounts with config retrieved", pubkeys.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -283,6 +292,7 @@ pub async fn get_multiple_accounts_with_config(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -300,7 +310,7 @@ pub async fn get_program_accounts(client: &RpcClient, program_id: &Pubkey) -> Mc
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("program_id: {}", program_id)),
+        Some(&format!("program_id: {program_id}")),
     );
 
     match client.get_program_accounts(program_id).await {
@@ -313,6 +323,7 @@ pub async fn get_program_accounts(client: &RpcClient, program_id: &Pubkey) -> Mc
                 method,
                 duration,
                 Some(&format!("{} program accounts retrieved", accounts.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -330,6 +341,7 @@ pub async fn get_program_accounts(client: &RpcClient, program_id: &Pubkey) -> Mc
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -378,6 +390,7 @@ pub async fn get_program_accounts_with_config(
                 method,
                 duration,
                 Some(&format!("{} filtered program accounts retrieved", accounts.len())),
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -395,6 +408,7 @@ pub async fn get_program_accounts_with_config(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -415,7 +429,7 @@ pub async fn get_largest_accounts(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("filter: {:?}", filter)),
+        Some(&format!("filter: {filter:?}")),
     );
 
     let config = solana_client::rpc_config::RpcLargestAccountsConfig {
@@ -434,6 +448,7 @@ pub async fn get_largest_accounts(
                 method,
                 duration,
                 Some("largest accounts retrieved"),
+                None,
             );
             
             Ok(result)
@@ -451,6 +466,7 @@ pub async fn get_largest_accounts(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
             );
             
             Err(error)
@@ -471,7 +487,7 @@ pub async fn get_minimum_balance_for_rent_exemption(
         request_id,
         method,
         Some(&client.url()),
-        Some(&format!("data_len: {}", data_len)),
+        Some(&format!("data_len: {data_len}")),
     );
 
     match client.get_minimum_balance_for_rent_exemption(data_len).await {
@@ -484,6 +500,7 @@ pub async fn get_minimum_balance_for_rent_exemption(
                 method,
                 duration,
                 Some("minimum balance calculated"),
+                None,
             );
             
             Ok(result)
@@ -501,6 +518,248 @@ pub async fn get_minimum_balance_for_rent_exemption(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
+                None,
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get account info with context (slot information)
+pub async fn get_account_info_and_context(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getAccountInfoAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkey: {pubkey}")),
+    );
+
+    match client.get_account_with_commitment(pubkey, CommitmentConfig::confirmed()).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("account info with context retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get account balance with context (slot information)  
+pub async fn get_balance_and_context(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getBalanceAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkey: {pubkey}")),
+    );
+
+    match client.get_balance_with_commitment(pubkey, CommitmentConfig::confirmed()).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some("balance with context retrieved"),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get multiple accounts with context (slot information)
+pub async fn get_multiple_accounts_and_context(
+    client: &RpcClient,
+    pubkeys: &[Pubkey],
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getMultipleAccountsAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("pubkeys: {} accounts", pubkeys.len())),
+    );
+
+    match client.get_multiple_accounts_with_commitment(pubkeys, CommitmentConfig::confirmed()).await {
+        Ok(response) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let result = serde_json::json!({
+                "context": {
+                    "slot": response.context.slot
+                },
+                "value": response.value
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} accounts with context retrieved", pubkeys.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
+            );
+            
+            Err(error)
+        }
+    }
+}
+
+/// Get program accounts with context (slot information)
+pub async fn get_program_accounts_and_context(
+    client: &RpcClient,
+    program_id: &Pubkey,
+    config: Option<RpcProgramAccountsConfig>,
+) -> McpResult<Value> {
+    let request_id = new_request_id();
+    let start_time = Instant::now();
+    let method = "getProgramAccountsAndContext";
+    
+    log_rpc_request_start(
+        request_id,
+        method,
+        Some(&client.url()),
+        Some(&format!("program_id: {program_id}")),
+    );
+
+    let default_config = RpcProgramAccountsConfig {
+        filters: None,
+        account_config: RpcAccountInfoConfig {
+            encoding: Some(UiAccountEncoding::Base64),
+            commitment: Some(CommitmentConfig::confirmed()),
+            data_slice: None,
+            min_context_slot: None,
+        },
+        with_context: Some(true),
+        sort_results: None,
+    };
+
+    let final_config = config.unwrap_or(default_config);
+
+    match client.get_program_accounts_with_config(program_id, final_config).await {
+        Ok(accounts) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            
+            let result = serde_json::json!({
+                "accounts": accounts
+            });
+            
+            log_rpc_request_success(
+                request_id,
+                method,
+                duration,
+                Some(&format!("{} program accounts with context retrieved", accounts.len())),
+                Some(&client.url()),
+            );
+            
+            Ok(result)
+        }
+        Err(e) => {
+            let duration = start_time.elapsed().as_millis() as u64;
+            let error = McpError::from(e)
+                .with_request_id(request_id)
+                .with_method(method)
+                .with_rpc_url(client.url());
+            
+            log_rpc_request_failure(
+                request_id,
+                method,
+                error.error_type(),
+                duration,
+                Some(&error.to_log_value()),
+                Some(&client.url()),
             );
             
             Err(error)

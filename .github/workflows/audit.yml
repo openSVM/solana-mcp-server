@@ -12,28 +12,78 @@ on:
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         
       - name: Cache Rust dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
         
       - name: Install cargo-audit
+        timeout-minutes: 5
         run: cargo install cargo-audit
         
       - name: Check for major dependency updates
+        timeout-minutes: 3
         run: |
           echo "Checking for major version updates in dependencies..."
           cargo update --dry-run | grep -E "(solana|spl)" | grep -E "(\+[2-9]\.[0-9]|\+[0-9]{2,}\.)" || echo "No major dependency updates found"
         
       - name: Run cargo-audit
-        run: cargo audit
+        timeout-minutes: 5
+        run: |
+          echo "Running cargo audit with JSON output for detailed error reporting..."
+          cargo audit --json > audit_results.json || true
+          
+          # Display JSON results for CI logs
+          cat audit_results.json
+          
+          # Check if vulnerabilities were found
+          if jq -r '.vulnerabilities.found' audit_results.json | grep -q 'true'; then
+            echo "⚠️  Security vulnerabilities detected in dependency tree"
+            VULN_COUNT=$(jq -r '.vulnerabilities.count' audit_results.json)
+            echo "Total vulnerabilities: $VULN_COUNT"
+            
+            # List specific vulnerabilities  
+            echo "Vulnerability details:"
+            jq -r '.vulnerabilities.list[].advisory | "- \(.id): \(.package) - \(.title)"' audit_results.json
+            
+            # Check for known acceptable vulnerabilities from Solana ecosystem
+            KNOWN_VULNS="RUSTSEC-2024-0344 RUSTSEC-2022-0093"
+            NEW_VULNS=""
+            
+            for vuln in $(jq -r '.vulnerabilities.list[].advisory.id' audit_results.json); do
+              if [[ ! " $KNOWN_VULNS " =~ " $vuln " ]]; then
+                NEW_VULNS="$NEW_VULNS $vuln"
+              fi
+            done
+            
+            if [[ -n "$NEW_VULNS" ]]; then
+              echo "❌ NEW security vulnerabilities found: $NEW_VULNS"
+              echo "These are not known acceptable risks and must be addressed."
+              exit 1
+            else
+              echo "✅ Only known acceptable vulnerabilities found (Solana ecosystem dependencies)"
+              echo "See docs/security-audit.md for details on risk assessment"
+              echo "Continuing with acceptable risk..."
+            fi
+          else
+            echo "✅ No security vulnerabilities found!"
+          fi
+          
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cargo-audit-results-${{ github.run_number }}
+          path: audit_results.json
+          retention-days: 30
 

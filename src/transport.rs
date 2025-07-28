@@ -21,7 +21,7 @@ impl Default for JsonRpcVersion {
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcRequest {
     pub jsonrpc: JsonRpcVersion,
-    pub id: u64,
+    pub id: Value, // JSON-RPC 2.0 allows string, number, or null
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<Value>,
@@ -31,7 +31,7 @@ pub struct JsonRpcRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcResponse {
     pub jsonrpc: JsonRpcVersion,
-    pub id: u64,
+    pub id: Value, // JSON-RPC 2.0 allows string, number, or null
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,6 +86,12 @@ pub struct CustomStdioTransport {
     writer: Mutex<io::Stdout>,
 }
 
+impl Default for CustomStdioTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CustomStdioTransport {
     pub fn new() -> Self {
         Self {
@@ -100,9 +106,9 @@ impl Transport for CustomStdioTransport {
         let mut writer = self
             .writer
             .lock()
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "Failed to acquire writer lock"))?;
+            .map_err(|_| io::Error::other("Failed to acquire writer lock"))?;
         let json = json.trim();
-        writeln!(writer, "{}", json)?;
+        writeln!(writer, "{json}")?;
         writer.flush()?;
         Ok(())
     }
@@ -110,8 +116,8 @@ impl Transport for CustomStdioTransport {
     fn send(&self, message: &JsonRpcMessage) -> Result<()> {
         log::debug!("Sending message: {}", serde_json::to_string(message)?);
         let mut writer = self.writer.lock().map_err(|_| {
-            let err = io::Error::new(io::ErrorKind::Other, "Failed to acquire writer lock");
-            log::error!("Transport error: {}", err);
+            let err = io::Error::other("Failed to acquire writer lock");
+            log::error!("Transport error: {err}");
             err
         })?;
         let mut buf = Vec::new();
@@ -126,8 +132,8 @@ impl Transport for CustomStdioTransport {
     fn receive(&self) -> Result<JsonRpcMessage> {
         let mut line = String::new();
         let mut reader = self.reader.lock().map_err(|_| {
-            let err = io::Error::new(io::ErrorKind::Other, "Failed to acquire reader lock");
-            log::error!("Transport error: {}", err);
+            let err = io::Error::other("Failed to acquire reader lock");
+            log::error!("Transport error: {err}");
             err
         })?;
 
@@ -140,7 +146,7 @@ impl Transport for CustomStdioTransport {
             Ok(_) => {
                 if line.trim().is_empty() {
                     let err = io::Error::new(io::ErrorKind::InvalidData, "Empty message received");
-                    log::error!("Transport error: {}", err);
+                    log::error!("Transport error: {err}");
                     return Err(err.into());
                 }
                 log::debug!("Received raw message: {}", line.trim());
@@ -148,7 +154,7 @@ impl Transport for CustomStdioTransport {
                 Ok(message)
             }
             Err(e) => {
-                log::error!("Transport error: {}", e);
+                log::error!("Transport error: {e}");
                 Err(e.into())
             }
         }

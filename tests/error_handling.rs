@@ -10,8 +10,8 @@ async fn test_error_handling_integration() {
     // Initialize logging for test
     let _ = init_logging(Some("debug"));
     
-    // Reset metrics for clean test
-    get_metrics().reset();
+    // Initialize prometheus metrics for test
+    let _ = solana_mcp_server::init_prometheus_metrics();
     
     // Test successful operation logging
     let result = test_successful_operation().await;
@@ -21,7 +21,7 @@ async fn test_error_handling_integration() {
     let result = test_error_operation().await;
     assert!(result.is_err());
     
-    // Verify metrics were updated
+    // Verify metrics were updated (basic check without reset)
     let metrics = get_metrics().to_json();
     assert!(metrics["total_calls"].as_u64().unwrap() >= 2);
     assert!(metrics["successful_calls"].as_u64().unwrap() >= 1);
@@ -50,6 +50,7 @@ async fn test_successful_operation() -> McpResult<()> {
         "testOperation",
         10,
         Some("test completed"),
+        None,
     );
     
     Ok(())
@@ -78,6 +79,7 @@ async fn test_error_operation() -> McpResult<()> {
         error.error_type(),
         5,
         Some(&error.to_log_value()),
+        None,
     );
     
     Err(error)

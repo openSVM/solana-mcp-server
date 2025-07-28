@@ -2,6 +2,33 @@
 
 A Model Context Protocol (MCP) server that provides comprehensive access to Solana blockchain data through Cline. This server implements a wide range of Solana RPC methods, making it easy to query blockchain information directly through natural language conversations.
 
+## 🚀 Usage Modes
+
+The Solana MCP Server supports two modes of operation:
+
+### 📡 Stdio Mode (Default)
+For integration with Claude Desktop and other MCP clients:
+```bash
+solana-mcp-server stdio  # or just: solana-mcp-server
+```
+
+### 🌐 Web Service Mode  
+For HTTP API access and integration with web applications:
+```bash
+# Run on default port 3000
+solana-mcp-server web
+
+# Run on custom port
+solana-mcp-server web --port 8080
+```
+
+**Web Service Endpoints:**
+- `POST /api/mcp` - MCP JSON-RPC API
+- `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
+
+📖 **[Complete Web Service Documentation](./docs/web-service.md)**
+
 ## Installation
 
 ### Using Pre-built Binaries
@@ -40,7 +67,7 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
 # Docker container
 ./scripts/deploy-docker.sh
 
-# Kubernetes
+# Kubernetes with autoscaling
 ./scripts/deploy-k8s.sh
 
 # AWS Lambda
@@ -54,6 +81,59 @@ TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/
 ```
 
 See [`scripts/README.md`](scripts/README.md) for detailed usage and requirements for each deployment option.
+
+## ⚡ Autoscaling and Monitoring
+
+The Solana MCP Server supports dynamic scaling to handle variable load efficiently:
+
+### Features
+- **Prometheus metrics** exposed at `/metrics` endpoint
+- **Kubernetes HPA** with CPU, memory, and custom metrics
+- **Docker scaling** guidelines and automation scripts
+- **Health checks** at `/health` endpoint
+- **MCP JSON-RPC API** for web service integration
+
+### Web Service API
+
+The server now supports both traditional stdio transport and HTTP JSON-RPC mode:
+
+```bash
+# Run as stdio transport (default)
+solana-mcp-server stdio
+
+# Run as web service
+solana-mcp-server web --port 3000
+```
+
+**API Endpoints:**
+- `POST /api/mcp` - Full MCP JSON-RPC 2.0 API
+- `GET /health` - Health check with capability information  
+- `GET /metrics` - Prometheus metrics
+
+**[📚 Complete MCP JSON-RPC API Documentation](./docs/mcp-json-rpc-api.md)**
+
+### Metrics Exposed
+- `solana_mcp_rpc_requests_total` - Total RPC requests by method and network
+- `solana_mcp_rpc_request_duration_seconds` - Request latency histogram
+- `solana_mcp_rpc_requests_failed_total` - Failed requests by error type
+- Standard resource metrics (CPU, memory)
+
+### Quick Start with Autoscaling
+
+```bash
+# Deploy with Kubernetes autoscaling
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/hpa.yaml
+
+# Check autoscaling status
+kubectl get hpa solana-mcp-server-hpa --watch
+
+# Access metrics
+kubectl port-forward svc/solana-mcp-service 8080:8080
+curl http://localhost:8080/metrics
+```
+
+📊 **[Complete Autoscaling Documentation](./docs/metrics.md)** | 🐳 **[Docker Scaling Guide](./docs/docker-scaling.md)**
 
 ## Available RPC Methods
 
@@ -266,6 +346,20 @@ Once configured, you can interact with the Solana blockchain through natural lan
 - "Get the leader schedule for the current epoch"
 - "Find all accounts owned by the SPL Token program"
 - "Check the block production stats for a validator"
+
+## Security
+
+This project undergoes regular security audits using `cargo audit`. Our CI/CD pipeline automatically scans for vulnerabilities and generates reports.
+
+### Current Security Status
+- ✅ **Active monitoring**: Weekly automated security scans
+- ✅ **Dependency updates**: Regular updates to latest secure versions
+- ⚠️ **Known acceptable risks**: Some vulnerabilities exist in deep Solana ecosystem dependencies
+- 📋 **Full audit reports**: Available as CI artifacts and in `docs/security-audit.md`
+
+For detailed security information, vulnerability assessments, and risk analysis, see:
+
+📋 **[Security Audit Documentation](./docs/security-audit.md)**
 
 ## Documentation
 

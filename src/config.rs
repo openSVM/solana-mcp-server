@@ -27,7 +27,49 @@ pub struct Config {
     /// Additional SVM networks configuration
     #[serde(default)]
     pub svm_networks: HashMap<String, SvmNetwork>,
+    /// Timeout configurations
+    #[serde(default)]
+    pub timeouts: TimeoutConfig,
 }
+
+/// Timeout configuration for various operations
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TimeoutConfig {
+    /// HTTP request timeout in seconds
+    #[serde(default = "default_http_timeout")]
+    pub http_request_seconds: u64,
+    /// WebSocket connection timeout in seconds
+    #[serde(default = "default_ws_connection_timeout")]
+    pub websocket_connection_seconds: u64,
+    /// WebSocket message timeout in seconds
+    #[serde(default = "default_ws_message_timeout")]
+    pub websocket_message_seconds: u64,
+    /// RPC subscription creation timeout in seconds
+    #[serde(default = "default_subscription_timeout")]
+    pub subscription_seconds: u64,
+    /// Maximum idle time for WebSocket connections in seconds
+    #[serde(default = "default_max_idle_timeout")]
+    pub max_idle_seconds: u64,
+}
+
+impl Default for TimeoutConfig {
+    fn default() -> Self {
+        Self {
+            http_request_seconds: default_http_timeout(),
+            websocket_connection_seconds: default_ws_connection_timeout(),
+            websocket_message_seconds: default_ws_message_timeout(),
+            subscription_seconds: default_subscription_timeout(),
+            max_idle_seconds: default_max_idle_timeout(),
+        }
+    }
+}
+
+// Default timeout values
+fn default_http_timeout() -> u64 { 30 }
+fn default_ws_connection_timeout() -> u64 { 30 }
+fn default_ws_message_timeout() -> u64 { 10 }
+fn default_subscription_timeout() -> u64 { 15 }
+fn default_max_idle_timeout() -> u64 { 300 }
 
 impl Config {
     /// Loads configuration from file or environment variables
@@ -65,6 +107,7 @@ impl Config {
                 commitment,
                 protocol_version,
                 svm_networks: HashMap::new(),
+                timeouts: TimeoutConfig::default(),
             }
         };
 
@@ -92,7 +135,7 @@ impl Config {
         // Validate all SVM network configurations
         for (network_id, network) in &self.svm_networks {
             validate_rpc_url(&network.rpc_url)
-                .with_context(|| format!("Invalid RPC URL for network '{}'", network_id))?;
+                .with_context(|| format!("Invalid RPC URL for network '{network_id}'"))?;
 
             if network.name.is_empty() {
                 return Err(anyhow::anyhow!(

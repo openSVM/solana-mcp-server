@@ -179,3 +179,63 @@ pub async fn get_genesis_hash(client: &RpcClient) -> Result<Value> {
     let hash = client.get_genesis_hash().await?;
     Ok(serde_json::json!({ "hash": hash }))
 }
+/// Get confirmed block (deprecated version of getBlock)
+pub async fn get_confirmed_block(client: &RpcClient, slot: u64) -> Result<Value> {
+    // Use the same implementation as get_block
+    get_block(client, slot).await
+}
+
+/// Get confirmed block with config (deprecated version of getBlock)
+pub async fn get_confirmed_block_with_config(
+    client: &RpcClient,
+    slot: u64,
+    encoding: Option<UiTransactionEncoding>,
+    transaction_details: Option<TransactionDetails>,
+    rewards: Option<bool>,
+    commitment: Option<CommitmentConfig>,
+) -> Result<Value> {
+    // Use the same implementation as get_block_with_config
+    get_block_with_config(client, slot, encoding, transaction_details, rewards, commitment).await
+}
+
+/// Get confirmed blocks (deprecated version of getBlocks)
+pub async fn get_confirmed_blocks(
+    client: &RpcClient,
+    start_slot: u64,
+    end_slot: Option<u64>,
+) -> Result<Value> {
+    // Use the same implementation as get_blocks
+    get_blocks(client, start_slot, end_slot).await
+}
+
+/// Get confirmed blocks with commitment (deprecated version of getBlocks)
+pub async fn get_confirmed_blocks_with_commitment(
+    client: &RpcClient,
+    start_slot: u64,
+    end_slot: Option<u64>,
+    commitment: CommitmentConfig,
+) -> Result<Value> {
+    // Use the same implementation as get_blocks_with_commitment
+    get_blocks_with_commitment(client, start_slot, end_slot, commitment).await
+}
+
+/// Get confirmed blocks with limit (deprecated version of getBlocksWithLimit)
+pub async fn get_confirmed_blocks_with_limit(
+    client: &RpcClient,
+    start_slot: u64,
+    limit: usize,
+) -> Result<Value> {
+    // Use the same implementation as get_blocks_with_limit
+    get_blocks_with_limit(client, start_slot, limit).await
+}
+
+/// Get confirmed blocks with limit and commitment (deprecated version of getBlocksWithLimit)
+pub async fn get_confirmed_blocks_with_limit_and_commitment(
+    client: &RpcClient,
+    start_slot: u64,
+    limit: usize,
+    commitment: CommitmentConfig,
+) -> Result<Value> {
+    // Use the same implementation as get_blocks_with_limit_and_commitment
+    get_blocks_with_limit_and_commitment(client, start_slot, limit, commitment).await
+}

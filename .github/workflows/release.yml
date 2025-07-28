@@ -9,6 +9,7 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       matrix:
         include:
@@ -32,6 +33,112 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install OpenSSL (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Install OpenSSL (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install openssl@3 pkg-config
+          echo "OPENSSL_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+
+      - name: Install OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          # Download and install Win32OpenSSL for better compatibility
+          Write-Host "Downloading Win32OpenSSL..."
+          $url = "https://slproweb.com/download/Win64OpenSSL-3_2_1.exe"
+          $output = "$env:TEMP\Win64OpenSSL.exe"
+          
+          try {
+            Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
+            Write-Host "Installing Win32OpenSSL..."
+            Start-Process -FilePath $output -ArgumentList "/SILENT", "/VERYSILENT", "/SP-", "/SUPPRESSMSGBOXES" -Wait
+            Remove-Item $output -Force
+            Write-Host "Win32OpenSSL installation completed"
+          } catch {
+            Write-Host "Win32OpenSSL download failed, falling back to chocolatey..."
+            choco install openssl -y
+          }
+          
+          # Define possible OpenSSL installation paths
+          $possiblePaths = @(
+            "C:\Program Files\OpenSSL-Win64",
+            "C:\Program Files\OpenSSL",
+            "C:\OpenSSL-Win64",
+            "C:\OpenSSL"
+          )
+          
+          $opensslPath = $null
+          foreach ($path in $possiblePaths) {
+            if (Test-Path "$path\lib") {
+              $opensslPath = $path
+              Write-Host "Found OpenSSL at: $path"
+              break
+            }
+          }
+          
+          if (-not $opensslPath) {
+            Write-Host "ERROR: OpenSSL installation not found in any expected location"
+            Write-Host "Searched paths:"
+            foreach ($path in $possiblePaths) {
+              Write-Host "  - $path"
+            }
+            exit 1
+          }
+          
+          # Set environment variables for cargo and the linker
+          echo "OPENSSL_DIR=$opensslPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "OPENSSL_LIB_DIR=$opensslPath\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "OPENSSL_INCLUDE_DIR=$opensslPath\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "OPENSSL_ROOT_DIR=$opensslPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          
+          # Add OpenSSL bin directory to PATH for DLL resolution during linking
+          $currentPath = [Environment]::GetEnvironmentVariable("PATH", "Process")
+          $newPath = "$opensslPath\bin;$currentPath"
+          echo "PATH=$newPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          
+          # Verify all required files exist
+          $requiredFiles = @(
+            "$opensslPath\lib\libssl.lib",
+            "$opensslPath\lib\libcrypto.lib",
+            "$opensslPath\bin\libssl-3-x64.dll",
+            "$opensslPath\bin\libcrypto-3-x64.dll"
+          )
+          
+          $missingFiles = @()
+          foreach ($file in $requiredFiles) {
+            if (-not (Test-Path $file)) {
+              $missingFiles += $file
+            }
+          }
+          
+          if ($missingFiles.Count -gt 0) {
+            Write-Host "WARNING: Some OpenSSL files are missing:"
+            foreach ($file in $missingFiles) {
+              Write-Host "  - $file"
+            }
+          } else {
+            Write-Host "All required OpenSSL files found"
+          }
+          
+          # Display environment for debugging
+          Write-Host "OpenSSL configuration:"
+          Write-Host "  OPENSSL_DIR: $opensslPath"
+          Write-Host "  OPENSSL_LIB_DIR: $opensslPath\lib"
+          Write-Host "  OPENSSL_INCLUDE_DIR: $opensslPath\include"
+
+      - name: Install Perl dependencies for OpenSSL (Windows fallback)
+        if: runner.os == 'Windows'
+        run: |
+          cpan install Locale::Maketext::Simple
+        continue-on-error: true
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -39,6 +146,28 @@ jobs:
 
       - name: Build
         run: |
+          # On Windows, display OpenSSL environment for debugging
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "=== OpenSSL Environment Debug Info ==="
+            echo "OPENSSL_DIR: $OPENSSL_DIR"
+            echo "OPENSSL_LIB_DIR: $OPENSSL_LIB_DIR" 
+            echo "OPENSSL_INCLUDE_DIR: $OPENSSL_INCLUDE_DIR"
+            echo "PATH (first 500 chars): ${PATH:0:500}"
+            
+            # List OpenSSL library files if directory exists
+            if [ -d "$OPENSSL_LIB_DIR" ]; then
+              echo "OpenSSL lib directory contents:"
+              ls -la "$OPENSSL_LIB_DIR" || true
+            fi
+            
+            # Check if OpenSSL DLLs are accessible
+            if [ -d "$OPENSSL_DIR/bin" ]; then
+              echo "OpenSSL bin directory contents:"
+              ls -la "$OPENSSL_DIR/bin" || true
+            fi
+            echo "=== End OpenSSL Debug Info ==="
+          fi
+          
           cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare asset

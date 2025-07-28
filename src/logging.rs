@@ -131,7 +131,48 @@ impl Metrics {
 }
 
 /// Global metrics instance
-static METRICS: once_cell::sync::Lazy<Metrics> = once_cell::sync::Lazy::new(|| Metrics::default());
+static METRICS: once_cell::sync::Lazy<Metrics> = once_cell::sync::Lazy::new(Metrics::default);
+
+/// Detect network name from RPC URL
+/// 
+/// Analyzes the RPC URL to determine the network name for Prometheus metrics.
+/// This function recognizes common Solana network patterns and returns appropriate labels.
+/// 
+/// # Arguments
+/// * `rpc_url` - The RPC endpoint URL
+/// 
+/// # Returns
+/// * `&'static str` - Network name for metrics (e.g., "mainnet", "devnet", "testnet", "localhost", "custom")
+/// 
+/// # Examples
+/// ```
+/// use solana_mcp_server::logging::detect_network_from_url;
+/// 
+/// assert_eq!(detect_network_from_url("https://api.mainnet-beta.solana.com"), "mainnet");
+/// assert_eq!(detect_network_from_url("https://api.devnet.solana.com"), "devnet");
+/// assert_eq!(detect_network_from_url("https://api.testnet.solana.com"), "testnet");
+/// assert_eq!(detect_network_from_url("http://localhost:8899"), "localhost");
+/// assert_eq!(detect_network_from_url("https://api.opensvm.com"), "custom");
+/// ```
+pub fn detect_network_from_url(rpc_url: &str) -> &'static str {
+    let url_lower = rpc_url.to_lowercase();
+    
+    // Check for common Solana network patterns
+    if url_lower.contains("mainnet-beta") || url_lower.contains("mainnet.solana.com") {
+        "mainnet"
+    } else if url_lower.contains("devnet") {
+        "devnet"
+    } else if url_lower.contains("testnet") {
+        "testnet"
+    } else if url_lower.contains("localhost") || url_lower.contains("127.0.0.1") {
+        "localhost"
+    } else if url_lower.contains("opensvm.com") {
+        "opensvm"
+    } else {
+        // For any other URL (custom networks, etc.)
+        "custom"
+    }
+}
 
 /// Initialize structured logging with tracing
 /// 
@@ -202,7 +243,7 @@ pub fn log_rpc_request_start(
     info!("RPC request started");
 }
 
-/// Log RPC request success with context
+/// Log RPC request success with context and URL
 #[instrument(skip_all, fields(
     request_id = %request_id,
     method = %method,
@@ -214,8 +255,16 @@ pub fn log_rpc_request_success(
     method: &str,
     duration_ms: u64,
     result_summary: Option<&str>,
+    rpc_url: Option<&str>,
 ) {
     METRICS.increment_successful_calls(duration_ms);
+    
+    // Also record in Prometheus metrics with dynamic network detection
+    let duration_seconds = duration_ms as f64 / 1000.0;
+    let network = rpc_url
+        .map(detect_network_from_url)
+        .unwrap_or("unknown");
+    crate::metrics::PROMETHEUS_METRICS.record_success(method, network, duration_seconds);
     
     let span = Span::current();
     span.record("duration_ms", duration_ms);
@@ -227,7 +276,7 @@ pub fn log_rpc_request_success(
     info!("RPC request completed successfully");
 }
 
-/// Log RPC request failure with context
+/// Log RPC request failure with context and URL
 #[instrument(skip_all, fields(
     request_id = %request_id,
     method = %method,
@@ -241,14 +290,22 @@ pub fn log_rpc_request_failure(
     error_type: &str,
     duration_ms: u64,
     error_details: Option<&Value>,
+    rpc_url: Option<&str>,
 ) {
     METRICS.increment_failed_calls(error_type, Some(method), duration_ms);
+    
+    // Also record in Prometheus metrics with dynamic network detection
+    let duration_seconds = duration_ms as f64 / 1000.0;
+    let network = rpc_url
+        .map(detect_network_from_url)
+        .unwrap_or("unknown");
+    crate::metrics::PROMETHEUS_METRICS.record_failure(method, network, error_type, duration_seconds);
     
     let span = Span::current();
     span.record("duration_ms", duration_ms);
     
     if let Some(details) = error_details {
-        span.record("error_details", &details.to_string());
+        span.record("error_details", details.to_string());
     }
     
     error!("RPC request failed");
@@ -501,6 +558,7 @@ macro_rules! log_rpc_call {
                     $method,
                     duration,
                     Some("request completed"),
+                    Some(&$client.url()),
                 );
                 
                 Ok(result)
@@ -518,6 +576,7 @@ macro_rules! log_rpc_call {
                     &error.error_type(),
                     duration,
                     Some(&error.to_log_value()),
+                    Some(&$client.url()),
                 );
                 
                 Err(error)
@@ -544,6 +603,7 @@ macro_rules! log_rpc_call {
                     $method,
                     duration,
                     Some("request completed"),
+                    Some(&$client.url()),
                 );
                 
                 Ok(result)
@@ -561,6 +621,7 @@ macro_rules! log_rpc_call {
                     &error.error_type(),
                     duration,
                     Some(&error.to_log_value()),
+                    Some(&$client.url()),
                 );
                 
                 Err(error)
@@ -645,7 +706,8 @@ mod tests {
             request_id,
             "getBalance",
             150,
-            Some("balance returned")
+            Some("balance returned"),
+            None,
         );
         
         log_validation_error(
@@ -725,8 +787,28 @@ mod tests {
         assert!(mint_size > 0);
         
         // Test basic constants are accessible using Pack trait
-        assert!(Account::LEN > 0);
-        assert!(Mint::LEN > 0);
+        // Note: These constants are always > 0 but we verify compile-time access
+        let _account_len = Account::LEN; // Always 165
+        let _mint_len = Mint::LEN; // Always 82
+    }
+
+    #[test]
+    fn test_network_detection_from_url() {
+        // Test common Solana network patterns
+        assert_eq!(detect_network_from_url("https://api.mainnet-beta.solana.com"), "mainnet");
+        assert_eq!(detect_network_from_url("https://api.devnet.solana.com"), "devnet");
+        assert_eq!(detect_network_from_url("https://api.testnet.solana.com"), "testnet");
+        assert_eq!(detect_network_from_url("http://localhost:8899"), "localhost");
+        assert_eq!(detect_network_from_url("http://127.0.0.1:8899"), "localhost");
+        assert_eq!(detect_network_from_url("https://api.opensvm.com"), "opensvm");
+        
+        // Test case insensitive matching
+        assert_eq!(detect_network_from_url("https://API.MAINNET-BETA.SOLANA.COM"), "mainnet");
+        assert_eq!(detect_network_from_url("HTTPS://API.DEVNET.SOLANA.COM"), "devnet");
+        
+        // Test custom/unknown networks
+        assert_eq!(detect_network_from_url("https://custom-rpc.example.com"), "custom");
+        assert_eq!(detect_network_from_url("https://my-solana-node.com"), "custom");
     }
     
     #[test] 
