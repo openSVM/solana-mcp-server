@@ -50,7 +50,7 @@ async fn test_successful_operation() -> McpResult<()> {
         "testOperation",
         10,
         Some("test completed"),
-        None,
+        Some("https://test.example.com"),
     );
     
     Ok(())
@@ -79,7 +79,7 @@ async fn test_error_operation() -> McpResult<()> {
         error.error_type(),
         5,
         Some(&error.to_log_value()),
-        None,
+        Some("https://test.example.com"),
     );
     
     Err(error)

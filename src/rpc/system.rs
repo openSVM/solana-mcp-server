@@ -22,7 +22,7 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_health().await {
@@ -35,7 +35,7 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("health status retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -53,7 +53,7 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -71,7 +71,7 @@ pub async fn get_version(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_version().await {
@@ -84,7 +84,7 @@ pub async fn get_version(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("version info retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -102,7 +102,7 @@ pub async fn get_version(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -120,7 +120,7 @@ pub async fn get_identity(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_identity().await {
@@ -133,7 +133,7 @@ pub async fn get_identity(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("identity retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -151,7 +151,7 @@ pub async fn get_identity(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -169,7 +169,7 @@ pub async fn get_cluster_nodes(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_cluster_nodes().await {
@@ -200,7 +200,7 @@ pub async fn get_cluster_nodes(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -218,7 +218,7 @@ pub async fn get_epoch_info(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_epoch_info().await {
@@ -231,7 +231,7 @@ pub async fn get_epoch_info(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("epoch info retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -249,7 +249,7 @@ pub async fn get_epoch_info(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -267,7 +267,7 @@ pub async fn get_epoch_schedule(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_epoch_schedule().await {
@@ -280,7 +280,7 @@ pub async fn get_epoch_schedule(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("epoch schedule retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -298,7 +298,7 @@ pub async fn get_epoch_schedule(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -316,7 +316,7 @@ pub async fn get_inflation_governor(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_inflation_governor().await {
@@ -329,7 +329,7 @@ pub async fn get_inflation_governor(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("inflation governor retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -347,7 +347,7 @@ pub async fn get_inflation_governor(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -365,7 +365,7 @@ pub async fn get_inflation_rate(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_inflation_rate().await {
@@ -378,7 +378,7 @@ pub async fn get_inflation_rate(client: &RpcClient) -> McpResult<Value> {
                 method,
                 duration,
                 Some("inflation rate retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -396,7 +396,7 @@ pub async fn get_inflation_rate(client: &RpcClient) -> McpResult<Value> {
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -431,7 +431,7 @@ pub async fn get_inflation_reward(
                 method,
                 duration,
                 Some("inflation rewards retrieved"),
-                None,
+                Some(&client.url()),
             );
             
             Ok(result)
@@ -449,7 +449,7 @@ pub async fn get_inflation_reward(
                 error.error_type(),
                 duration,
                 Some(&error.to_log_value()),
-                None,
+                Some(&client.url()),
             );
             
             Err(error)
@@ -658,7 +658,7 @@ pub async fn get_slot_leader(
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     // Get current slot first, then get slot leaders for that range
@@ -734,7 +734,7 @@ pub async fn minimum_ledger_slot(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.minimum_ledger_slot().await {
@@ -782,7 +782,7 @@ pub async fn get_max_retransmit_slot(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_max_retransmit_slot().await {
@@ -831,7 +831,7 @@ pub async fn get_max_shred_insert_slot(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_max_shred_insert_slot().await {
@@ -880,7 +880,7 @@ pub async fn get_highest_snapshot_slot(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     match client.get_highest_snapshot_slot().await {
@@ -945,7 +945,7 @@ pub async fn get_recent_blockhash(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     // Use the same underlying method as getLatestBlockhash
@@ -1004,7 +1004,7 @@ pub async fn get_fees(client: &RpcClient) -> McpResult<Value> {
         request_id,
         method,
         Some(&client.url()),
-        None,
+        Some(&client.url()),
     );
 
     // Use the getLatestBlockhash method as basis for deprecated getFees
