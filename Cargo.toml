@@ -39,3 +39,17 @@ futures-util = "0.3"
 tokio-test = "0.4"
 serde_json = "1.0"
 reqwest = { version = "0.11", features = ["json"] }
+criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
+futures-util = "0.3"
+
+[[bench]]
+name = "http_api_bench"  
+harness = false
+
+[[bench]]
+name = "rpc_methods_bench"
+harness = false
+
+[[bench]]
+name = "websocket_bench"
+harness = false
