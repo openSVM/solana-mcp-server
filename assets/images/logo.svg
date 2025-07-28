@@ -1,0 +1,22 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Solana-inspired gradient circles representing blockchain nodes -->
+  <circle cx="12" cy="12" r="6" fill="#2d5f5f" opacity="0.8"/>
+  <circle cx="36" cy="12" r="6" fill="#4a7a7a" opacity="0.7"/>
+  <circle cx="24" cy="24" r="8" fill="#2d5f5f"/>
+  <circle cx="12" cy="36" r="6" fill="#4a7a7a" opacity="0.7"/>
+  <circle cx="36" cy="36" r="6" fill="#2d5f5f" opacity="0.8"/>
+  
+  <!-- Connection lines representing network -->
+  <path d="M18 12 L30 12" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M24 16 L24 20" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M18 36 L30 36" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M24 28 L24 32" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M18 18 L20 20" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M30 18 L28 20" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M18 30 L20 28" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  <path d="M30 30 L28 28" stroke="#666666" stroke-width="2" opacity="0.6"/>
+  
+  <!-- Central MCP indicator -->
+  <circle cx="24" cy="24" r="4" fill="#ffffff" stroke="#2d5f5f" stroke-width="2"/>
+  <text x="24" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="#2d5f5f">M</text>
+</svg>

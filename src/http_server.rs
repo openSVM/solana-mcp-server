@@ -64,6 +64,7 @@ impl McpHttpServer {
                 .route("/metrics", get(metrics_handler))
                 .route("/health", get(health_handler))
                 .route("/api/mcp", post(mcp_api_handler))
+                .route("/llms.txt", get(llms_txt_handler))
                 .with_state(state.clone())
                 .layer(ServiceBuilder::new()
                     .layer(TimeoutLayer::new(http_timeout))
@@ -73,6 +74,7 @@ impl McpHttpServer {
             Router::new()
                 .route("/metrics", get(metrics_handler))
                 .route("/health", get(health_handler))
+                .route("/llms.txt", get(llms_txt_handler))
                 .layer(ServiceBuilder::new()
                     .layer(TimeoutLayer::new(http_timeout))
                 )
@@ -177,6 +179,26 @@ async fn mcp_api_handler(
                 &format!("Internal error: {e}"),
                 Some(json_rpc_request.id.clone()),
             )
+        }
+    }
+}
+
+/// Handler for /llms.txt endpoint - serves the LLM documentation file
+async fn llms_txt_handler() -> Response {
+    match tokio::fs::read_to_string("llms.txt").await {
+        Ok(content) => {
+            (
+                StatusCode::OK,
+                [("content-type", "text/plain; charset=utf-8")],
+                content,
+            ).into_response()
+        }
+        Err(e) => {
+            error!("Failed to read llms.txt: {}", e);
+            (
+                StatusCode::NOT_FOUND,
+                "LLMs.txt file not found",
+            ).into_response()
         }
     }
 }
@@ -314,5 +336,12 @@ mod tests {
         
         // This test ensures the function signature is correct and compiles
         // Real integration tests would be in a separate test file with proper setup
+    }
+
+    #[tokio::test]
+    async fn test_llms_txt_handler() {
+        let response = llms_txt_handler().await;
+        // The response should be either OK (if file exists) or NOT_FOUND (if file doesn't exist)
+        // This test ensures the handler doesn't panic and returns a valid response
     }
 }

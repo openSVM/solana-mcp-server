@@ -1,0 +1,129 @@
+# Site settings
+title: "Solana MCP Server Documentation"
+description: "A comprehensive Model Context Protocol server for Solana blockchain integration"
+baseurl: "/solana-mcp-server"
+url: "https://opensvm.github.io"
+
+# Repository
+repository: "openSVM/solana-mcp-server"
+github:
+  repository_url: "https://github.com/openSVM/solana-mcp-server"
+  repository_nwo: "openSVM/solana-mcp-server"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+  - jekyll-relative-links
+  - jekyll-optional-front-matter
+  - jekyll-readme-index
+  - jekyll-default-layout
+  - jekyll-titles-from-headings
+
+# Plugin settings
+relative_links:
+  enabled: true
+  collections: true
+
+optional_front_matter:
+  enabled: true
+
+readme_index:
+  enabled: true
+
+default_layout:
+  enabled: true
+
+titles_from_headings:
+  enabled: true
+  strip_title: true
+  collections: true
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:name/
+
+# Navigation
+nav_links:
+  - title: "Home"
+    url: "/"
+  - title: "Quick Start"
+    url: "/docs/ONBOARDING/"
+  - title: "Architecture"
+    url: "/docs/ARCHITECTURE/"
+  - title: "API Reference"
+    url: "/docs/API_REFERENCE/"
+  - title: "Deployment"
+    url: "/docs/DEPLOYMENT/"
+  - title: "Configuration"
+    url: "/docs/CONFIGURATION/"
+  - title: "Examples"
+    url: "/docs/EXAMPLES/"
+
+# Site categories for organization
+categories:
+  getting_started:
+    title: "Getting Started"
+    description: "Quick start guides and onboarding"
+    icon: "🚀"
+  architecture:
+    title: "Architecture"
+    description: "System design and internals"
+    icon: "🏗️"
+  api:
+    title: "API Reference"
+    description: "Complete method documentation"
+    icon: "📖"
+  deployment:
+    title: "Deployment"
+    description: "Deployment guides and scaling"
+    icon: "🚀"
+  configuration:
+    title: "Configuration"
+    description: "Settings and customization"
+    icon: "⚙️"
+
+# Theme settings
+theme_config:
+  color_scheme: "eink"
+  logo: "/assets/images/logo.svg"
+  search_enabled: true
+  bookmark_enabled: true
+  responsive: true
+
+# SEO
+author: "openSVM"
+twitter:
+  username: "openSVM"
+
+# Exclude from processing
+exclude:
+  - .gitignore
+  - .github/
+  - Cargo.toml
+  - Cargo.lock
+  - src/
+  - target/
+  - tests/
+  - benches/
+  - scripts/
+  - k8s/
+  - "*.log"
+  - "*.sh"
+  - "*.rs"
