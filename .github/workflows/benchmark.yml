@@ -54,9 +54,10 @@ jobs:
       run: mkdir -p benchmark-results
 
     - name: Run HTTP API benchmarks
+      timeout-minutes: 15
       run: |
         echo "🚀 Running HTTP API benchmarks..."
-        cargo bench --bench http_api_bench
+        timeout 600 cargo bench --bench http_api_bench || echo "HTTP API benchmarks timed out or failed"
         # Copy HTML reports to results directory
         if [ -d "target/criterion" ]; then
           cp -r target/criterion benchmark-results/http-api-criterion-reports
@@ -64,9 +65,10 @@ jobs:
       continue-on-error: true
 
     - name: Run RPC Methods benchmarks
+      timeout-minutes: 15
       run: |
         echo "🔧 Running RPC Methods benchmarks..."
-        cargo bench --bench rpc_methods_bench
+        timeout 600 cargo bench --bench rpc_methods_bench || echo "RPC Methods benchmarks timed out or failed"
         # Copy HTML reports to results directory
         if [ -d "target/criterion/rpc_methods_bench" ]; then
           cp -r target/criterion benchmark-results/rpc-methods-criterion-reports || true
@@ -74,9 +76,10 @@ jobs:
       continue-on-error: true
 
     - name: Run WebSocket benchmarks
+      timeout-minutes: 15
       run: |
         echo "🌐 Running WebSocket benchmarks..."
-        cargo bench --bench websocket_bench
+        timeout 600 cargo bench --bench websocket_bench || echo "WebSocket benchmarks timed out or failed"
         # Copy HTML reports to results directory
         if [ -d "target/criterion/websocket_bench" ]; then
           cp -r target/criterion benchmark-results/websocket-criterion-reports || true

@@ -7,17 +7,26 @@ use axum::{
 };
 use serde_json::Value;
 use tokio::net::TcpListener;
+use tokio::time::{timeout, Duration};
 use tower::ServiceBuilder;
+use tower_http::timeout::TimeoutLayer;
 use tracing::{info, error, debug};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::server::ServerState;
 use crate::transport::{JsonRpcRequest, JsonRpcVersion};
+use crate::config::Config;
+
+/// HTTP request timeout (can be overridden by config)
+const DEFAULT_HTTP_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+/// HTTP server graceful shutdown timeout
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// HTTP server for metrics, health, and MCP API endpoints
 pub struct McpHttpServer {
     port: u16,
     server_state: Option<Arc<RwLock<ServerState>>>,
+    config: Option<Arc<Config>>,
 }
 
 impl McpHttpServer {
@@ -25,6 +34,7 @@ impl McpHttpServer {
         Self { 
             port,
             server_state: None,
+            config: None,
         }
     }
 
@@ -32,11 +42,22 @@ impl McpHttpServer {
         Self {
             port,
             server_state: Some(server_state),
+            config: None,
         }
+    }
+
+    pub fn with_config(mut self, config: Arc<Config>) -> Self {
+        self.config = Some(config);
+        self
     }
 
     /// Start the HTTP server with metrics, health, and optionally MCP API endpoints
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let http_timeout = self.config
+            .as_ref()
+            .map(|c| Duration::from_secs(c.timeouts.http_request_seconds))
+            .unwrap_or(DEFAULT_HTTP_REQUEST_TIMEOUT);
+
         let app = if let Some(state) = &self.server_state {
             // Create router with MCP API endpoints and state
             Router::new()
@@ -44,24 +65,34 @@ impl McpHttpServer {
                 .route("/health", get(health_handler))
                 .route("/api/mcp", post(mcp_api_handler))
                 .with_state(state.clone())
-                .layer(ServiceBuilder::new())
+                .layer(ServiceBuilder::new()
+                    .layer(TimeoutLayer::new(http_timeout))
+                )
         } else {
             // Create router with only metrics and health endpoints
             Router::new()
                 .route("/metrics", get(metrics_handler))
                 .route("/health", get(health_handler))
-                .layer(ServiceBuilder::new())
+                .layer(ServiceBuilder::new()
+                    .layer(TimeoutLayer::new(http_timeout))
+                )
         };
 
         let addr = format!("0.0.0.0:{}", self.port);
-        info!("Starting HTTP server on {} with {} endpoints", 
+        info!("Started HTTP server on {} with timeout {}s", 
               addr, 
-              if self.server_state.is_some() { "metrics, health, and MCP API" } else { "metrics and health" });
+              http_timeout.as_secs());
 
         let listener = TcpListener::bind(&addr).await?;
         
-        axum::serve(listener, app).await?;
-        Ok(())
+        // Start server with graceful shutdown handling
+        match timeout(SHUTDOWN_TIMEOUT, axum::serve(listener, app)).await {
+            Ok(result) => result.map_err(|e| e.into()),
+            Err(_) => {
+                error!("HTTP server startup timeout");
+                Err("HTTP server startup timeout".into())
+            }
+        }
     }
 }
 

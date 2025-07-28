@@ -7,6 +7,7 @@ use axum::{
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
+use tokio::time::{timeout, Duration};
 use tracing::{info, error, debug, warn};
 use std::sync::Arc;
 use serde_json::{json, Value};
@@ -26,6 +27,7 @@ pub struct SolanaWebSocketServer {
 
 /// Represents an active subscription
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Subscription {
     id: u64,
     method: String,
@@ -38,6 +40,26 @@ type SubscriptionManager = Arc<DashMap<u64, Subscription>>;
 
 /// Global subscription counter
 static SUBSCRIPTION_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// WebSocket connection timeout
+fn ws_connection_timeout(config: &crate::config::Config) -> Duration {
+    Duration::from_secs(config.timeouts.websocket_connection_seconds)
+}
+
+/// WebSocket message timeout
+fn ws_message_timeout(config: &crate::config::Config) -> Duration {
+    Duration::from_secs(config.timeouts.websocket_message_seconds)
+}
+
+/// Subscription creation timeout
+fn subscription_timeout(config: &crate::config::Config) -> Duration {
+    Duration::from_secs(config.timeouts.subscription_seconds)
+}
+
+/// Maximum idle time before closing connection
+fn max_idle_timeout(config: &crate::config::Config) -> Duration {
+    Duration::from_secs(config.timeouts.max_idle_seconds)
+}
 
 impl SolanaWebSocketServer {
     pub fn new(port: u16, config: Arc<Config>) -> Self {
@@ -73,47 +95,94 @@ async fn handle_websocket(socket: WebSocket, config: Arc<Config>) {
     let subscriptions: SubscriptionManager = Arc::new(DashMap::new());
     let (tx, mut rx) = mpsc::unbounded_channel();
 
-    // Spawn task to forward messages from subscriptions to WebSocket
+    info!("New WebSocket connection established");
+
+    let ws_msg_timeout = ws_message_timeout(&config);
+    let max_idle = max_idle_timeout(&config);
+
+    // Spawn task to forward messages from subscriptions to WebSocket with timeout
     let forward_task = tokio::spawn(async move {
         while let Some(message) = rx.recv().await {
-            if sender.send(message).await.is_err() {
-                break;
+            match timeout(ws_msg_timeout, sender.send(message)).await {
+                Ok(Ok(_)) => continue,
+                Ok(Err(e)) => {
+                    error!("WebSocket send error: {}", e);
+                    break;
+                }
+                Err(_) => {
+                    error!("WebSocket send timeout");
+                    break;
+                }
             }
         }
     });
 
-    // Process incoming WebSocket messages
-    while let Some(msg) = receiver.next().await {
-        match msg {
-            Ok(Message::Text(text)) => {
-                if let Err(e) = handle_message(&text, &subscriptions, &tx, &config).await {
-                    error!("Error handling WebSocket message: {}", e);
-                    let error_response = json!({
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32603,
-                            "message": format!("Internal error: {}", e)
-                        },
-                        "id": null
-                    });
-                    if let Ok(error_msg) = serde_json::to_string(&error_response) {
-                        let _ = tx.send(Message::Text(error_msg));
+    // Process incoming WebSocket messages with overall connection timeout
+    let mut last_activity = tokio::time::Instant::now();
+    
+    loop {
+        // Check for idle timeout
+        if last_activity.elapsed() > max_idle {
+            warn!("WebSocket connection idle timeout exceeded");
+            break;
+        }
+
+        // Wait for next message with timeout
+        match timeout(ws_msg_timeout, receiver.next()).await {
+            Ok(Some(msg)) => {
+                last_activity = tokio::time::Instant::now();
+                match msg {
+                    Ok(Message::Text(text)) => {
+                        if let Err(e) = handle_message(&text, &subscriptions, &tx, &config).await {
+                            error!("Error handling WebSocket message: {}", e);
+                            let error_response = json!({
+                                "jsonrpc": "2.0",
+                                "error": {
+                                    "code": -32603,
+                                    "message": format!("Internal error: {}", e)
+                                },
+                                "id": null
+                            });
+                            if let Ok(error_msg) = serde_json::to_string(&error_response) {
+                                let _ = tx.send(Message::Text(error_msg));
+                            }
+                        }
                     }
+                    Ok(Message::Close(_)) => {
+                        info!("WebSocket connection closed by client");
+                        break;
+                    }
+                    Ok(Message::Ping(data)) => {
+                        // Respond to ping with pong
+                        let _ = tx.send(Message::Pong(data));
+                    }
+                    Ok(Message::Pong(_)) => {
+                        // Update activity timestamp on pong
+                        last_activity = tokio::time::Instant::now();
+                    }
+                    Err(e) => {
+                        error!("WebSocket error: {}", e);
+                        break;
+                    }
+                    _ => {}
                 }
             }
-            Ok(Message::Close(_)) => {
-                info!("WebSocket connection closed");
+            Ok(None) => {
+                info!("WebSocket stream ended");
                 break;
             }
-            Err(e) => {
-                error!("WebSocket error: {}", e);
-                break;
+            Err(_) => {
+                // Message timeout - check if connection is still alive with ping
+                if tx.send(Message::Ping(vec![])).is_err() {
+                    error!("Failed to send ping - connection lost");
+                    break;
+                }
             }
-            _ => {}
         }
     }
 
     // Cleanup: cancel all subscriptions
+    info!("Cleaning up WebSocket connection and {} subscriptions", subscriptions.len());
     cleanup_subscriptions(&subscriptions).await;
     forward_task.abort();
 }
@@ -123,7 +192,7 @@ async fn handle_message(
     text: &str,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let request: Value = serde_json::from_str(text)?;
     
@@ -138,15 +207,15 @@ async fn handle_message(
 
     match method {
         // Subscription methods
-        "accountSubscribe" => handle_account_subscribe(params, id, subscriptions, tx, config).await?,
-        "blockSubscribe" => handle_block_subscribe(params, id, subscriptions, tx, config).await?,
-        "logsSubscribe" => handle_logs_subscribe(params, id, subscriptions, tx, config).await?,
-        "programSubscribe" => handle_program_subscribe(params, id, subscriptions, tx, config).await?,
-        "rootSubscribe" => handle_root_subscribe(params, id, subscriptions, tx, config).await?,
-        "signatureSubscribe" => handle_signature_subscribe(params, id, subscriptions, tx, config).await?,
-        "slotSubscribe" => handle_slot_subscribe(params, id, subscriptions, tx, config).await?,
-        "slotsUpdatesSubscribe" => handle_slots_updates_subscribe(params, id, subscriptions, tx, config).await?,
-        "voteSubscribe" => handle_vote_subscribe(params, id, subscriptions, tx, config).await?,
+        "accountSubscribe" => handle_account_subscribe(params, id, subscriptions, tx, _config).await?,
+        "blockSubscribe" => handle_block_subscribe(params, id, subscriptions, tx, _config).await?,
+        "logsSubscribe" => handle_logs_subscribe(params, id, subscriptions, tx, _config).await?,
+        "programSubscribe" => handle_program_subscribe(params, id, subscriptions, tx, _config).await?,
+        "rootSubscribe" => handle_root_subscribe(params, id, subscriptions, tx, _config).await?,
+        "signatureSubscribe" => handle_signature_subscribe(params, id, subscriptions, tx, _config).await?,
+        "slotSubscribe" => handle_slot_subscribe(params, id, subscriptions, tx, _config).await?,
+        "slotsUpdatesSubscribe" => handle_slots_updates_subscribe(params, id, subscriptions, tx, _config).await?,
+        "voteSubscribe" => handle_vote_subscribe(params, id, subscriptions, tx, _config).await?,
 
         // Unsubscribe methods
         "accountUnsubscribe" => handle_unsubscribe(params, id, subscriptions, tx).await?,
@@ -182,7 +251,7 @@ async fn handle_account_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let params_array = params.as_array().ok_or("Invalid params")?;
     if params_array.is_empty() {
@@ -194,16 +263,23 @@ async fn handle_account_subscribe(
 
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
-    // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
-    let pubsub_client = PubsubClient::new(&ws_url).await?;
+    // Create PubsubClient for this subscription with timeout
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let sub_timeout = subscription_timeout(_config);
+    
+    let pubsub_client = match timeout(sub_timeout, PubsubClient::new(&ws_url)).await {
+        Ok(Ok(client)) => client,
+        Ok(Err(e)) => return Err(format!("Failed to create pubsub client: {}", e).into()),
+        Err(_) => return Err("Pubsub client creation timeout".into()),
+    };
 
-    // Start the subscription
+    // Start the subscription with timeout
     let tx_clone = tx.clone();
     let subscription_id_clone = subscription_id;
     tokio::spawn(async move {
-        match pubsub_client.account_subscribe(&pubkey, None).await {
-            Ok((mut stream, _unsubscriber)) => {
+        match timeout(sub_timeout, pubsub_client.account_subscribe(&pubkey, None)).await {
+            Ok(Ok((mut stream, _unsubscriber))) => {
+                info!("Account subscription {} started for pubkey {}", subscription_id_clone, pubkey);
                 while let Some(account_info) = stream.next().await {
                     let notification = json!({
                         "jsonrpc": "2.0",
@@ -216,13 +292,17 @@ async fn handle_account_subscribe(
                     
                     if let Ok(msg) = serde_json::to_string(&notification) {
                         if tx_clone.send(Message::Text(msg)).is_err() {
+                            debug!("Client disconnected, stopping account subscription {}", subscription_id_clone);
                             break;
                         }
                     }
                 }
             }
-            Err(e) => {
-                error!("Failed to create account subscription: {}", e);
+            Ok(Err(e)) => {
+                error!("Failed to create account subscription {}: {}", subscription_id_clone, e);
+            }
+            Err(_) => {
+                error!("Account subscription {} creation timeout", subscription_id_clone);
             }
         }
     });
@@ -253,22 +333,22 @@ async fn handle_block_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
     // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
-    let pubsub_client = PubsubClient::new(&ws_url).await?;
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let _pubsub_client = PubsubClient::new(&ws_url).await?;
 
     // Parse block subscription filter
-    let filter = params.as_array()
+    let _filter = params.as_array()
         .and_then(|arr| arr.first())
         .unwrap_or(&Value::String("all".to_string()));
 
     // Start the subscription
-    let tx_clone = tx.clone();
-    let subscription_id_clone = subscription_id;
+    let _tx_clone = tx.clone();
+    let _subscription_id_clone = subscription_id;
     tokio::spawn(async move {
         // Note: Block subscription is unstable and may not be available
         // For now, we'll send a basic response and implement when available
@@ -301,12 +381,12 @@ async fn handle_logs_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
     // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
     let pubsub_client = PubsubClient::new(&ws_url).await?;
 
     // Parse logs subscription filter
@@ -405,7 +485,7 @@ async fn handle_program_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let params_array = params.as_array().ok_or("Invalid params")?;
     if params_array.is_empty() {
@@ -418,7 +498,7 @@ async fn handle_program_subscribe(
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
     // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
     let pubsub_client = PubsubClient::new(&ws_url).await?;
 
     // Start the subscription
@@ -476,12 +556,12 @@ async fn handle_root_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
     // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
     let pubsub_client = PubsubClient::new(&ws_url).await?;
 
     // Start the subscription
@@ -539,7 +619,7 @@ async fn handle_signature_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let params_array = params.as_array().ok_or("Invalid params")?;
     if params_array.is_empty() {
@@ -552,7 +632,7 @@ async fn handle_signature_subscribe(
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
     // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
     let pubsub_client = PubsubClient::new(&ws_url).await?;
 
     // Start the subscription
@@ -609,12 +689,12 @@ async fn handle_slot_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
     // Create PubsubClient for this subscription
-    let ws_url = config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
+    let ws_url = _config.rpc_url.replace("https://", "wss://").replace("http://", "ws://");
     let pubsub_client = PubsubClient::new(&ws_url).await?;
 
     // Start the subscription
@@ -671,7 +751,7 @@ async fn handle_slots_updates_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     
@@ -702,7 +782,7 @@ async fn handle_vote_subscribe(
     id: Value,
     subscriptions: &SubscriptionManager,
     tx: &mpsc::UnboundedSender<Message>,
-    config: &Arc<Config>,
+    _config: &Arc<Config>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let subscription_id = SUBSCRIPTION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     

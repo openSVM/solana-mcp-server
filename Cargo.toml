@@ -30,6 +30,7 @@ reqwest = { version = "0.11", features = ["json"] }
 prometheus = "0.14"
 axum = { version = "0.7", features = ["ws"] }
 tower = "0.5"
+tower-http = { version = "0.5", features = ["timeout"] }
 clap = { version = "4.0", features = ["derive"] }
 solana-pubsub-client = "~2.3"
 tokio-tungstenite = "0.20"

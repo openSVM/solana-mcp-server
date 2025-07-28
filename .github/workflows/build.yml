@@ -10,6 +10,7 @@ jobs:
   build:
     name: Build and Test
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -100,14 +101,17 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
+        timeout-minutes: 15
         run: |
           cargo build --release --target ${{ matrix.target }}
 
       - name: Check for dependency drift
+        timeout-minutes: 5
         run: |
           cargo update --dry-run
 
       - name: Run tests
+        timeout-minutes: 20
         run: |
           # Run unit tests for all platforms
           cargo test --lib --target ${{ matrix.target }}
