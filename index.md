@@ -10,8 +10,8 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
     A comprehensive Model Context Protocol server that provides seamless access to Solana blockchain data through AI assistants like Claude. Query blockchain information with natural language.
   </p>
   <div class="hero-actions">
-    <a href="{{ '/docs/ONBOARDING/' | relative_url }}" class="btn btn-primary">Get Started</a>
-    <a href="{{ '/docs/API_REFERENCE/' | relative_url }}" class="btn">API Reference</a>
+    <a href="{{ '/docs/onboarding/' | relative_url }}" class="btn btn-primary">Get Started</a>
+    <a href="{{ '/docs/api-reference/' | relative_url }}" class="btn">API Reference</a>
     <a href="{{ site.github.repository_url }}" class="btn" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 </div>
@@ -70,7 +70,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
   <h2 style="text-align: center; margin-bottom: 2rem; font-size: 2.25rem; color: var(--eink-black);">📚 Documentation</h2>
   
   <div class="docs-grid">
-    <a href="{{ '/docs/ONBOARDING/' | relative_url }}" class="docs-card">
+    <a href="{{ '/docs/onboarding/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">🚀</span>
       <h3 class="docs-card-title">Quick Start</h3>
       <p class="docs-card-description">
@@ -78,7 +78,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
       </p>
     </a>
     
-    <a href="{{ '/docs/ARCHITECTURE/' | relative_url }}" class="docs-card">
+    <a href="{{ '/docs/architecture/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">🏗️</span>
       <h3 class="docs-card-title">Architecture</h3>
       <p class="docs-card-description">
@@ -86,7 +86,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
       </p>
     </a>
     
-    <a href="{{ '/docs/API_REFERENCE/' | relative_url }}" class="docs-card">
+    <a href="{{ '/docs/api-reference/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">📖</span>
       <h3 class="docs-card-title">API Reference</h3>
       <p class="docs-card-description">
@@ -94,7 +94,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
       </p>
     </a>
     
-    <a href="{{ '/docs/DEPLOYMENT/' | relative_url }}" class="docs-card">
+    <a href="{{ '/docs/deployment/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">🚀</span>
       <h3 class="docs-card-title">Deployment</h3>
       <p class="docs-card-description">
@@ -102,7 +102,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
       </p>
     </a>
     
-    <a href="{{ '/docs/CONFIGURATION/' | relative_url }}" class="docs-card">
+    <a href="{{ '/docs/configuration/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">⚙️</span>
       <h3 class="docs-card-title">Configuration</h3>
       <p class="docs-card-description">
@@ -110,7 +110,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
       </p>
     </a>
     
-    <a href="{{ '/docs/EXAMPLES/' | relative_url }}" class="docs-card">
+    <a href="{{ '/docs/examples/' | relative_url }}" class="docs-card">
       <span class="docs-card-icon">💡</span>
       <h3 class="docs-card-title">Examples</h3>
       <p class="docs-card-description">

@@ -60,7 +60,7 @@ The Solana MCP Server is a **Model Context Protocol (MCP) implementation** that 
 AI Assistant (Claude) → MCP Protocol → Solana MCP Server → Solana RPC → Blockchain
 ```
 
-For detailed architecture information, see [docs/ARCHITECTURE.md](./ARCHITECTURE.md).
+For detailed architecture information, see [docs/ARCHITECTURE.md](./architecture.md).
 
 ## 📚 Prerequisites
 
@@ -550,9 +550,9 @@ rustup update
 
 ### Documentation
 
-- [Architecture Overview](./ARCHITECTURE.md) - System design and components
-- [API Reference](./API_REFERENCE.md) - Complete RPC method documentation
-- [Configuration Guide](./CONFIGURATION.md) - Configuration options and management
+- [Architecture Overview](./architecture.md) - System design and components
+- [API Reference](./api-reference.md) - Complete RPC method documentation
+- [Configuration Guide](./configuration.md) - Configuration options and management
 - [Deployment Guide](./DEPLOYMENT.md) - Production deployment instructions
 - [Examples](./EXAMPLES.md) - Practical usage examples
 
@@ -581,7 +581,7 @@ Congratulations! You now have a solid foundation for contributing to the Solana 
 
 1. **Explore the codebase**: Start with `src/main.rs` and `src/lib.rs`
 2. **Try making small changes**: Add a log message or modify a test
-3. **Read the detailed docs**: Dive deeper into [ARCHITECTURE.md](./ARCHITECTURE.md)
+3. **Read the detailed docs**: Dive deeper into [ARCHITECTURE.md](./architecture.md)
 4. **Pick up an issue**: Look for "good first issue" labels
 5. **Join the community**: Participate in discussions and help others
 
