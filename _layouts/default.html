@@ -185,7 +185,8 @@
                         {% endfor %}
                         
                         {% if current_index > 0 %}
-                            {% assign prev_doc = docs[current_index | minus: 1] %}
+                            {% assign prev_index = current_index | minus: 1 %}
+                            {% assign prev_doc = docs[prev_index] %}
                             <a href="{{ prev_doc.url | relative_url }}" class="page-nav-link prev">
                                 <span class="nav-direction">← Previous</span>
                                 <span class="nav-title">{{ prev_doc.title | default: prev_doc.name | replace: '.md', '' }}</span>
@@ -238,6 +239,66 @@
         </svg>
         <span class="llms-text">LLMs.txt</span>
     </button>
+    
+    <!-- Mermaid diagrams -->
+    <script src="{{ '/assets/js/mermaid.min.js' | relative_url }}"></script>
+    <script>
+        // Convert code blocks with language-mermaid to mermaid divs
+        document.addEventListener('DOMContentLoaded', function() {
+            const mermaidBlocks = document.querySelectorAll('code.language-mermaid');
+            mermaidBlocks.forEach(function(block) {
+                const pre = block.parentNode;
+                const wrapper = pre.parentNode;
+                
+                // Create new mermaid div
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = block.textContent;
+                
+                // Replace the pre element with the mermaid div
+                wrapper.replaceChild(mermaidDiv, pre);
+            });
+            
+            // Initialize Mermaid after conversion
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#2c3e50',
+                    primaryTextColor: '#2c3e50',
+                    primaryBorderColor: '#34495e',
+                    lineColor: '#7f8c8d',
+                    secondaryColor: '#ecf0f1',
+                    tertiaryColor: '#f8f9fa',
+                    background: '#ffffff',
+                    mainBkg: '#ffffff',
+                    secondBkg: '#f8f9fa',
+                    tertiaryBkg: '#ecf0f1'
+                },
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: 'cardinal'
+                },
+                sequence: {
+                    useMaxWidth: true,
+                    actorMargin: 50,
+                    width: 150,
+                    height: 65,
+                    boxMargin: 10,
+                    boxTextMargin: 5,
+                    noteMargin: 10,
+                    messageMargin: 35
+                },
+                gitgraph: {
+                    useMaxWidth: true
+                }
+            });
+            
+            // Re-render after initialization
+            mermaid.init();
+        });
+    </script>
     
     <!-- JavaScript -->
     <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
