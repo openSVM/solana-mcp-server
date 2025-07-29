@@ -585,12 +585,48 @@ body {
   border-bottom: var(--border-width) solid var(--eink-medium-gray);
 }
 
+.page-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
 .page-title {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
   margin-bottom: var(--spacing-md);
   color: var(--eink-black);
+  flex: 1;
+}
+
+.github-source-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--eink-charcoal);
+  text-decoration: none;
+  border: var(--border-width) solid var(--eink-medium-gray);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--eink-light-gray);
+  transition: all 0.2s ease;
+}
+
+.github-source-btn:hover {
+  color: var(--eink-black);
+  background-color: var(--eink-medium-gray);
+  border-color: var(--eink-dark-gray);
+  text-decoration: none;
+}
+
+.github-source-btn .github-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
 }
 
 .page-description {
@@ -1549,6 +1585,92 @@ textarea:focus {
   }
 }
 
+/* Mermaid diagrams */
+.mermaid {
+  text-align: center;
+  margin: var(--spacing-xl) 0;
+  background-color: var(--eink-white);
+  border: var(--border-width) solid var(--eink-light-gray);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  overflow-x: auto;
+}
+
+/* Mermaid diagram text styling */
+.mermaid text {
+  font-family: var(--font-family-sans) !important;
+  font-size: 14px !important;
+  fill: var(--eink-charcoal) !important;
+}
+
+/* Mermaid flowchart nodes */
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon {
+  fill: var(--eink-white) !important;
+  stroke: var(--eink-charcoal) !important;
+  stroke-width: 2px !important;
+}
+
+/* Mermaid flowchart edges */
+.mermaid .edgePath path {
+  stroke: var(--eink-charcoal) !important;
+  stroke-width: 2px !important;
+}
+
+/* Mermaid flowchart arrowheads */
+.mermaid .arrowheadPath {
+  fill: var(--eink-charcoal) !important;
+  stroke: var(--eink-charcoal) !important;
+}
+
+/* Mermaid sequence diagram styling */
+.mermaid .actor {
+  fill: var(--eink-white) !important;
+  stroke: var(--eink-charcoal) !important;
+  stroke-width: 2px !important;
+}
+
+.mermaid .activation0,
+.mermaid .activation1,
+.mermaid .activation2 {
+  fill: var(--eink-light-gray) !important;
+  stroke: var(--eink-charcoal) !important;
+}
+
+.mermaid .messageLine0,
+.mermaid .messageLine1 {
+  stroke: var(--eink-charcoal) !important;
+  stroke-width: 2px !important;
+}
+
+/* Mermaid subgraph styling */
+.mermaid .cluster rect {
+  fill: var(--eink-light-gray) !important;
+  stroke: var(--accent-teal) !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: 5,5 !important;
+}
+
+.mermaid .cluster text {
+  fill: var(--accent-teal) !important;
+  font-weight: var(--font-weight-semibold) !important;
+}
+
+/* Responsive Mermaid diagrams */
+@media (max-width: 768px) {
+  .mermaid {
+    font-size: 12px;
+    padding: var(--spacing-md);
+  }
+  
+  .mermaid svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
 /* High contrast mode */
 @media (prefers-contrast: high) {
   .llms-floating-btn {
@@ -1559,6 +1681,26 @@ textarea:focus {
   
   .llms-floating-btn:hover {
     background-color: var(--eink-dark-charcoal);
+  }
+  
+  /* High contrast Mermaid diagrams */
+  .mermaid {
+    border: 2px solid var(--eink-black);
+    background-color: var(--eink-white);
+  }
+  
+  .mermaid .node rect,
+  .mermaid .node circle,
+  .mermaid .node ellipse,
+  .mermaid .node polygon {
+    fill: var(--eink-white) !important;
+    stroke: var(--eink-black) !important;
+    stroke-width: 3px !important;
+  }
+  
+  .mermaid .edgePath path {
+    stroke: var(--eink-black) !important;
+    stroke-width: 3px !important;
   }
 }
 .highlight .nf { color: var(--eink-dark-charcoal); font-weight: bold; } /* Name.Function */

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url={{ page.redirect_to | relative_url }}">
+    <link rel="canonical" href="{{ page.redirect_to | absolute_url }}">
+    <script>
+        window.location.href = "{{ page.redirect_to | relative_url }}";
+    </script>
+    <title>Redirecting...</title>
+</head>
+<body>
+    <p>If you are not redirected automatically, <a href="{{ page.redirect_to | relative_url }}">click here</a>.</p>
+</body>
+</html>

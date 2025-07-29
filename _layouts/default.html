@@ -133,7 +133,36 @@
                 <div class="page-content">
                     {% if page.title %}
                     <header class="page-header">
-                        <h1 class="page-title">{{ page.title }}</h1>
+                        <div class="page-title-wrapper">
+                            <h1 class="page-title">{{ page.title }}</h1>
+                            <!-- GitHub source button -->
+                            {% if page.collection == 'docs' %}
+                                {% assign source_path = page.relative_path | default: page.path %}
+                                {% if source_path %}
+                                <a href="{{ site.github.repository_url }}/blob/main/{{ source_path }}" 
+                                   class="github-source-btn" 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   aria-label="View source on GitHub">
+                                    <svg class="github-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                                    </svg>
+                                    <span>View source</span>
+                                </a>
+                                {% endif %}
+                            {% elsif page.path %}
+                                <a href="{{ site.github.repository_url }}/blob/main/{{ page.path }}" 
+                                   class="github-source-btn" 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   aria-label="View source on GitHub">
+                                    <svg class="github-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                                    </svg>
+                                    <span>View source</span>
+                                </a>
+                            {% endif %}
+                        </div>
                         {% if page.description %}
                         <p class="page-description">{{ page.description }}</p>
                         {% endif %}
@@ -156,7 +185,8 @@
                         {% endfor %}
                         
                         {% if current_index > 0 %}
-                            {% assign prev_doc = docs[current_index | minus: 1] %}
+                            {% assign prev_index = current_index | minus: 1 %}
+                            {% assign prev_doc = docs[prev_index] %}
                             <a href="{{ prev_doc.url | relative_url }}" class="page-nav-link prev">
                                 <span class="nav-direction">← Previous</span>
                                 <span class="nav-title">{{ prev_doc.title | default: prev_doc.name | replace: '.md', '' }}</span>
@@ -209,6 +239,66 @@
         </svg>
         <span class="llms-text">LLMs.txt</span>
     </button>
+    
+    <!-- Mermaid diagrams -->
+    <script src="{{ '/assets/js/mermaid.min.js' | relative_url }}"></script>
+    <script>
+        // Convert code blocks with language-mermaid to mermaid divs
+        document.addEventListener('DOMContentLoaded', function() {
+            const mermaidBlocks = document.querySelectorAll('code.language-mermaid');
+            mermaidBlocks.forEach(function(block) {
+                const pre = block.parentNode;
+                const wrapper = pre.parentNode;
+                
+                // Create new mermaid div
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = block.textContent;
+                
+                // Replace the pre element with the mermaid div
+                wrapper.replaceChild(mermaidDiv, pre);
+            });
+            
+            // Initialize Mermaid after conversion
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#2c3e50',
+                    primaryTextColor: '#2c3e50',
+                    primaryBorderColor: '#34495e',
+                    lineColor: '#7f8c8d',
+                    secondaryColor: '#ecf0f1',
+                    tertiaryColor: '#f8f9fa',
+                    background: '#ffffff',
+                    mainBkg: '#ffffff',
+                    secondBkg: '#f8f9fa',
+                    tertiaryBkg: '#ecf0f1'
+                },
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: 'cardinal'
+                },
+                sequence: {
+                    useMaxWidth: true,
+                    actorMargin: 50,
+                    width: 150,
+                    height: 65,
+                    boxMargin: 10,
+                    boxTextMargin: 5,
+                    noteMargin: 10,
+                    messageMargin: 35
+                },
+                gitgraph: {
+                    useMaxWidth: true
+                }
+            });
+            
+            // Re-render after initialization
+            mermaid.init();
+        });
+    </script>
     
     <!-- JavaScript -->
     <script src="{{ '/assets/js/main.js' | relative_url }}"></script>
