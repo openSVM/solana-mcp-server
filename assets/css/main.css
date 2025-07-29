@@ -585,12 +585,48 @@ body {
   border-bottom: var(--border-width) solid var(--eink-medium-gray);
 }
 
+.page-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
 .page-title {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
   margin-bottom: var(--spacing-md);
   color: var(--eink-black);
+  flex: 1;
+}
+
+.github-source-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--eink-charcoal);
+  text-decoration: none;
+  border: var(--border-width) solid var(--eink-medium-gray);
+  border-radius: var(--border-radius);
+  background-color: var(--eink-light-gray);
+  transition: all 0.2s ease;
+}
+
+.github-source-btn:hover {
+  color: var(--eink-black);
+  background-color: var(--eink-medium-gray);
+  border-color: var(--eink-dark-gray);
+  text-decoration: none;
+}
+
+.github-source-btn .github-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
 }
 
 .page-description {
