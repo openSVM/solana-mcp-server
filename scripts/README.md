@@ -98,4 +98,4 @@ If a deployment fails:
 
 ## Support
 
-See the main [DEPLOYMENT.md](../docs/DEPLOYMENT.md) for detailed deployment guides and troubleshooting.
+See the main [DEPLOYMENT.md](../docs/deployment.md) for detailed deployment guides and troubleshooting.

@@ -64,17 +64,17 @@ nav_links:
   - title: "Home"
     url: "/"
   - title: "Quick Start"
-    url: "/docs/ONBOARDING/"
+    url: "/docs/onboarding/"
   - title: "Architecture"
-    url: "/docs/ARCHITECTURE/"
+    url: "/docs/architecture/"
   - title: "API Reference"
-    url: "/docs/API_REFERENCE/"
+    url: "/docs/api-reference/"
   - title: "Deployment"
-    url: "/docs/DEPLOYMENT/"
+    url: "/docs/deployment/"
   - title: "Configuration"
-    url: "/docs/CONFIGURATION/"
+    url: "/docs/configuration/"
   - title: "Examples"
-    url: "/docs/EXAMPLES/"
+    url: "/docs/examples/"
 
 # Site categories for organization
 categories:

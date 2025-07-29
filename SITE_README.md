@@ -76,10 +76,10 @@ JEKYLL_ENV=production bundle exec jekyll build
 │   ├── home.html            # Homepage layout
 │   └── docs.html            # Documentation layout
 ├── _docs/                   # Documentation collection
-│   ├── ONBOARDING.md        # Quick start guide
-│   ├── API_REFERENCE.md     # Complete API docs
-│   ├── ARCHITECTURE.md      # System architecture
-│   ├── DEPLOYMENT.md        # Deployment guides
+│   ├── onboarding.md        # Quick start guide
+│   ├── api-reference.md     # Complete API docs
+│   ├── architecture.md      # System architecture
+│   ├── deployment.md        # Deployment guides
 │   └── ...
 ├── assets/
 │   ├── css/main.css         # E-ink themed styles
@@ -155,7 +155,7 @@ nav_links:
   - title: "Documentation"
     url: "/docs/"
   - title: "API Reference"
-    url: "/docs/API_REFERENCE/"
+    url: "/docs/api-reference/"
 ```
 
 ### Search Configuration
