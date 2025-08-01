@@ -56,12 +56,6 @@ If no `config.json` is provided, the server uses default timeout values. Individ
 
 The CI/CD workflows have been updated with comprehensive timeout protection:
 
-### Build Workflow (`build.yml`)
-- **Overall job timeout**: 45 minutes
-- **Build step**: 15 minutes
-- **Dependency check**: 5 minutes  
-- **Test execution**: 20 minutes
-
 ### Benchmark Workflow (`benchmark.yml`)
 - **Overall job timeout**: 60 minutes
 - **Individual benchmarks**: 15 minutes each
@@ -72,9 +66,6 @@ The CI/CD workflows have been updated with comprehensive timeout protection:
 - **cargo-audit installation**: 5 minutes
 - **Dependency check**: 3 minutes
 - **Audit execution**: 5 minutes
-
-### Release Workflow (`release.yml`)
-- **Overall job timeout**: 60 minutes (for cross-compilation)
 
 ## Server Implementation
 
