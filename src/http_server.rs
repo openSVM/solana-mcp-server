@@ -7,7 +7,7 @@ use axum::{
 };
 use serde_json::Value;
 use tokio::net::TcpListener;
-use tokio::time::{timeout, Duration};
+use tokio::time::Duration;
 use tower::ServiceBuilder;
 use tower_http::timeout::TimeoutLayer;
 use tracing::{info, error, debug};
@@ -19,8 +19,6 @@ use crate::config::Config;
 
 /// HTTP request timeout (can be overridden by config)
 const DEFAULT_HTTP_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-/// HTTP server graceful shutdown timeout
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// HTTP server for metrics, health, and MCP API endpoints
 pub struct McpHttpServer {
@@ -87,14 +85,8 @@ impl McpHttpServer {
 
         let listener = TcpListener::bind(&addr).await?;
         
-        // Start server with graceful shutdown handling
-        match timeout(SHUTDOWN_TIMEOUT, axum::serve(listener, app)).await {
-            Ok(result) => result.map_err(|e| e.into()),
-            Err(_) => {
-                error!("HTTP server startup timeout");
-                Err("HTTP server startup timeout".into())
-            }
-        }
+        // Start server and run indefinitely
+        axum::serve(listener, app).await.map_err(|e| e.into())
     }
 }
 
@@ -340,7 +332,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_llms_txt_handler() {
-        let response = llms_txt_handler().await;
+        let _response = llms_txt_handler().await;
         // The response should be either OK (if file exists) or NOT_FOUND (if file doesn't exist)
         // This test ensures the handler doesn't panic and returns a valid response
     }
