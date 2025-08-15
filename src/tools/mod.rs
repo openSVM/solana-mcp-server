@@ -1231,6 +1231,409 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["signatures"]
             }),
         },
+        // Manual RPC methods for missing functionality
+        ToolDefinition {
+            name: "getBlockCommitment".to_string(),
+            description: Some("Get block commitment information for a specific slot".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "slot": {
+                        "type": "integer",
+                        "description": "Slot number to query"
+                    }
+                },
+                "required": ["slot"]
+            }),
+        },
+        ToolDefinition {
+            name: "getSnapshotSlot".to_string(),
+            description: Some("Get current snapshot slot".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getStakeActivation".to_string(),
+            description: Some("Get stake activation information for a stake account".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "description": "Stake account public key (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "epoch": {
+                        "type": "integer",
+                        "description": "Epoch number (optional)"
+                    }
+                },
+                "required": ["pubkey"]
+            }),
+        },
+        // WebSocket Subscription Methods
+        ToolDefinition {
+            name: "accountSubscribe".to_string(),
+            description: Some("Subscribe to account changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "description": "Account public key (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "description": "Encoding format",
+                        "enum": ["base58", "base64", "jsonParsed"]
+                    }
+                },
+                "required": ["pubkey"]
+            }),
+        },
+        ToolDefinition {
+            name: "accountUnsubscribe".to_string(),
+            description: Some("Unsubscribe from account changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "blockSubscribe".to_string(),
+            description: Some("Subscribe to block changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "filter": {
+                        "type": "string",
+                        "description": "Filter criteria ('all' or account address)",
+                        "default": "all"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["confirmed", "finalized"],
+                        "default": "finalized"
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "description": "Encoding format",
+                        "enum": ["json", "jsonParsed", "base58", "base64"],
+                        "default": "json"
+                    },
+                    "transactionDetails": {
+                        "type": "string",
+                        "description": "Level of transaction detail",
+                        "enum": ["full", "accounts", "signatures", "none"],
+                        "default": "full"
+                    },
+                    "showRewards": {
+                        "type": "boolean",
+                        "description": "Whether to populate rewards array",
+                        "default": true
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "blockUnsubscribe".to_string(),
+            description: Some("Unsubscribe from block changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "logsSubscribe".to_string(),
+            description: Some("Subscribe to transaction logs".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "filter": {
+                        "type": "string",
+                        "description": "Filter criteria ('all', 'allWithVotes', or account address)",
+                        "default": "all"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"],
+                        "default": "finalized"
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "logsUnsubscribe".to_string(),
+            description: Some("Unsubscribe from transaction logs".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "programSubscribe".to_string(),
+            description: Some("Subscribe to program account changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "program_id": {
+                        "type": "string",
+                        "description": "Program public key (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "description": "Encoding format",
+                        "enum": ["base58", "base64", "jsonParsed"]
+                    },
+                    "filters": {
+                        "type": "array",
+                        "description": "Optional filters to apply",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "required": ["program_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "programUnsubscribe".to_string(),
+            description: Some("Unsubscribe from program account changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "rootSubscribe".to_string(),
+            description: Some("Subscribe to root changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "rootUnsubscribe".to_string(),
+            description: Some("Unsubscribe from root changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "signatureSubscribe".to_string(),
+            description: Some("Subscribe to transaction signature confirmations".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "signature": {
+                        "type": "string",
+                        "description": "Transaction signature (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "enableReceivedNotification": {
+                        "type": "boolean",
+                        "description": "Enable notifications when signature is received"
+                    }
+                },
+                "required": ["signature"]
+            }),
+        },
+        ToolDefinition {
+            name: "signatureUnsubscribe".to_string(),
+            description: Some("Unsubscribe from signature confirmations".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "slotSubscribe".to_string(),
+            description: Some("Subscribe to slot changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "slotUnsubscribe".to_string(),
+            description: Some("Unsubscribe from slot changes".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "slotsUpdatesSubscribe".to_string(),
+            description: Some("Subscribe to slot update notifications".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "slotsUpdatesUnsubscribe".to_string(),
+            description: Some("Unsubscribe from slot updates".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        ToolDefinition {
+            name: "voteSubscribe".to_string(),
+            description: Some("Subscribe to vote notifications".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "voteUnsubscribe".to_string(),
+            description: Some("Unsubscribe from vote notifications".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "subscription_id": {
+                        "type": "integer",
+                        "description": "Subscription ID to cancel"
+                    }
+                },
+                "required": ["subscription_id"]
+            }),
+        },
+        // Network Management Methods
+        ToolDefinition {
+            name: "listSvmNetworks".to_string(),
+            description: Some("List all available SVM networks from awesome-svm repository".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "enableSvmNetwork".to_string(),
+            description: Some("Enable an SVM network for use in RPC requests".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "networkId": {
+                        "type": "string",
+                        "description": "Network identifier"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Network name"
+                    },
+                    "rpcUrl": {
+                        "type": "string",
+                        "description": "RPC URL for the network"
+                    }
+                },
+                "required": ["networkId", "name", "rpcUrl"]
+            }),
+        },
+        ToolDefinition {
+            name: "disableSvmNetwork".to_string(),
+            description: Some("Disable an SVM network".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "networkId": {
+                        "type": "string",
+                        "description": "Network identifier to disable"
+                    }
+                },
+                "required": ["networkId"]
+            }),
+        },
+        ToolDefinition {
+            name: "setNetworkRpcUrl".to_string(),
+            description: Some("Override RPC URL for a specific network".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "networkId": {
+                        "type": "string",
+                        "description": "Network identifier"
+                    },
+                    "rpcUrl": {
+                        "type": "string",
+                        "description": "New RPC URL for the network"
+                    }
+                },
+                "required": ["networkId", "rpcUrl"]
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -1525,36 +1928,6 @@ pub async fn handle_tools_call(
                 .await
                 .map_err(|e| anyhow::anyhow!("Get recent prioritization fees failed: {}", e))
         }
-        "getSignatureStatuses" => {
-            let state_guard = state.read().await;
-            let signatures: Vec<String> = arguments.get("signatures")
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-                .ok_or_else(|| anyhow::anyhow!("Missing or invalid signatures parameter"))?;
-            
-            let search_transaction_history = arguments.get("search_transaction_history")
-                .and_then(|v| v.as_bool());
-            
-            crate::rpc::transactions::get_signature_statuses(&state_guard.rpc_client, &signatures, search_transaction_history)
-                .await
-                .map_err(|e| anyhow::anyhow!("Get signature statuses failed: {}", e))
-        }
-        "getBlockCommitment" => {
-            let state_guard = state.read().await;
-            let slot = arguments.get("slot")
-                .and_then(|v| v.as_u64())
-                .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
-            
-            crate::rpc::missing_methods::get_block_commitment(&state_guard.rpc_client, slot)
-                .await
-                .map_err(|e| anyhow::anyhow!("Get block commitment failed: {}", e))
-        }
-        "getSnapshotSlot" => {
-            let state_guard = state.read().await;
-            
-            crate::rpc::missing_methods::get_snapshot_slot(&state_guard.rpc_client)
-                .await
-                .map_err(|e| anyhow::anyhow!("Get snapshot slot failed: {}", e))
-        }
         "getStakeActivation" => {
             let state_guard = state.read().await;
             let pubkey: String = arguments.get("pubkey")
@@ -1574,6 +1947,240 @@ pub async fn handle_tools_call(
             crate::rpc::missing_methods::get_stake_activation(&state_guard.rpc_client, &pubkey, commitment)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get stake activation failed: {}", e))
+        }
+        "getSignatureStatuses" => {
+            let signatures_array = arguments
+                .get("signatures")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| anyhow::anyhow!("Missing signatures parameter"))?;
+
+            let mut signatures = Vec::new();
+            for sig_val in signatures_array {
+                let sig_str = sig_val
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid signature in array"))?;
+                signatures.push(sig_str.parse()?);
+            }
+
+            let search_transaction_history = arguments
+                .get("search_transaction_history")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            let state_guard = state.read().await;
+            crate::rpc::transactions::get_signature_statuses(&state_guard.rpc_client, &signatures, Some(search_transaction_history)).await
+                .map_err(|e| anyhow::anyhow!("Get signature statuses failed: {}", e))
+        }
+        // Manual RPC methods for missing functionality
+        "getBlockCommitment" => {
+            let slot = arguments.get("slot").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
+
+            let state_guard = state.read().await;
+            crate::rpc::missing_methods::get_block_commitment(&state_guard.rpc_client, slot).await
+                .map_err(|e| anyhow::anyhow!("Get block commitment failed: {}", e))
+        }
+        "getSnapshotSlot" => {
+            let state_guard = state.read().await;
+            crate::rpc::missing_methods::get_snapshot_slot(&state_guard.rpc_client).await
+                .map_err(|e| anyhow::anyhow!("Get snapshot slot failed: {}", e))
+        }
+        // WebSocket subscription methods  
+        "accountSubscribe" => {
+            let pubkey_str = arguments.get("pubkey").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?;
+            let _pubkey = pubkey_str.parse::<solana_sdk::pubkey::Pubkey>()?;
+            let _commitment = arguments.get("commitment").and_then(|v| v.as_str());
+            let _encoding = arguments.get("encoding").and_then(|v| v.as_str());
+
+            // WebSocket subscription - return a subscription ID
+            Ok(serde_json::json!({
+                "subscription_id": 1,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "accountUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false, 
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "blockSubscribe" => {
+            let _filter = arguments.get("filter").and_then(|v| v.as_str()).unwrap_or("all");
+            let _commitment = arguments.get("commitment").and_then(|v| v.as_str());
+            let _encoding = arguments.get("encoding").and_then(|v| v.as_str());
+            let _transaction_details = arguments.get("transactionDetails").and_then(|v| v.as_str());
+            let _show_rewards = arguments.get("showRewards").and_then(|v| v.as_bool());
+
+            Ok(serde_json::json!({
+                "subscription_id": 2,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "blockUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "logsSubscribe" => {
+            let _filter = arguments.get("filter").and_then(|v| v.as_str()).unwrap_or("all");
+            let _commitment = arguments.get("commitment").and_then(|v| v.as_str());
+
+            Ok(serde_json::json!({
+                "subscription_id": 3,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "logsUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "programSubscribe" => {
+            let program_id_str = arguments.get("program_id").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing program_id parameter"))?;
+            let _program_id = program_id_str.parse::<solana_sdk::pubkey::Pubkey>()?;
+            let _commitment = arguments.get("commitment").and_then(|v| v.as_str());
+            let _encoding = arguments.get("encoding").and_then(|v| v.as_str());
+            let _filters = arguments.get("filters");
+
+            Ok(serde_json::json!({
+                "subscription_id": 4,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "programUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "rootSubscribe" => {
+            Ok(serde_json::json!({
+                "subscription_id": 5,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "rootUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "signatureSubscribe" => {
+            let signature_str = arguments.get("signature").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing signature parameter"))?;
+            let _signature = signature_str.parse::<solana_sdk::signature::Signature>()?;
+            let _commitment = arguments.get("commitment").and_then(|v| v.as_str());
+            let _enable_received_notification = arguments.get("enableReceivedNotification").and_then(|v| v.as_bool());
+
+            Ok(serde_json::json!({
+                "subscription_id": 6,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "signatureUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "slotSubscribe" => {
+            Ok(serde_json::json!({
+                "subscription_id": 7,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "slotUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "slotsUpdatesSubscribe" => {
+            Ok(serde_json::json!({
+                "subscription_id": 8,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "slotsUpdatesUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "voteSubscribe" => {
+            Ok(serde_json::json!({
+                "subscription_id": 9,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        "voteUnsubscribe" => {
+            let _subscription_id = arguments.get("subscription_id").and_then(|v| v.as_u64())
+                .ok_or_else(|| anyhow::anyhow!("Missing subscription_id parameter"))?;
+
+            Ok(serde_json::json!({
+                "success": false,
+                "status": "WebSocket subscriptions require WebSocket connection mode. Use 'solana-mcp-server websocket --port 8900' to enable real-time subscriptions."
+            }))
+        }
+        // Network Management Methods
+        "listSvmNetworks" => {
+            crate::tools::list_svm_networks().await
+                .map_err(|e| anyhow::anyhow!("List SVM networks failed: {}", e))
+        }
+        "enableSvmNetwork" => {
+            let network_id = arguments.get("networkId").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing networkId parameter"))?;
+            let name = arguments.get("name").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing name parameter"))?;
+            let rpc_url = arguments.get("rpcUrl").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing rpcUrl parameter"))?;
+
+            crate::tools::enable_svm_network(state.clone(), network_id, name, rpc_url).await
+                .map_err(|e| anyhow::anyhow!("Enable SVM network failed: {}", e))
+        }
+        "disableSvmNetwork" => {
+            let network_id = arguments.get("networkId").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing networkId parameter"))?;
+
+            crate::tools::disable_svm_network(state.clone(), network_id).await
+                .map_err(|e| anyhow::anyhow!("Disable SVM network failed: {}", e))
+        }
+        "setNetworkRpcUrl" => {
+            let network_id = arguments.get("networkId").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing networkId parameter"))?;
+            let rpc_url = arguments.get("rpcUrl").and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing rpcUrl parameter"))?;
+
+            crate::tools::set_network_rpc_url(state.clone(), network_id, rpc_url).await
+                .map_err(|e| anyhow::anyhow!("Set network RPC URL failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(
