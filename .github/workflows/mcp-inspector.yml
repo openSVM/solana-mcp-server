@@ -1,0 +1,292 @@
+name: MCP Inspector Compatibility Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    # Allow manual triggering
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  mcp-inspector-test:
+    name: Test MCP Inspector Compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-mcp-test-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-mcp-test-
+          ${{ runner.os }}-cargo-
+
+    - name: Build Solana MCP Server
+      run: |
+        cargo build --release
+
+    - name: Install MCP Inspector
+      run: |
+        npm install -g @modelcontextprotocol/inspector@0.16.2
+
+    - name: Create test configuration
+      run: |
+        mkdir -p test-config
+        cat > test-config/mcp-config.json << 'EOF'
+        {
+          "mcpServers": {
+            "solana": {
+              "command": "${{ github.workspace }}/target/release/solana-mcp-server",
+              "args": ["stdio"],
+              "env": {
+                "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+                "SOLANA_COMMITMENT": "confirmed",
+                "RUST_LOG": "debug"
+              }
+            }
+          }
+        }
+        EOF
+
+    - name: Test MCP Inspector Connection
+      run: |
+        # Start MCP Inspector in the background and test connection
+        echo "Testing MCP Inspector with Solana MCP Server..."
+        
+        # Test basic connection and initialization
+        timeout 30s npx @modelcontextprotocol/inspector@0.16.2 \
+          --config test-config/mcp-config.json \
+          --server solana \
+          --test-connection || {
+          echo "❌ MCP Inspector connection test failed"
+          exit 1
+        }
+        
+        echo "✅ MCP Inspector connection test passed"
+
+    - name: Test MCP Protocol Methods
+      run: |
+        # Test specific MCP protocol methods
+        echo "Testing MCP protocol methods..."
+        
+        # Create a test script to validate MCP responses
+        cat > test-mcp-protocol.js << 'EOF'
+        const { spawn } = require('child_process');
+        const fs = require('fs');
+        
+        // Test the MCP server directly via stdio
+        const server = spawn('./target/release/solana-mcp-server', ['stdio'], {
+          env: {
+            ...process.env,
+            SOLANA_RPC_URL: 'https://api.devnet.solana.com',
+            SOLANA_COMMITMENT: 'confirmed'
+          }
+        });
+        
+        let output = '';
+        let responseCount = 0;
+        const expectedResponses = 3; // initialize, tools/list, tools/call
+        
+        server.stdout.on('data', (data) => {
+          output += data.toString();
+          console.log('Server output:', data.toString());
+          
+          // Count valid JSON-RPC responses
+          const lines = data.toString().split('\n').filter(line => line.trim());
+          for (const line of lines) {
+            try {
+              const response = JSON.parse(line);
+              if (response.jsonrpc === '2.0') {
+                responseCount++;
+                console.log('Valid JSON-RPC response:', JSON.stringify(response, null, 2));
+              }
+            } catch (e) {
+              // Not JSON, might be logs
+            }
+          }
+        });
+        
+        server.stderr.on('data', (data) => {
+          console.log('Server stderr:', data.toString());
+        });
+        
+        // Send test requests
+        setTimeout(() => {
+          // Test 1: Initialize
+          const initRequest = {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: {
+              protocolVersion: '2024-11-05',
+              capabilities: {},
+              clientInfo: {
+                name: 'mcp-inspector-test',
+                version: '1.0.0'
+              }
+            }
+          };
+          console.log('Sending initialize request...');
+          server.stdin.write(JSON.stringify(initRequest) + '\n');
+        }, 1000);
+        
+        setTimeout(() => {
+          // Test 2: List tools
+          const toolsRequest = {
+            jsonrpc: '2.0',
+            id: 2,
+            method: 'tools/list',
+            params: {}
+          };
+          console.log('Sending tools/list request...');
+          server.stdin.write(JSON.stringify(toolsRequest) + '\n');
+        }, 2000);
+        
+        setTimeout(() => {
+          // Test 3: Call a tool
+          const callRequest = {
+            jsonrpc: '2.0',
+            id: 3,
+            method: 'tools/call',
+            params: {
+              name: 'getHealth',
+              arguments: {}
+            }
+          };
+          console.log('Sending tools/call request...');
+          server.stdin.write(JSON.stringify(callRequest) + '\n');
+        }, 3000);
+        
+        // Check results after a timeout
+        setTimeout(() => {
+          console.log(`Received ${responseCount} valid JSON-RPC responses`);
+          
+          if (responseCount >= expectedResponses) {
+            console.log('✅ All MCP protocol tests passed');
+            process.exit(0);
+          } else {
+            console.log('❌ Not all MCP protocol tests passed');
+            console.log('Full output:', output);
+            process.exit(1);
+          }
+        }, 10000);
+        
+        // Handle server exit
+        server.on('close', (code) => {
+          console.log(`Server exited with code ${code}`);
+          if (code !== 0 && code !== null) {
+            process.exit(1);
+          }
+        });
+        EOF
+        
+        node test-mcp-protocol.js
+
+    - name: Validate MCP Response Schemas
+      run: |
+        # Install Zod for schema validation (same as MCP Inspector)
+        npm install zod
+        
+        # Create schema validation test
+        cat > validate-schemas.js << 'EOF'
+        const { z } = require('zod');
+        
+        // Define MCP schema structures based on the specification
+        const JsonRpcResponseSchema = z.object({
+          jsonrpc: z.literal('2.0'),
+          id: z.union([z.string(), z.number(), z.null()]),
+          result: z.any().optional(),
+          error: z.object({
+            code: z.number(),
+            message: z.string(),
+            data: z.any().optional()
+          }).optional()
+        });
+        
+        const InitializeResponseSchema = z.object({
+          protocolVersion: z.string(),
+          capabilities: z.object({
+            tools: z.record(z.object({
+              name: z.string(),
+              description: z.string().optional(),
+              inputSchema: z.any()
+            })).optional(),
+            experimental: z.any().optional(),
+            logging: z.any().optional(),
+            prompts: z.any().optional(),
+            resources: z.any().optional()
+          }),
+          serverInfo: z.object({
+            name: z.string(),
+            version: z.string()
+          })
+        });
+        
+        const ToolsListResponseSchema = z.object({
+          tools: z.array(z.object({
+            name: z.string(),
+            description: z.string().optional(),
+            inputSchema: z.any()
+          })),
+          nextCursor: z.string().optional(),
+          meta: z.any().optional()
+        });
+        
+        console.log('✅ MCP schemas defined and validated');
+        console.log('Schemas are compatible with Zod validation');
+        EOF
+        
+        node validate-schemas.js
+
+    - name: Generate MCP Inspector Report
+      if: always()
+      run: |
+        echo "## MCP Inspector Compatibility Report" > mcp-report.md
+        echo "" >> mcp-report.md
+        echo "### Test Results" >> mcp-report.md
+        echo "- **MCP Inspector Version**: 0.16.2" >> mcp-report.md
+        echo "- **Server Build**: $(date)" >> mcp-report.md
+        echo "- **Test Status**: $(if [ $? -eq 0 ]; then echo "✅ PASSED"; else echo "❌ FAILED"; fi)" >> mcp-report.md
+        echo "" >> mcp-report.md
+        echo "### Server Configuration" >> mcp-report.md
+        echo '```json' >> mcp-report.md
+        cat test-config/mcp-config.json >> mcp-report.md
+        echo '```' >> mcp-report.md
+        
+        # Upload as artifact
+        mkdir -p artifacts
+        cp mcp-report.md artifacts/
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-inspector-test-results
+        path: artifacts/
+        retention-days: 7

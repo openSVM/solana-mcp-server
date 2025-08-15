@@ -132,8 +132,15 @@ pub async fn handle_initialize(
                 version: env!("CARGO_PKG_VERSION").to_string(),
             },
             capabilities: ServerCapabilities {
-                tools: {
-                    let mut tools = HashMap::new();
+                tools: Some(serde_json::json!({})), // Empty object indicates tool support is available
+                resources: Some(serde_json::json!({
+                    "docs": {
+                        "name": "Documentation",
+                        "description": "Solana API documentation",
+                        "uri": "https://docs.solana.com/developing/clients/jsonrpc-api",
+                        "mimeType": "text/html"
+                    }
+                })),
                     tools.insert(
                         "getAccountInfo".to_string(),
                         ToolDefinition {
