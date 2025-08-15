@@ -1,6 +1,6 @@
 use reqwest;
 use serde_json::{json, Value};
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 #[tokio::test]
 async fn test_new_rpc_methods_and_websocket() {
@@ -75,7 +75,7 @@ async fn test_websocket_connection() {
                 "params": ["11111111111111111111111111111111"]
             });
             
-            if let Err(e) = ws_stream.send(Message::Text(subscribe_msg.to_string())).await {
+            if let Err(e) = ws_stream.send(Message::Text(subscribe_msg.to_string().into())).await {
                 println!("✗ Failed to send subscription: {}", e);
                 return;
             }
