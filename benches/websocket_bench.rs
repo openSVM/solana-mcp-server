@@ -78,7 +78,7 @@ fn bench_websocket_subscriptions(c: &mut Criterion) {
                 let (mut ws_stream, _) = connect_websocket(port).await.expect("Failed to connect");
                 
                 // Send subscription request
-                let message = Message::Text(req.to_string());
+                let message = Message::Text(req.to_string().into());
                 ws_stream.send(message).await.expect("Failed to send message");
                 
                 // Wait for response
@@ -129,7 +129,7 @@ fn bench_websocket_unsubscribe(c: &mut Criterion) {
                 let (mut ws_stream, _) = connect_websocket(port).await.expect("Failed to connect");
                 
                 // Send unsubscribe request
-                let message = Message::Text(req.to_string());
+                let message = Message::Text(req.to_string().into());
                 ws_stream.send(message).await.expect("Failed to send message");
                 
                 // Wait for response
@@ -170,7 +170,7 @@ fn bench_websocket_throughput(c: &mut Criterion) {
                 for i in 0..count {
                     let mut req = request.clone();
                     req["id"] = json!(i + 1);
-                    let message = Message::Text(req.to_string());
+                    let message = Message::Text(req.to_string().into());
                     ws_stream.send(message).await.expect("Failed to send message");
                 }
                 
@@ -215,7 +215,7 @@ fn bench_concurrent_connections(c: &mut Criterion) {
                                 "params": {}
                             });
                             
-                            let message = Message::Text(request.to_string());
+                            let message = Message::Text(request.to_string().into());
                             ws_stream.send(message).await.expect("Failed to send message");
                             
                             // Wait for response
@@ -259,7 +259,7 @@ fn bench_websocket_error_handling(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let (mut ws_stream, _) = connect_websocket(port).await.expect("Failed to connect");
             
-            let message = Message::Text(invalid_method_request.to_string());
+            let message = Message::Text(invalid_method_request.to_string().into());
             ws_stream.send(message).await.expect("Failed to send message");
             
             // Wait for error response
@@ -276,7 +276,7 @@ fn bench_websocket_error_handling(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let (mut ws_stream, _) = connect_websocket(port).await.expect("Failed to connect");
             
-            let message = Message::Text("{invalid json".to_string());
+            let message = Message::Text("{invalid json".to_string().into());
             ws_stream.send(message).await.expect("Failed to send message");
             
             // Wait for error response

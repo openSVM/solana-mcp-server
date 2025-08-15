@@ -41,11 +41,6 @@ type SubscriptionManager = Arc<DashMap<u64, Subscription>>;
 /// Global subscription counter
 static SUBSCRIPTION_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
-/// WebSocket connection timeout
-fn ws_connection_timeout(config: &crate::config::Config) -> Duration {
-    Duration::from_secs(config.timeouts.websocket_connection_seconds)
-}
-
 /// WebSocket message timeout
 fn ws_message_timeout(config: &crate::config::Config) -> Duration {
     Duration::from_secs(config.timeouts.websocket_message_seconds)
