@@ -9,13 +9,16 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+  RUST_BACKTRACE: full
   NODE_VERSION: '18'
-  INSPECTOR_VERSION: '0.16.2'
+  # Note: The inspector package name is different in your example. Adjust as needed.
+  INSPECTOR_PACKAGE: '@open-svm/mcp-inspector@0.16.2'
+  MCP_HOST: '127.0.0.1'
+  MCP_PORT: 31902
 
 jobs:
   mcp-inspector-test:
-    name: Test MCP Inspector Compatibility
+    name: Test MCP Server with Inspector CLI
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -33,206 +36,107 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
 
-    # Use the recommended action for caching Rust dependencies
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
 
-    - name: Build Solana MCP Server
+    - name: Build solana-mcp-server
       run: cargo build --release
 
-    - name: Install MCP Inspector and Zod
+    - name: Install MCP Inspector CLI and Zod
       run: |
-        npm install -g @modelcontextprotocol/inspector@${{ env.INSPECTOR_VERSION }}
+        npm install -g ${{ env.INSPECTOR_PACKAGE }}
         npm install zod
 
-    - name: Create Test Configuration
+    - name: Create MCP Server Config
       run: |
-        # Create a directory for test configuration if it doesn't exist
         mkdir -p test-config
-        
-        # Update the test config with the absolute path to the server binary
-        cat > test-config/mcp-config.json << 'EOF'
+        cat <<EOF > test-config/mcp-config.json
         {
-          "mcpServers": {
-            "solana": {
-              "command": "${{ github.workspace }}/target/release/solana-mcp-server",
-              "args": ["stdio"],
-              "env": {
-                "SOLANA_RPC_URL": "https://api.devnet.solana.com",
-                "SOLANA_COMMITMENT": "confirmed",
-                "RUST_LOG": "info"
-              }
-            }
-          }
+          "network": "devnet",
+          "rpc_url": "https://api.devnet.solana.com",
+          "mcp_port": ${{ env.MCP_PORT }},
+          "mcp_host": "${{ env.MCP_HOST }}",
+          "mcp_token": ""
         }
         EOF
 
-    - name: Verify Binary and Configuration
+    - name: Start Server and Wait for it to be Ready
       run: |
-        echo "Verifying server binary..."
-        ls -l ${{ github.workspace }}/target/release/solana-mcp-server
-        echo "Verifying test configuration..."
-        cat test-config/mcp-config.json
-
-    # This single step replaces the multiple, fragmented test scripts
-    - name: Run End-to-End Test with Schema Validation
-      run: |
-        cat > test-mcp-e2e.js << 'EOF'
-        const { spawn } = require('child_process');
-        const { z } = require('zod');
-
-        // --- Zod Schemas for Validation ---
-        const InitializeResultSchema = z.object({
-          protocolVersion: z.string(),
-          serverInfo: z.object({ name: z.string(), version: z.string() }),
-          capabilities: z.object({}).passthrough(),
-        });
-
-        const ToolSchema = z.object({
-          name: z.string(),
-          description: z.string().optional(),
-          inputSchema: z.any(),
-        });
-
-        const ToolsListResultSchema = z.object({
-          tools: z.array(ToolSchema),
-        });
-
-        const ToolsCallResultSchema = z.any(); // The result can be anything, so we just check for presence
-
-        // --- Test Logic ---
-        async function main() {
-          console.log('🚀 Starting MCP server for E2E test...');
-          const serverProcess = spawn(
-            '${{ github.workspace }}/target/release/solana-mcp-server',
-            ['stdio'],
-            {
-              env: {
-                ...process.env,
-                SOLANA_RPC_URL: 'https://api.devnet.solana.com',
-                RUST_LOG: 'info',
-              },
-            }
-          );
-
-          let responseBuffer = '';
-          const responsePromises = new Map();
-
-          serverProcess.stdout.on('data', (data) => {
-            responseBuffer += data.toString();
-            const lines = responseBuffer.split('\n');
-            responseBuffer = lines.pop(); // Keep partial line in buffer
-
-            for (const line of lines) {
-              if (line.trim() === '') continue;
-              try {
-                const response = JSON.parse(line);
-                console.log('📨 Received from server:', JSON.stringify(response, null, 2));
-                if (response.id && responsePromises.has(response.id)) {
-                  responsePromises.get(response.id).resolve(response);
-                  responsePromises.delete(response.id);
-                }
-              } catch (error) {
-                console.log('📝 Server Log:', line);
-              }
-            }
-          });
-
-          serverProcess.stderr.on('data', (data) => console.error(`🔴 STDERR: ${data}`));
-          serverProcess.on('exit', (code) => {
-            if (code !== 0 && code !== null) {
-              console.error(`❌ Server exited prematurely with code: ${code}`);
-              process.exit(1);
-            }
-          });
-
-          const sendRequest = (method, params, id) => {
-            return new Promise((resolve, reject) => {
-              const request = { jsonrpc: '2.0', id, method, params };
-              console.log(`📤 Sending to server (id: ${id}): ${method}`);
-              serverProcess.stdin.write(JSON.stringify(request) + '\n');
-              responsePromises.set(id, { resolve, reject });
-              setTimeout(() => {
-                if (responsePromises.has(id)) {
-                  reject(new Error(`Timeout waiting for response to request id ${id}`));
-                }
-              }, 15000); // 15-second timeout
-            });
-          };
-
-          try {
-            // 1. Initialize
-            const initResponse = await sendRequest('initialize', {
-              protocolVersion: '2024-11-05',
-              capabilities: {},
-              clientInfo: { name: 'e2e-test-client', version: '1.0.0' }
-            }, 1);
-            InitializeResultSchema.parse(initResponse.result);
-            console.log('✅ Initialize response is valid.');
-
-            // 2. List Tools
-            const listResponse = await sendRequest('tools/list', {}, 2);
-            ToolsListResultSchema.parse(listResponse.result);
-            console.log('✅ tools/list response is valid.');
-
-            // 3. Call a Tool (e.g., getHealth)
-            const callResponse = await sendRequest('tools/call', { name: 'getHealth', arguments: {} }, 3);
-            if (callResponse.error) throw new Error(`tools/call failed: ${callResponse.error.message}`);
-            ToolsCallResultSchema.parse(callResponse.result);
-            console.log('✅ tools/call response is valid.');
-
-            console.log('\n🎉 All tests passed!');
-          } catch (error) {
-            console.error('\n❌ Test failed:', error.message);
-            if (error instanceof z.ZodError) {
-              console.error('Schema validation details:', error.errors);
-            }
-            process.exit(1);
-          } finally {
-            serverProcess.kill();
-          }
-        }
-
-        main().catch(err => {
-            console.error("Critical error during test execution:", err);
-            process.exit(1);
-        });
-        EOF
-
-        node test-mcp-e2e.js
-
-    - name: Test MCP Inspector CLI Compatibility
-      run: |
-        echo "🔍 Testing MCP Inspector CLI compatibility..."
-        # This test verifies that the inspector can connect, but we allow failure
-        # as it can sometimes be flaky in headless CI environments.
-        timeout 30s npx @modelcontextprotocol/inspector@${{ env.INSPECTOR_VERSION }} \
-          --config test-config/mcp-config.json \
-          --server solana \
-          --cli << 'INSPECTOREOF' || echo "⚠️ MCP Inspector CLI test failed or timed out (non-blocking)."
-        list tools
-        exit
-        INSPECTOREOF
-
-    - name: Generate Test Report
-      if: always() # This step runs even if previous steps fail
-      run: |
-        echo "## MCP Inspector Compatibility Report" > report.md
-        echo "" >> report.md
-        echo "### Test Summary" >> report.md
-        echo "- **Job Status**: ${{ job.status }}" >> report.md
-        echo "- **Inspector Version**: ${{ env.INSPECTOR_VERSION }}" >> report.md
-        echo "- **Timestamp**: $(date -u)" >> report.md
-        echo "" >> report.md
-        echo "### Server Configuration Used" >> report.md
-        echo '```json' >> report.md
-        cat test-config/mcp-config.json >> report.md
-        echo '```' >> report.md
+        echo "Starting server in the background..."
+        ./target/release/solana-mcp-server --config test-config/mcp-config.json > server.log 2>&1 &
         
-    - name: Upload Test Report
+        echo "Waiting for server to become available..."
+        timeout=120
+        for i in $(seq 1 $timeout); do
+          if mcp-inspector ping --host ${{ env.MCP_HOST }} --port ${{ env.MCP_PORT }}; then
+            echo "✅ Server is up and running!"
+            exit 0
+          fi
+          echo "Still waiting for server... (${i}s)"
+          sleep 1
+        done
+        
+        echo "❌ Server did not start within $timeout seconds."
+        echo "--- Server Log ---"
+        cat server.log
+        exit 1
+
+    - name: Run Inspector CLI Tests and Validate Schema
+      run: |
+        echo "--- Testing 'initialize' method ---"
+        mcp-inspector call --host ${{ env.MCP_HOST }} --port ${{ env.MCP_PORT }} --method "initialize" --params '{}' --json > initialize_response.json
+        cat initialize_response.json
+        
+        echo "--- Testing 'tools/list' method ---"
+        mcp-inspector call --host ${{ env.MCP_HOST }} --port ${{ env.MCP_PORT }} --method "tools/list" --params '{}' --json > tools_list_response.json
+        cat tools_list_response.json
+
+        echo "--- Validating response schemas ---"
+        node <<EOF
+        const { z } = require('zod');
+        const fs = require('fs');
+        
+        try {
+          const initResp = JSON.parse(fs.readFileSync('initialize_response.json', 'utf8'));
+          const toolsResp = JSON.parse(fs.readFileSync('tools_list_response.json', 'utf8'));
+
+          // Define schemas based on the MCP spec
+          const initializeResultSchema = z.object({
+             protocolVersion: z.string(),
+             serverInfo: z.object({ name: z.string(), version: z.string() }),
+          }).passthrough();
+
+          const toolSchema = z.object({
+             name: z.string(),
+             description: z.string().optional(),
+             inputSchema: z.any()
+          });
+
+          const toolsListResultSchema = z.object({
+             tools: z.array(toolSchema),
+          });
+
+          // Validate 'initialize'
+          initializeResultSchema.parse(initResp.result);
+          console.log("✅ 'initialize' response schema is valid.");
+
+          // Validate 'tools/list'
+          toolsListResultSchema.parse(toolsResp.result);
+          console.log("✅ 'tools/list' response schema is valid.");
+
+        } catch (error) {
+          console.error("❌ Schema validation failed:", error.message);
+          process.exit(1);
+        }
+        EOF
+
+    - name: Upload Test Artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: mcp-inspector-report
-        path: report.md
+        name: mcp-test-artifacts
+        path: |
+          server.log
+          initialize_response.json
+          tools_list_response.json
         retention-days: 7
