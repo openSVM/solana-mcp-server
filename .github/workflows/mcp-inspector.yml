@@ -57,7 +57,7 @@ jobs:
               "env": {
                 "SOLANA_RPC_URL": "https://api.devnet.solana.com",
                 "SOLANA_COMMITMENT": "confirmed",
-                "RUST_LOG": "debug"
+                "RUST_LOG": "info"
               }
             }
           }
@@ -79,7 +79,7 @@ jobs:
             ...process.env,
             SOLANA_RPC_URL: 'https://api.devnet.solana.com',
             SOLANA_COMMITMENT: 'confirmed',
-            RUST_LOG: 'debug'
+            RUST_LOG: 'info'
           }
         });
         
@@ -90,49 +90,57 @@ jobs:
         
         // Handle server output
         server.stdout.on('data', (data) => {
-          const response = data.toString();
-          console.log('Server response:', response);
+          const lines = data.toString().split('\n');
           
-          try {
-            const jsonResponse = JSON.parse(response);
+          for (const line of lines) {
+            if (!line.trim()) continue;
             
-            if (jsonResponse.result && jsonResponse.result.protocolVersion) {
-              console.log('✅ Initialize response received with protocol version:', jsonResponse.result.protocolVersion);
-              testResults.initialize = true;
+            try {
+              const jsonResponse = JSON.parse(line);
               
-              // Send tools/list request
-              const toolsListRequest = {
-                jsonrpc: "2.0",
-                id: 2,
-                method: "tools/list",
-                params: {}
-              };
-              server.stdin.write(JSON.stringify(toolsListRequest) + '\n');
-            }
-            
-            if (jsonResponse.result && jsonResponse.result.tools) {
-              console.log('✅ Tools list response received with', jsonResponse.result.tools.length, 'tools');
-              testResults.toolsList = true;
-              
-              // Check if we have the expected Solana RPC methods
-              const toolNames = jsonResponse.result.tools.map(tool => tool.name);
-              const expectedMethods = ['getAccountInfo', 'getBalance', 'sendTransaction'];
-              const hasExpectedMethods = expectedMethods.every(method => toolNames.includes(method));
-              
-              if (hasExpectedMethods) {
-                console.log('✅ Expected Solana RPC methods found in tools list');
-              } else {
-                console.log('❌ Some expected Solana RPC methods missing from tools list');
-                process.exit(1);
+              // Check for initialize response
+              if (jsonResponse.id === 1 && jsonResponse.result && jsonResponse.result.protocolVersion) {
+                console.log('✅ Initialize response received with protocol version:', jsonResponse.result.protocolVersion);
+                testResults.initialize = true;
+                
+                // Wait a bit then send tools/list request
+                setTimeout(() => {
+                  const toolsListRequest = {
+                    jsonrpc: "2.0",
+                    id: 2,
+                    method: "tools/list",
+                    params: {}
+                  };
+                  console.log('Sending tools/list request');
+                  server.stdin.write(JSON.stringify(toolsListRequest) + '\n');
+                }, 1000);
               }
               
-              // Test passed
-              console.log('✅ All MCP protocol tests passed');
-              server.kill();
-              process.exit(0);
+              // Check for tools/list response  
+              if (jsonResponse.id === 2 && jsonResponse.result && jsonResponse.result.tools) {
+                console.log('✅ Tools list response received with', jsonResponse.result.tools.length, 'tools');
+                testResults.toolsList = true;
+                
+                // Check if we have the expected Solana RPC methods
+                const toolNames = jsonResponse.result.tools.map(tool => tool.name);
+                const expectedMethods = ['getAccountInfo', 'getBalance', 'sendTransaction'];
+                const hasExpectedMethods = expectedMethods.every(method => toolNames.includes(method));
+                
+                if (hasExpectedMethods) {
+                  console.log('✅ Expected Solana RPC methods found in tools list');
+                  console.log('✅ All MCP protocol tests passed');
+                  server.kill();
+                  process.exit(0);
+                } else {
+                  console.log('❌ Some expected Solana RPC methods missing from tools list');
+                  console.log('Missing methods:', expectedMethods.filter(method => !toolNames.includes(method)));
+                  server.kill();
+                  process.exit(1);
+                }
+              }
+            } catch (e) {
+              // This line is not JSON, probably a log message - ignore
             }
-          } catch (e) {
-            // Ignore non-JSON output
           }
         });
         
@@ -164,12 +172,13 @@ jobs:
         
         server.stdin.write(JSON.stringify(initializeRequest) + '\n');
         
-        // Timeout after 30 seconds
+        // Timeout after 60 seconds to allow for tool list delay
         setTimeout(() => {
-          console.log('❌ Test timeout');
+          console.log('❌ Test timeout after 60 seconds');
+          console.log('Test results so far:', testResults);
           server.kill();
           process.exit(1);
-        }, 30000);
+        }, 60000);
         EOF
 
     - name: Upload Test Artifacts
