@@ -6,7 +6,7 @@
       "env": {
         "SOLANA_RPC_URL": "https://api.devnet.solana.com",
         "SOLANA_COMMITMENT": "confirmed",
-        "RUST_LOG": "debug"
+        "RUST_LOG": "info"
       }
     }
   }
