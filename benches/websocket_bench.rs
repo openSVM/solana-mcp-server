@@ -14,11 +14,7 @@ static WS_BENCHMARK_SERVER: OnceLock<u16> = OnceLock::new();
 async fn setup_shared_websocket_benchmark_server() -> Result<(tokio::task::JoinHandle<()>, u16), Box<dyn std::error::Error + Send + Sync>> {
     let port = 9003;
     
-    let mut config = Config::load().map_err(|e| format!("Failed to load config: {e}"))?;
-    // Use mock RPC endpoint for benchmarks
-    config.rpc_url = "http://localhost:8899".to_string();
-    config.timeouts.websocket_connection_seconds = 5;
-    config.timeouts.websocket_message_seconds = 5;
+    let config = Config::load().map_err(|e| format!("Failed to load config: {e}"))?;
     
     let config_arc = Arc::new(config);
     
@@ -54,12 +50,18 @@ fn bench_websocket_connection(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let port = get_websocket_benchmark_server_port();
     
-    c.bench_function("websocket_connection", |b| {
+    let mut group = c.benchmark_group("websocket_connection");
+    group.sample_size(15);
+    group.measurement_time(Duration::from_secs(10));
+    
+    group.bench_function("establish", |b| {
         b.to_async(&rt).iter(|| async {
             let result = connect_websocket(port).await;
             black_box(result)
         })
     });
+    
+    group.finish();
 }
 
 /// Benchmark basic WebSocket subscription (simplified)
@@ -68,6 +70,8 @@ fn bench_websocket_subscriptions(c: &mut Criterion) {
     let port = get_websocket_benchmark_server_port();
     
     let mut group = c.benchmark_group("websocket_subscriptions");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(15));
     
     // Only test one simple subscription method to avoid timeouts
     let subscription_methods = vec![
@@ -110,6 +114,8 @@ fn bench_websocket_error_handling(c: &mut Criterion) {
     let port = get_websocket_benchmark_server_port();
     
     let mut group = c.benchmark_group("websocket_error_handling");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(10));
     
     // Test invalid method
     let invalid_method_request = json!({

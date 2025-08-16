@@ -58,6 +58,8 @@ fn bench_system_methods(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("system_methods");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(20));
     
     let system_methods = vec![
         "getHealth",
@@ -119,6 +121,8 @@ fn bench_account_methods(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("account_methods");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(20));
     
     let test_pubkey = "11111111111111111111111111111112"; // System program
     
@@ -178,6 +182,8 @@ fn bench_block_transaction_methods(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("block_transaction_methods");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(20));
     
     let block_tx_methods = vec![
         ("getLatestBlockhash", json!({})),
@@ -236,6 +242,8 @@ fn bench_token_methods(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("token_methods");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(20));
     
     let token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"; // SPL Token program
     
@@ -293,6 +301,8 @@ fn bench_error_handling(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("error_handling");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(15));
     
     // Test invalid method names
     let invalid_method_request = json!({
