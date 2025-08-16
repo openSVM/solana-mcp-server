@@ -645,6 +645,51 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["account"]
             }),
         },
+        ToolDefinition {
+            name: "getAccountOwner".to_string(),
+            description: Some("Returns the owner of an account".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "description": "Account public key (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "description": "Commitment level",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    }
+                },
+                "required": ["pubkey"]
+            }),
+        },
+        ToolDefinition {
+            name: "getTokenAccountsByMint".to_string(),
+            description: Some("Returns all token accounts by token mint".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "mint": {
+                        "type": "string",
+                        "description": "Token mint (base58 encoded)"
+                    },
+                    "programId": {
+                        "type": "string",
+                        "description": "Token program ID (base58 encoded)"
+                    },
+                    "commitment": {
+                        "type": "string",
+                        "enum": ["processed", "confirmed", "finalized"]
+                    },
+                    "encoding": {
+                        "type": "string",
+                        "enum": ["base58", "base64", "jsonParsed"]
+                    }
+                },
+                "required": ["mint"]
+            }),
+        },
         // Additional Block Methods
         ToolDefinition {
             name: "getSlotLeaders".to_string(),
@@ -1704,6 +1749,22 @@ pub async fn handle_tools_call(
             crate::rpc::accounts::get_account_info(&state_guard.rpc_client, &pubkey).await
                 .map_err(|e| anyhow::anyhow!("Get account info failed: {}", e))
         }
+        "getAccountOwner" => {
+            let pubkey_str = arguments
+                .get("pubkey")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing pubkey parameter"))?;
+            let pubkey = Pubkey::try_from(pubkey_str)?;
+            
+            let state_guard = state.read().await;
+            let account_info = crate::rpc::accounts::get_account_info(&state_guard.rpc_client, &pubkey).await
+                .map_err(|e| anyhow::anyhow!("Get account info failed: {}", e))?;
+            
+            // Extract owner from account info
+            Ok(serde_json::json!({
+                "owner": account_info.get("owner").unwrap_or(&serde_json::Value::Null)
+            }))
+        }
         "getMultipleAccounts" => {
             let pubkeys_array = arguments
                 .get("pubkeys")
@@ -2181,6 +2242,17 @@ pub async fn handle_tools_call(
 
             crate::tools::set_network_rpc_url(state.clone(), network_id, rpc_url).await
                 .map_err(|e| anyhow::anyhow!("Set network RPC URL failed: {}", e))
+        }
+        "getTokenAccountsByMint" => {
+            let mint_str = arguments
+                .get("mint")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?;
+            let mint = Pubkey::try_from(mint_str)?;
+            
+            let state_guard = state.read().await;
+            crate::rpc::tokens::get_token_accounts_by_mint(&state_guard.rpc_client, &mint).await
+                .map_err(|e| anyhow::anyhow!("Get token accounts by mint failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(

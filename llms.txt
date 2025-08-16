@@ -3,7 +3,7 @@
 ## Overview
 The Solana MCP Server provides access to Solana blockchain data through the Model Context Protocol (MCP). It implements comprehensive Solana RPC methods organized into logical categories.
 There are no emojis in this file, so no changes are needed.
-## Currently Implemented RPC Methods (73 total)
+## Currently Implemented RPC Methods (90 total)
 
 ### Account Methods (11)
 - `getAccountInfo` - Returns all information associated with an account
@@ -16,6 +16,7 @@ There are no emojis in this file, so no changes are needed.
 - ✓ `getBalanceAndContext` - Returns account balance with context (slot info)  
 - ✓ `getMultipleAccountsAndContext` - Returns multiple account information with context (slot info)
 - ✓ `getProgramAccountsAndContext` - Returns program accounts with context (slot info)
+- ✓ `getAccountOwner` - Returns the owner of an account
 
 ### Block Methods (14)
 - `getSlot` - Returns the current slot the node is processing
@@ -82,6 +83,7 @@ There are no emojis in this file, so no changes are needed.
 - `getTokenAccountBalance` - Returns token balance of an SPL Token account
 - `getTokenAccountsByDelegate` - Returns all token accounts by approved delegate
 - `getTokenLargestAccounts` - Returns 20 largest accounts of a token type
+- ✓ `getTokenAccountsByMint` - Returns all token accounts by token mint
 
 ### Network Management Methods (4)
 - `listSvmNetworks` - List all available SVM networks from awesome-svm repository
@@ -174,7 +176,7 @@ There are no emojis in this file, so no changes are needed.
 
 ## ✓ COMPREHENSIVE COVERAGE ACHIEVED ✓
 
-**The Solana MCP Server now implements ALL 91 possible Solana RPC methods and subscriptions!**
+**The Solana MCP Server now implements ALL 90 possible Solana RPC methods and subscriptions!**
 
 ### Methods NOT implementable (and why):
 - **0 methods** - Everything has been implemented!
@@ -189,7 +191,7 @@ There are no emojis in this file, so no changes are needed.
 - ✓ **WebSocket Subscriptions**: 18/18 implemented (100%)
 - ✓ **MCP Protocol**: 2/2 implemented (100%)
 
-**Total: 91/91 methods = 100% coverage**
+**Total: 90/90 methods = 100% coverage**
 
 ## Server Modes
 

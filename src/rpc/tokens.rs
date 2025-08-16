@@ -97,3 +97,25 @@ pub async fn get_token_account_balance_with_commitment(
         .await?;
     Ok(serde_json::json!({ "balance": balance }))
 }
+
+pub async fn get_token_accounts_by_mint(client: &RpcClient, mint: &Pubkey) -> Result<Value> {
+    // Use getProgramAccounts to find all token accounts for a specific mint
+    let accounts = client
+        .get_program_accounts_with_config(
+            &spl_token_program_id(),
+            solana_client::rpc_config::RpcProgramAccountsConfig {
+                filters: Some(vec![
+                    solana_client::rpc_filter::RpcFilterType::Memcmp(
+                        solana_client::rpc_filter::Memcmp::new_raw_bytes(0, mint.to_bytes().to_vec()),
+                    ),
+                ]),
+                account_config: solana_client::rpc_config::RpcAccountInfoConfig {
+                    encoding: Some(UiAccountEncoding::Base64),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .await?;
+    Ok(serde_json::json!({ "accounts": accounts }))
+}
