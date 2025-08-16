@@ -1,0 +1,191 @@
+name: MCP Inspector Compatibility Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  NODE_VERSION: '18'
+  # Use the official MCP Inspector package
+  INSPECTOR_PACKAGE: '@modelcontextprotocol/inspector@0.16.2'
+
+jobs:
+  mcp-inspector-test:
+    name: Test MCP Server with Inspector CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+
+    - name: Build solana-mcp-server
+      run: cargo build --release
+
+    - name: Install MCP Inspector and Zod
+      run: |
+        npm install -g ${{ env.INSPECTOR_PACKAGE }}
+        npm install zod
+
+    - name: Create MCP Server Config
+      run: |
+        mkdir -p test-config
+        cat <<EOF > test-config/mcp-config.json
+        {
+          "mcpServers": {
+            "solana": {
+              "command": "./target/release/solana-mcp-server",
+              "args": ["stdio"],
+              "env": {
+                "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+                "SOLANA_COMMITMENT": "confirmed",
+                "RUST_LOG": "info"
+              }
+            }
+          }
+        }
+        EOF
+
+    - name: Test MCP Protocol Communication
+      run: |
+        echo "Testing MCP protocol communication with Solana server..."
+        
+        # Test the server directly using Node.js to verify MCP protocol
+        node <<'EOF'
+        const { spawn } = require('child_process');
+        const readline = require('readline');
+        
+        // Start the server
+        const server = spawn('./target/release/solana-mcp-server', ['stdio'], {
+          env: {
+            ...process.env,
+            SOLANA_RPC_URL: 'https://api.devnet.solana.com',
+            SOLANA_COMMITMENT: 'confirmed',
+            RUST_LOG: 'info'
+          }
+        });
+        
+        let testResults = {
+          initialize: false,
+          toolsList: false
+        };
+        
+        // Handle server output
+        server.stdout.on('data', (data) => {
+          const lines = data.toString().split('\n');
+          
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            
+            try {
+              const jsonResponse = JSON.parse(line);
+              
+              // Check for initialize response
+              if (jsonResponse.id === 1 && jsonResponse.result && jsonResponse.result.protocolVersion) {
+                console.log('✅ Initialize response received with protocol version:', jsonResponse.result.protocolVersion);
+                testResults.initialize = true;
+                
+                // Wait a bit then send tools/list request
+                setTimeout(() => {
+                  const toolsListRequest = {
+                    jsonrpc: "2.0",
+                    id: 2,
+                    method: "tools/list",
+                    params: {}
+                  };
+                  console.log('Sending tools/list request');
+                  server.stdin.write(JSON.stringify(toolsListRequest) + '\n');
+                }, 1000);
+              }
+              
+              // Check for tools/list response  
+              if (jsonResponse.id === 2 && jsonResponse.result && jsonResponse.result.tools) {
+                console.log('✅ Tools list response received with', jsonResponse.result.tools.length, 'tools');
+                testResults.toolsList = true;
+                
+                // Check if we have the expected Solana RPC methods
+                const toolNames = jsonResponse.result.tools.map(tool => tool.name);
+                const expectedMethods = ['getAccountInfo', 'getBalance', 'sendTransaction'];
+                const hasExpectedMethods = expectedMethods.every(method => toolNames.includes(method));
+                
+                if (hasExpectedMethods) {
+                  console.log('✅ Expected Solana RPC methods found in tools list');
+                  console.log('✅ All MCP protocol tests passed');
+                  server.kill();
+                  process.exit(0);
+                } else {
+                  console.log('❌ Some expected Solana RPC methods missing from tools list');
+                  console.log('Missing methods:', expectedMethods.filter(method => !toolNames.includes(method)));
+                  server.kill();
+                  process.exit(1);
+                }
+              }
+            } catch (e) {
+              // This line is not JSON, probably a log message - ignore
+            }
+          }
+        });
+        
+        server.stderr.on('data', (data) => {
+          console.error('Server error:', data.toString());
+        });
+        
+        server.on('close', (code) => {
+          if (!testResults.initialize || !testResults.toolsList) {
+            console.log('❌ MCP protocol test failed - missing required responses');
+            process.exit(1);
+          }
+        });
+        
+        // Send initialize request
+        const initializeRequest = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: {
+              name: "test-client",
+              version: "1.0.0"
+            }
+          }
+        };
+        
+        server.stdin.write(JSON.stringify(initializeRequest) + '\n');
+        
+        // Timeout after 60 seconds to allow for tool list delay
+        setTimeout(() => {
+          console.log('❌ Test timeout after 60 seconds');
+          console.log('Test results so far:', testResults);
+          server.kill();
+          process.exit(1);
+        }, 60000);
+        EOF
+
+    - name: Upload Test Artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-test-artifacts
+        path: |
+          test-config/mcp-config.json
+        retention-days: 7

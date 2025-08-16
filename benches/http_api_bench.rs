@@ -61,12 +61,18 @@ fn bench_mcp_initialization(c: &mut Criterion) {
         }
     });
     
-    c.bench_function("mcp_initialize", |b| {
+    let mut group = c.benchmark_group("mcp_protocol");
+    group.sample_size(15);
+    group.measurement_time(Duration::from_secs(15));
+    
+    group.bench_function("initialize", |b| {
         b.to_async(&rt).iter(|| async {
             let result = make_benchmark_request(black_box(initialize_request.clone()), port).await;
             black_box(result)
         })
     });
+    
+    group.finish();
 }
 
 /// Benchmark tools list retrieval
@@ -99,12 +105,18 @@ fn bench_tools_list(c: &mut Criterion) {
         "method": "tools/list"
     });
     
-    c.bench_function("tools_list", |b| {
+    let mut group = c.benchmark_group("mcp_tools");
+    group.sample_size(15);
+    group.measurement_time(Duration::from_secs(15));
+    
+    group.bench_function("list", |b| {
         b.to_async(&rt).iter(|| async {
             let result = make_benchmark_request(black_box(tools_request.clone()), port).await;
             black_box(result)
         })
     });
+    
+    group.finish();
 }
 
 /// Benchmark different RPC tool calls
@@ -132,6 +144,8 @@ fn bench_rpc_tool_calls(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("rpc_tool_calls");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(20));
     
     // Benchmark simple methods
     let simple_methods = vec![
@@ -214,6 +228,8 @@ fn bench_concurrent_requests(c: &mut Criterion) {
     });
     
     let mut group = c.benchmark_group("concurrent_requests");
+    group.sample_size(10);
+    group.measurement_time(Duration::from_secs(15));
     
     for concurrency in [1, 5, 10, 20].iter() {
         group.bench_with_input(BenchmarkId::new("getHealth", concurrency), concurrency, |b, &concurrency| {
@@ -254,7 +270,11 @@ fn bench_health_endpoint(c: &mut Criterion) {
         setup_benchmark_server().await.expect("Failed to setup server")
     });
     
-    c.bench_function("health_endpoint", |b| {
+    let mut group = c.benchmark_group("endpoints");
+    group.sample_size(15);
+    group.measurement_time(Duration::from_secs(10));
+    
+    group.bench_function("health", |b| {
         b.to_async(&rt).iter(|| async {
             let client = reqwest::Client::new();
             let response = client
@@ -265,6 +285,8 @@ fn bench_health_endpoint(c: &mut Criterion) {
             black_box(response.text().await)
         })
     });
+    
+    group.finish();
 }
 
 /// Benchmark metrics endpoint
@@ -275,7 +297,11 @@ fn bench_metrics_endpoint(c: &mut Criterion) {
         setup_benchmark_server().await.expect("Failed to setup server")
     });
     
-    c.bench_function("metrics_endpoint", |b| {
+    let mut group = c.benchmark_group("endpoints");
+    group.sample_size(15);
+    group.measurement_time(Duration::from_secs(10));
+    
+    group.bench_function("metrics", |b| {
         b.to_async(&rt).iter(|| async {
             let client = reqwest::Client::new();
             let response = client
@@ -286,6 +312,8 @@ fn bench_metrics_endpoint(c: &mut Criterion) {
             black_box(response.text().await)
         })
     });
+    
+    group.finish();
 }
 
 criterion_group!(

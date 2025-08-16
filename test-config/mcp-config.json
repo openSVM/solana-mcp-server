@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "solana": {
+      "command": "./target/release/solana-mcp-server",
+      "args": ["stdio"],
+      "env": {
+        "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+        "SOLANA_COMMITMENT": "confirmed",
+        "RUST_LOG": "info"
+      }
+    }
+  }
+}

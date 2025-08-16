@@ -84,7 +84,7 @@ pub struct InitializeResponse {
 #[serde(default)]
 pub struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<HashMap<String, ToolDefinition>>,
+    pub tools: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub experimental: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -92,7 +92,7 @@ pub struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompts: Option<PromptCapabilities>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resources: Option<HashMap<String, Resource>>,
+    pub resources: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
