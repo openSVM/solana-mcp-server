@@ -11,10 +11,8 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   NODE_VERSION: '18'
-  # Note: The inspector package name is different in your example. Adjust as needed.
-  INSPECTOR_PACKAGE: '@open-svm/mcp-inspector@0.16.2'
-  MCP_HOST: '127.0.0.1'
-  MCP_PORT: 31902
+  # Use the official MCP Inspector package
+  INSPECTOR_PACKAGE: '@modelcontextprotocol/inspector@0.16.2'
 
 jobs:
   mcp-inspector-test:
@@ -42,7 +40,7 @@ jobs:
     - name: Build solana-mcp-server
       run: cargo build --release
 
-    - name: Install MCP Inspector CLI and Zod
+    - name: Install MCP Inspector and Zod
       run: |
         npm install -g ${{ env.INSPECTOR_PACKAGE }}
         npm install zod
@@ -52,82 +50,126 @@ jobs:
         mkdir -p test-config
         cat <<EOF > test-config/mcp-config.json
         {
-          "network": "devnet",
-          "rpc_url": "https://api.devnet.solana.com",
-          "mcp_port": ${{ env.MCP_PORT }},
-          "mcp_host": "${{ env.MCP_HOST }}",
-          "mcp_token": ""
+          "mcpServers": {
+            "solana": {
+              "command": "./target/release/solana-mcp-server",
+              "args": ["stdio"],
+              "env": {
+                "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+                "SOLANA_COMMITMENT": "confirmed",
+                "RUST_LOG": "debug"
+              }
+            }
+          }
         }
         EOF
 
-    - name: Start Server and Wait for it to be Ready
+    - name: Test MCP Protocol Communication
       run: |
-        echo "Starting server in the background..."
-        ./target/release/solana-mcp-server --config test-config/mcp-config.json > server.log 2>&1 &
+        echo "Testing MCP protocol communication with Solana server..."
         
-        echo "Waiting for server to become available..."
-        timeout=120
-        for i in $(seq 1 $timeout); do
-          if mcp-inspector ping --host ${{ env.MCP_HOST }} --port ${{ env.MCP_PORT }}; then
-            echo "✅ Server is up and running!"
-            exit 0
-          fi
-          echo "Still waiting for server... (${i}s)"
-          sleep 1
-        done
+        # Test the server directly using Node.js to verify MCP protocol
+        node <<'EOF'
+        const { spawn } = require('child_process');
+        const readline = require('readline');
         
-        echo "❌ Server did not start within $timeout seconds."
-        echo "--- Server Log ---"
-        cat server.log
-        exit 1
-
-    - name: Run Inspector CLI Tests and Validate Schema
-      run: |
-        echo "--- Testing 'initialize' method ---"
-        mcp-inspector call --host ${{ env.MCP_HOST }} --port ${{ env.MCP_PORT }} --method "initialize" --params '{}' --json > initialize_response.json
-        cat initialize_response.json
+        // Start the server
+        const server = spawn('./target/release/solana-mcp-server', ['stdio'], {
+          env: {
+            ...process.env,
+            SOLANA_RPC_URL: 'https://api.devnet.solana.com',
+            SOLANA_COMMITMENT: 'confirmed',
+            RUST_LOG: 'debug'
+          }
+        });
         
-        echo "--- Testing 'tools/list' method ---"
-        mcp-inspector call --host ${{ env.MCP_HOST }} --port ${{ env.MCP_PORT }} --method "tools/list" --params '{}' --json > tools_list_response.json
-        cat tools_list_response.json
-
-        echo "--- Validating response schemas ---"
-        node <<EOF
-        const { z } = require('zod');
-        const fs = require('fs');
+        let testResults = {
+          initialize: false,
+          toolsList: false
+        };
         
-        try {
-          const initResp = JSON.parse(fs.readFileSync('initialize_response.json', 'utf8'));
-          const toolsResp = JSON.parse(fs.readFileSync('tools_list_response.json', 'utf8'));
-
-          // Define schemas based on the MCP spec
-          const initializeResultSchema = z.object({
-             protocolVersion: z.string(),
-             serverInfo: z.object({ name: z.string(), version: z.string() }),
-          }).passthrough();
-
-          const toolSchema = z.object({
-             name: z.string(),
-             description: z.string().optional(),
-             inputSchema: z.any()
-          });
-
-          const toolsListResultSchema = z.object({
-             tools: z.array(toolSchema),
-          });
-
-          // Validate 'initialize'
-          initializeResultSchema.parse(initResp.result);
-          console.log("✅ 'initialize' response schema is valid.");
-
-          // Validate 'tools/list'
-          toolsListResultSchema.parse(toolsResp.result);
-          console.log("✅ 'tools/list' response schema is valid.");
-
-        } catch (error) {
-          console.error("❌ Schema validation failed:", error.message);
+        // Handle server output
+        server.stdout.on('data', (data) => {
+          const response = data.toString();
+          console.log('Server response:', response);
+          
+          try {
+            const jsonResponse = JSON.parse(response);
+            
+            if (jsonResponse.result && jsonResponse.result.protocolVersion) {
+              console.log('✅ Initialize response received with protocol version:', jsonResponse.result.protocolVersion);
+              testResults.initialize = true;
+              
+              // Send tools/list request
+              const toolsListRequest = {
+                jsonrpc: "2.0",
+                id: 2,
+                method: "tools/list",
+                params: {}
+              };
+              server.stdin.write(JSON.stringify(toolsListRequest) + '\n');
+            }
+            
+            if (jsonResponse.result && jsonResponse.result.tools) {
+              console.log('✅ Tools list response received with', jsonResponse.result.tools.length, 'tools');
+              testResults.toolsList = true;
+              
+              // Check if we have the expected Solana RPC methods
+              const toolNames = jsonResponse.result.tools.map(tool => tool.name);
+              const expectedMethods = ['getAccountInfo', 'getBalance', 'sendTransaction'];
+              const hasExpectedMethods = expectedMethods.every(method => toolNames.includes(method));
+              
+              if (hasExpectedMethods) {
+                console.log('✅ Expected Solana RPC methods found in tools list');
+              } else {
+                console.log('❌ Some expected Solana RPC methods missing from tools list');
+                process.exit(1);
+              }
+              
+              // Test passed
+              console.log('✅ All MCP protocol tests passed');
+              server.kill();
+              process.exit(0);
+            }
+          } catch (e) {
+            // Ignore non-JSON output
+          }
+        });
+        
+        server.stderr.on('data', (data) => {
+          console.error('Server error:', data.toString());
+        });
+        
+        server.on('close', (code) => {
+          if (!testResults.initialize || !testResults.toolsList) {
+            console.log('❌ MCP protocol test failed - missing required responses');
+            process.exit(1);
+          }
+        });
+        
+        // Send initialize request
+        const initializeRequest = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: {
+              name: "test-client",
+              version: "1.0.0"
+            }
+          }
+        };
+        
+        server.stdin.write(JSON.stringify(initializeRequest) + '\n');
+        
+        // Timeout after 30 seconds
+        setTimeout(() => {
+          console.log('❌ Test timeout');
+          server.kill();
           process.exit(1);
-        }
+        }, 30000);
         EOF
 
     - name: Upload Test Artifacts
@@ -136,7 +178,5 @@ jobs:
       with:
         name: mcp-test-artifacts
         path: |
-          server.log
-          initialize_response.json
-          tools_list_response.json
+          test-config/mcp-config.json
         retention-days: 7
