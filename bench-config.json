@@ -1,0 +1,13 @@
+{
+  "rpc_url": "http://localhost:8899",
+  "commitment": "confirmed",
+  "protocol_version": "2024-11-05",
+  "svm_networks": {},
+  "timeouts": {
+    "http_request_seconds": 1,
+    "websocket_connection_seconds": 5,
+    "websocket_message_seconds": 5,
+    "subscription_seconds": 5,
+    "max_idle_seconds": 30
+  }
+}

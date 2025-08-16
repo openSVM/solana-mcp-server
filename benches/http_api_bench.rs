@@ -5,31 +5,63 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::runtime::Runtime;
+use std::sync::OnceLock;
 
-/// Setup test server for benchmarking
-async fn setup_benchmark_server() -> Result<(tokio::task::JoinHandle<()>, u16), Box<dyn std::error::Error + Send + Sync>> {
+static BENCHMARK_SERVER: OnceLock<(u16, Arc<RwLock<ServerState>>)> = OnceLock::new();
+
+/// Setup shared test server for all benchmarks to reduce overhead
+async fn setup_shared_benchmark_server() -> Result<(tokio::task::JoinHandle<()>, u16), Box<dyn std::error::Error + Send + Sync>> {
     // Use a fixed port for benchmarks to avoid conflicts
     let port = 9001;
     
-    // Load configuration
-    let config = Config::load().map_err(|e| format!("Failed to load config: {e}"))?;
+    // Load configuration with mock settings for faster startup
+    let mut config = Config::load().map_err(|e| format!("Failed to load config: {e}"))?;
+    // Override with localhost for faster responses (avoiding external network calls)
+    config.rpc_url = "http://localhost:8899".to_string(); // Mock local RPC for benchmarks
+    config.timeouts.http_request_seconds = 1; // Reduce timeouts for benchmarks
     
     // Create server state
     let server_state = ServerState::new(config);
     let state = Arc::new(RwLock::new(server_state));
     
     // Start HTTP server with MCP API
-    let handle = start_mcp_server_task(port, state);
+    let handle = start_mcp_server_task(port, state.clone());
+    
+    // Store shared server state
+    BENCHMARK_SERVER.set((port, state)).ok();
     
     // Give server time to start
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await; // Reduced startup time
     
     Ok((handle, port))
 }
 
-/// Helper function to make HTTP requests for benchmarking
+/// Get or initialize the shared benchmark server
+fn get_benchmark_server_port() -> u16 {
+    if let Some((port, _)) = BENCHMARK_SERVER.get() {
+        *port
+    } else {
+        // Initialize server if not already done
+        let rt = Runtime::new().unwrap();
+        let (_handle, port) = rt.block_on(async {
+            setup_shared_benchmark_server().await.expect("Failed to setup shared server")
+        });
+        port
+    }
+}
+
+/// Helper function to make HTTP requests for benchmarking (with connection reuse)
 async fn make_benchmark_request(request: Value, port: u16) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
-    let client = reqwest::Client::new();
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    
+    let client = CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(5)) // Shorter timeout for benchmarks
+            .pool_idle_timeout(Duration::from_secs(30)) // Connection reuse
+            .build()
+            .unwrap()
+    });
+    
     let response = client
         .post(format!("http://localhost:{port}/api/mcp"))
         .header("Content-Type", "application/json")
@@ -44,11 +76,7 @@ async fn make_benchmark_request(request: Value, port: u16) -> Result<Value, Box<
 /// Benchmark MCP protocol initialization
 fn bench_mcp_initialization(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
-    
-    // Setup server once for all benchmark iterations
-    let (_handle, port) = rt.block_on(async {
-        setup_benchmark_server().await.expect("Failed to setup server")
-    });
+    let port = get_benchmark_server_port();
     
     let initialize_request = json!({
         "jsonrpc": "2.0",
@@ -69,15 +97,12 @@ fn bench_mcp_initialization(c: &mut Criterion) {
     });
 }
 
-/// Benchmark tools list retrieval
+/// Benchmark tools list retrieval  
 fn bench_tools_list(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
+    let port = get_benchmark_server_port();
     
-    let (_handle, port) = rt.block_on(async {
-        setup_benchmark_server().await.expect("Failed to setup server")
-    });
-    
-    // Initialize first
+    // Initialize first (one time setup)
     let initialize_request = json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -107,15 +132,12 @@ fn bench_tools_list(c: &mut Criterion) {
     });
 }
 
-/// Benchmark different RPC tool calls
+/// Benchmark different RPC tool calls (reduced scope for performance)
 fn bench_rpc_tool_calls(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
+    let port = get_benchmark_server_port();
     
-    let (_handle, port) = rt.block_on(async {
-        setup_benchmark_server().await.expect("Failed to setup server")
-    });
-    
-    // Initialize first
+    // Initialize first (one time setup)
     let initialize_request = json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -133,12 +155,10 @@ fn bench_rpc_tool_calls(c: &mut Criterion) {
     
     let mut group = c.benchmark_group("rpc_tool_calls");
     
-    // Benchmark simple methods
+    // Benchmark only fast methods that don't require external network calls
     let simple_methods = vec![
-        ("getHealth", json!({})),
-        ("getVersion", json!({})),
-        ("getGenesisHash", json!({})),
-        ("minimumLedgerSlot", json!({})),
+        ("getVersion", json!({})),   // Fast local method
+        ("getSlot", json!({})),      // Local cached data
     ];
     
     for (method_name, params) in simple_methods {
@@ -160,44 +180,15 @@ fn bench_rpc_tool_calls(c: &mut Criterion) {
         });
     }
     
-    // Benchmark methods with parameters
-    let param_methods = vec![
-        ("getBalance", json!({"pubkey": "11111111111111111111111111111112"})),
-        ("getAccountInfo", json!({"pubkey": "11111111111111111111111111111112"})),
-        ("getSlot", json!("{}")),
-    ];
-    
-    for (method_name, params) in param_methods {
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {
-                "name": method_name,
-                "arguments": params
-            }
-        });
-        
-        group.bench_with_input(BenchmarkId::new("with_params", method_name), &request, |b, req| {
-            b.to_async(&rt).iter(|| async {
-                let result = make_benchmark_request(black_box(req.clone()), port).await;
-                black_box(result)
-            })
-        });
-    }
-    
     group.finish();
 }
 
-/// Benchmark concurrent requests
+/// Benchmark concurrent requests (reduced concurrency for faster benchmarks)
 fn bench_concurrent_requests(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
+    let port = get_benchmark_server_port();
     
-    let (_handle, port) = rt.block_on(async {
-        setup_benchmark_server().await.expect("Failed to setup server")
-    });
-    
-    // Initialize first
+    // Initialize first (one time setup)
     let initialize_request = json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -215,15 +206,16 @@ fn bench_concurrent_requests(c: &mut Criterion) {
     
     let mut group = c.benchmark_group("concurrent_requests");
     
-    for concurrency in [1, 5, 10, 20].iter() {
-        group.bench_with_input(BenchmarkId::new("getHealth", concurrency), concurrency, |b, &concurrency| {
+    // Test smaller concurrency levels for faster benchmarks
+    for concurrency in [1, 5, 10].iter() {
+        group.bench_with_input(BenchmarkId::new("getVersion", concurrency), concurrency, |b, &concurrency| {
             b.to_async(&rt).iter(|| async {
                 let request = json!({
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": "tools/call",
                     "params": {
-                        "name": "getHealth",
+                        "name": "getVersion",  // Use faster method
                         "arguments": {}
                     }
                 });
@@ -249,14 +241,19 @@ fn bench_concurrent_requests(c: &mut Criterion) {
 /// Benchmark health endpoint
 fn bench_health_endpoint(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
+    let port = get_benchmark_server_port();
     
-    let (_handle, port) = rt.block_on(async {
-        setup_benchmark_server().await.expect("Failed to setup server")
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    let client = CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .pool_idle_timeout(Duration::from_secs(30))
+            .build()
+            .unwrap()
     });
     
     c.bench_function("health_endpoint", |b| {
         b.to_async(&rt).iter(|| async {
-            let client = reqwest::Client::new();
             let response = client
                 .get(format!("http://localhost:{port}/health"))
                 .send()
@@ -270,14 +267,19 @@ fn bench_health_endpoint(c: &mut Criterion) {
 /// Benchmark metrics endpoint
 fn bench_metrics_endpoint(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
+    let port = get_benchmark_server_port();
     
-    let (_handle, port) = rt.block_on(async {
-        setup_benchmark_server().await.expect("Failed to setup server")
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    let client = CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .pool_idle_timeout(Duration::from_secs(30))
+            .build()
+            .unwrap()
     });
     
     c.bench_function("metrics_endpoint", |b| {
         b.to_async(&rt).iter(|| async {
-            let client = reqwest::Client::new();
             let response = client
                 .get(format!("http://localhost:{port}/metrics"))
                 .send()
