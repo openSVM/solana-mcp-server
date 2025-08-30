@@ -86,7 +86,7 @@ async fn test_mcp_initialize_protocol() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {
                 "name": "e2e-test-client",
@@ -103,7 +103,7 @@ async fn test_mcp_initialize_protocol() {
     assert!(response["result"].is_object());
     
     let result = &response["result"];
-    assert_eq!(result["protocolVersion"], "2024-11-05");
+    assert_eq!(result["protocolVersion"], "2025-06-18");
     assert_eq!(result["serverInfo"]["name"], "solana-mcp-server");
     assert!(result["capabilities"]["tools"].is_object());
 }
@@ -119,7 +119,7 @@ async fn test_tools_list() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -165,7 +165,7 @@ async fn test_tool_execution_get_health() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -202,7 +202,7 @@ async fn test_tool_execution_get_balance() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -308,7 +308,7 @@ async fn test_error_handling_method_not_found() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -343,7 +343,7 @@ async fn test_error_handling_invalid_tool_params() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -382,7 +382,7 @@ async fn test_content_type_validation() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -439,7 +439,7 @@ async fn test_resources_list() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -472,7 +472,7 @@ async fn test_complex_tool_multiple_accounts() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }
@@ -514,7 +514,7 @@ async fn test_concurrent_requests() {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-06-18",
             "capabilities": {},
             "clientInfo": {"name": "test", "version": "1.0.0"}
         }

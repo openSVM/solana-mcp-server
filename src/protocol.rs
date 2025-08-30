@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use url::Url;
 
-pub const LATEST_PROTOCOL_VERSION: &str = "2024-11-05";
+pub const LATEST_PROTOCOL_VERSION: &str = "2025-06-18";
 
 /// Describes who the intended customer of this object or data is
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
