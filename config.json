@@ -1,5 +1,5 @@
 {
   "rpc_url": "https://api.opensvm.com",
   "commitment": "confirmed",
-  "protocol_version": "2024-11-05"
+  "protocol_version": "2025-06-18"
 }

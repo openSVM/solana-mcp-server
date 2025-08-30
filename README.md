@@ -29,7 +29,35 @@ solana-mcp-server web --port 8080
 
 📖 **[Complete Web Service Documentation](./docs/web-service.md)**
 
-## Installation
+## Quick Installation (One-liner)
+
+🚀 **Install Solana MCP Server for Claude Desktop in one command:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/opensvm/solana-mcp-server/main/scripts/install.sh | bash
+```
+
+This will:
+- Download pre-built binaries (if available) or build from source
+- Configure Claude Desktop automatically  
+- Set up proper environment variables
+- Back up existing configurations
+
+**Alternative install methods:**
+
+```bash
+# Using wget
+wget -qO- https://raw.githubusercontent.com/opensvm/solana-mcp-server/main/scripts/install.sh | bash
+
+# Manual download and run
+curl -fsSL https://raw.githubusercontent.com/opensvm/solana-mcp-server/main/scripts/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
+```
+
+After installation, restart Claude Desktop and start querying Solana data directly!
+
+## Manual Installation (Advanced)
 
 ### Using Pre-built Binaries
 
@@ -53,8 +81,12 @@ solana-mcp-server web --port 8080
 ### Building from Source
 
 ```bash
-TEMP_DIR=$(mktemp -d) && cd "$TEMP_DIR" && git clone https://github.com/opensvm/solana-mcp-server.git . && cargo build --release && CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude" && mkdir -p "$CONFIG_DIR" && echo "{\"mcpServers\":{\"solana\":{\"command\":\"$PWD/target/release/solana-mcp-server\",\"env\":{\"SOLANA_RPC_URL\":\"https://api.mainnet-beta.solana.com\"}}}}" > "$CONFIG_DIR/config.json" || { rm -rf "$TEMP_DIR"; exit 1; }
+git clone https://github.com/opensvm/solana-mcp-server.git
+cd solana-mcp-server
+cargo build --release
 ```
+
+Then configure Claude Desktop with the path to `target/release/solana-mcp-server`.
 
 ## Quick Deployment
 
