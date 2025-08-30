@@ -84,9 +84,12 @@ jobs:
         });
         
         let testResults = {
+          protocolNotification: false,
           initialize: false,
           toolsList: false
         };
+        
+        let serverReady = false;
         
         // Handle server output
         server.stdout.on('data', (data) => {
@@ -98,87 +101,125 @@ jobs:
             try {
               const jsonResponse = JSON.parse(line);
               
-              // Check for initialize response
-              if (jsonResponse.id === 1 && jsonResponse.result && jsonResponse.result.protocolVersion) {
-                console.log('✅ Initialize response received with protocol version:', jsonResponse.result.protocolVersion);
-                testResults.initialize = true;
+              // Handle protocol notification (server ready)
+              if (jsonResponse.method === 'protocol' && jsonResponse.params && jsonResponse.params.version) {
+                console.log('✅ Protocol notification received, server version:', jsonResponse.params.version);
+                testResults.protocolNotification = true;
+                serverReady = true;
                 
-                // Wait a bit then send tools/list request
-                setTimeout(() => {
-                  const toolsListRequest = {
-                    jsonrpc: "2.0",
-                    id: 2,
-                    method: "tools/list",
-                    params: {}
-                  };
-                  console.log('Sending tools/list request');
-                  server.stdin.write(JSON.stringify(toolsListRequest) + '\n');
-                }, 1000);
+                // Server is ready, send initialize request
+                console.log('Sending initialize request...');
+                const initializeRequest = {
+                  jsonrpc: "2.0",
+                  id: 1,
+                  method: "initialize",
+                  params: {
+                    protocolVersion: "2025-06-18",
+                    capabilities: {},
+                    clientInfo: {
+                      name: "test-client",
+                      version: "1.0.0"
+                    }
+                  }
+                };
+                server.stdin.write(JSON.stringify(initializeRequest) + '\n');
+                return;
+              }
+              
+              // Check for initialize response
+              if (jsonResponse.id === 1) {
+                if (jsonResponse.result && jsonResponse.result.protocolVersion) {
+                  console.log('✅ Initialize response received with protocol version:', jsonResponse.result.protocolVersion);
+                  testResults.initialize = true;
+                  
+                  // Wait a bit then send tools/list request
+                  setTimeout(() => {
+                    const toolsListRequest = {
+                      jsonrpc: "2.0",
+                      id: 2,
+                      method: "tools/list",
+                      params: {}
+                    };
+                    console.log('Sending tools/list request...');
+                    server.stdin.write(JSON.stringify(toolsListRequest) + '\n');
+                  }, 100);
+                } else if (jsonResponse.error) {
+                  console.log('❌ Initialize failed with error:', jsonResponse.error);
+                  server.kill();
+                  process.exit(1);
+                }
               }
               
               // Check for tools/list response  
-              if (jsonResponse.id === 2 && jsonResponse.result && jsonResponse.result.tools) {
-                console.log('✅ Tools list response received with', jsonResponse.result.tools.length, 'tools');
-                testResults.toolsList = true;
-                
-                // Check if we have the expected Solana RPC methods
-                const toolNames = jsonResponse.result.tools.map(tool => tool.name);
-                const expectedMethods = ['getAccountInfo', 'getBalance', 'sendTransaction'];
-                const hasExpectedMethods = expectedMethods.every(method => toolNames.includes(method));
-                
-                if (hasExpectedMethods) {
-                  console.log('✅ Expected Solana RPC methods found in tools list');
-                  console.log('✅ All MCP protocol tests passed');
-                  server.kill();
-                  process.exit(0);
-                } else {
-                  console.log('❌ Some expected Solana RPC methods missing from tools list');
-                  console.log('Missing methods:', expectedMethods.filter(method => !toolNames.includes(method)));
+              if (jsonResponse.id === 2) {
+                if (jsonResponse.result && jsonResponse.result.tools) {
+                  console.log('✅ Tools list response received with', jsonResponse.result.tools.length, 'tools');
+                  testResults.toolsList = true;
+                  
+                  // Check if we have the expected Solana RPC methods
+                  const toolNames = jsonResponse.result.tools.map(tool => tool.name);
+                  const expectedMethods = ['getAccountInfo', 'getBalance', 'sendTransaction'];
+                  const hasExpectedMethods = expectedMethods.every(method => toolNames.includes(method));
+                  
+                  console.log('Available tools:', toolNames.slice(0, 10).join(', '), '... (total:', toolNames.length, ')');
+                  
+                  if (hasExpectedMethods) {
+                    console.log('✅ Expected Solana RPC methods found in tools list');
+                    console.log('✅ All MCP protocol tests passed');
+                    server.kill();
+                    process.exit(0);
+                  } else {
+                    console.log('❌ Some expected Solana RPC methods missing from tools list');
+                    console.log('Missing methods:', expectedMethods.filter(method => !toolNames.includes(method)));
+                    server.kill();
+                    process.exit(1);
+                  }
+                } else if (jsonResponse.error) {
+                  console.log('❌ Tools list failed with error:', jsonResponse.error);
                   server.kill();
                   process.exit(1);
                 }
               }
             } catch (e) {
               // This line is not JSON, probably a log message - ignore
+              console.log('Non-JSON output:', line.substring(0, 100));
             }
           }
         });
         
         server.stderr.on('data', (data) => {
-          console.error('Server error:', data.toString());
+          // Server logs go to stderr - only show if there are actual errors
+          const output = data.toString();
+          if (output.includes('"level":"ERROR"') || output.includes('error') || output.includes('Error')) {
+            console.error('Server error:', output);
+          }
         });
         
         server.on('close', (code) => {
+          console.log('Server process closed with code:', code);
           if (!testResults.initialize || !testResults.toolsList) {
             console.log('❌ MCP protocol test failed - missing required responses');
+            console.log('Test results:', testResults);
             process.exit(1);
           }
         });
         
-        // Send initialize request
-        const initializeRequest = {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: {
-              name: "test-client",
-              version: "1.0.0"
-            }
-          }
-        };
+        server.on('error', (err) => {
+          console.error('❌ Failed to start server:', err);
+          process.exit(1);
+        });
         
-        server.stdin.write(JSON.stringify(initializeRequest) + '\n');
+        // Wait for server to be ready, then the protocol notification will trigger the initialize request
+        console.log('Waiting for server to start and send protocol notification...');
         
-        // Timeout after 60 seconds to allow for tool list delay
+        // Timeout after 30 seconds (reduced from 60)
         setTimeout(() => {
-          console.log('❌ Test timeout after 60 seconds');
+          console.log('❌ Test timeout after 30 seconds');
           console.log('Test results so far:', testResults);
+          console.log('Server ready status:', serverReady);
           server.kill();
           process.exit(1);
-        }, 60000);
+        }, 30000);
         EOF
 
     - name: Upload Test Artifacts
