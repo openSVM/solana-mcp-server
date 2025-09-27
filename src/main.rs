@@ -32,24 +32,33 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize structured logging
-    if let Err(e) = init_logging(Some("info")) {
-        eprintln!("Failed to initialize logging: {e}");
-        std::process::exit(1);
-    }
-
     let cli = Cli::parse();
     
     match cli.command.unwrap_or(Commands::Stdio) {
         Commands::Stdio => {
+            // For stdio mode, logging MUST go to stderr to avoid corrupting the JSON-RPC protocol on stdout
+            if let Err(e) = init_logging(Some("info"), true) {
+                eprintln!("Failed to initialize logging: {e}");
+                std::process::exit(1);
+            }
             tracing::info!("Starting Solana MCP server in stdio mode...");
             start_server().await
         }
         Commands::Web { port } => {
+            // For web mode, logging can go to stdout since it doesn't interfere with HTTP protocol
+            if let Err(e) = init_logging(Some("info"), false) {
+                eprintln!("Failed to initialize logging: {e}");
+                std::process::exit(1);
+            }
             tracing::info!("Starting Solana MCP server in web service mode on port {}...", port);
             start_web_service(port).await
         }
         Commands::Websocket { port } => {
+            // For WebSocket mode, logging can go to stdout since it doesn't interfere with WebSocket protocol
+            if let Err(e) = init_logging(Some("info"), false) {
+                eprintln!("Failed to initialize logging: {e}");
+                std::process::exit(1);
+            }
             tracing::info!("Starting Solana MCP server in WebSocket mode on port {}...", port);
             start_websocket_service(port).await
         }
