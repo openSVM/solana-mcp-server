@@ -12,7 +12,7 @@ pub mod transport;
 pub mod validation;
 pub mod websocket_server;
 
-pub use cache::{CacheConfig, RpcCache, GLOBAL_RPC_CACHE};
+pub use cache::{with_cache, CacheConfig, RpcCache, GLOBAL_RPC_CACHE};
 pub use config::{Config, SvmNetwork};
 pub use error::{McpError, McpResult};
 pub use http_server::{start_metrics_server_task, start_mcp_server_task};

@@ -212,6 +212,52 @@ pub static GLOBAL_RPC_CACHE: Lazy<RpcCache> = Lazy::new(|| {
     RpcCache::new(CacheConfig::default())
 });
 
+/// Helper function to execute an RPC call with caching
+///
+/// This function checks the cache first, and if not found, executes the provided
+/// async function and caches the result.
+///
+/// # Arguments
+/// * `cache` - The cache instance to use
+/// * `method` - The RPC method name
+/// * `params` - The parameters for the RPC call (used for cache key generation)
+/// * `f` - The async function to execute if cache misses
+///
+/// # Returns
+/// * `Ok(Value)` - The cached or freshly fetched result
+/// * `Err(E)` - Any error from the RPC call
+pub async fn with_cache<F, Fut, E>(
+    cache: &RpcCache,
+    method: &str,
+    params: &serde_json::Value,
+    f: F,
+) -> Result<serde_json::Value, E>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<serde_json::Value, E>>,
+{
+    // Try to get from cache first
+    if let Some(cached_value) = cache.get(method, params) {
+        // Record cache hit in metrics
+        crate::metrics::PROMETHEUS_METRICS.record_cache_hit(method);
+        return Ok(cached_value);
+    }
+
+    // Record cache miss in metrics
+    crate::metrics::PROMETHEUS_METRICS.record_cache_miss(method);
+
+    // Cache miss - execute the function
+    let result = f().await?;
+
+    // Store in cache
+    cache.set(method, params, result.clone());
+
+    // Update cache size metric
+    crate::metrics::PROMETHEUS_METRICS.update_cache_size("rpc", cache.size());
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -363,5 +409,46 @@ mod tests {
         cache.evict_expired();
 
         assert_eq!(cache.size(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_with_cache_helper() {
+        let config = CacheConfig {
+            enabled: true,
+            max_entries: 100,
+            default_ttl_seconds: 10,
+            method_ttl_overrides: std::collections::HashMap::new(),
+        };
+        let cache = RpcCache::new(config);
+
+        let method = "getBalance";
+        let params = serde_json::json!({"pubkey": "test123"});
+
+        // First call should miss cache and execute function
+        let call_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let call_count_clone = call_count.clone();
+        
+        let result1 = with_cache(&cache, method, &params, || {
+            let count = call_count_clone.clone();
+            async move {
+                count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok::<_, String>(serde_json::json!({"balance": 1000}))
+            }
+        }).await.unwrap();
+
+        assert_eq!(result1, serde_json::json!({"balance": 1000}));
+        assert_eq!(call_count.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        // Second call should hit cache and not execute function
+        let result2 = with_cache(&cache, method, &params, || {
+            let count = call_count.clone();
+            async move {
+                count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok::<_, String>(serde_json::json!({"balance": 1000}))
+            }
+        }).await.unwrap();
+
+        assert_eq!(result2, serde_json::json!({"balance": 1000}));
+        assert_eq!(call_count.load(std::sync::atomic::Ordering::SeqCst), 1); // Should still be 1
     }
 }
