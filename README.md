@@ -110,9 +110,14 @@ Then configure Claude Desktop with the path to `target/release/solana-mcp-server
 
 # Vercel Edge Functions
 ./scripts/deploy-vercel.sh
+
+# Netlify (Documentation Site)
+./scripts/deploy-netlify.sh
 ```
 
 See [`scripts/README.md`](scripts/README.md) for detailed usage and requirements for each deployment option.
+
+📚 **[Netlify Deployment Guide](./docs/netlify-deployment.md)** - Complete guide for deploying documentation to Netlify
 
 ## ⚡ Autoscaling and Monitoring
 
