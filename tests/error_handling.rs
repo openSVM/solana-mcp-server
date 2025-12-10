@@ -8,7 +8,7 @@ use uuid::Uuid;
 #[tokio::test]
 async fn test_error_handling_integration() {
     // Initialize logging for test
-    let _ = init_logging(Some("debug"));
+    let _ = init_logging(Some("debug"), false);
     
     // Initialize prometheus metrics for test
     let _ = solana_mcp_server::init_prometheus_metrics();

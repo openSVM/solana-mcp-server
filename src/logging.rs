@@ -181,34 +181,43 @@ pub fn detect_network_from_url(rpc_url: &str) -> &'static str {
 /// 
 /// # Arguments
 /// * `level` - Optional log level filter (defaults to "info")
+/// * `use_stderr` - If true, logs to stderr instead of stdout. This is required for stdio transport mode.
 /// 
 /// # Examples
 /// ```
 /// use solana_mcp_server::logging::init_logging;
 /// 
-/// // Initialize with default level (info)
-/// init_logging(None);
+/// // Initialize with default level (info) for web/websocket mode
+/// init_logging(None, false);
 /// 
-/// // Initialize with debug level
-/// init_logging(Some("debug"));
+/// // Initialize for stdio mode (logs to stderr)
+/// init_logging(Some("debug"), true);
 /// ```
-pub fn init_logging(level: Option<&str>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub fn init_logging(level: Option<&str>, use_stderr: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let filter = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new(level.unwrap_or("info")))?;
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(
-            fmt::layer()
-                .json()
-                .with_current_span(false)
-                .with_thread_ids(true)
-                .with_thread_names(true)
-                .with_target(true)
-                .with_line_number(true)
-                .with_file(true)
-        )
-        .try_init()?;
+    let fmt_layer = fmt::layer()
+        .json()
+        .with_current_span(false)
+        .with_thread_ids(true)
+        .with_thread_names(true)
+        .with_target(true)
+        .with_line_number(true)
+        .with_file(true);
+
+    let subscriber = tracing_subscriber::registry()
+        .with(filter);
+
+    if use_stderr {
+        subscriber
+            .with(fmt_layer.with_writer(std::io::stderr))
+            .try_init()?;
+    } else {
+        subscriber
+            .with(fmt_layer)
+            .try_init()?;
+    }
 
     info!("Structured logging initialized");
     Ok(())
@@ -639,7 +648,7 @@ mod tests {
 
     fn init_test_logging() {
         INIT.call_once(|| {
-            let _ = init_logging(Some("debug"));
+            let _ = init_logging(Some("debug"), false);
         });
     }
 
