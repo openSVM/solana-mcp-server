@@ -1,3 +1,4 @@
+use crate::cache::RpcCache;
 use crate::transport::{JsonRpcMessage, JsonRpcNotification, JsonRpcVersion, Transport};
 use crate::validation::sanitize_for_logging;
 use crate::{Config, CustomStdioTransport};
@@ -23,6 +24,8 @@ pub struct ServerState {
     pub initialized: bool,
     /// Protocol version being used
     pub protocol_version: String,
+    /// RPC response cache
+    pub cache: Arc<RpcCache>,
 }
 
 impl ServerState {
@@ -61,12 +64,16 @@ impl ServerState {
             }
         }
 
+        // Create cache with config
+        let cache = Arc::new(RpcCache::new(config.cache.clone()));
+
         Self {
             rpc_client,
             svm_clients,
             protocol_version: config.protocol_version.clone(),
             config,
             initialized: false,
+            cache,
         }
     }
 
@@ -104,6 +111,15 @@ impl ServerState {
                     RpcClient::new_with_commitment(network.rpc_url.clone(), commitment);
                 self.svm_clients.insert(network_id.clone(), client);
             }
+        }
+
+        // Update cache if config changed
+        if self.config.cache.enabled != new_config.cache.enabled
+            || self.config.cache.max_entries != new_config.cache.max_entries
+            || self.config.cache.default_ttl_seconds != new_config.cache.default_ttl_seconds
+        {
+            log::info!("Recreating cache with new configuration");
+            self.cache = Arc::new(RpcCache::new(new_config.cache.clone()));
         }
 
         self.config = new_config;

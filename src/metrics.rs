@@ -1,5 +1,5 @@
 use prometheus::{
-    CounterVec, HistogramOpts, HistogramVec, Opts, Registry, Encoder, TextEncoder
+    CounterVec, GaugeVec, HistogramOpts, HistogramVec, Opts, Registry, Encoder, TextEncoder
 };
 use std::sync::Arc;
 use once_cell::sync::Lazy;
@@ -22,6 +22,12 @@ pub struct PrometheusMetrics {
     pub rpc_request_duration: HistogramVec,
     /// Error count by type
     pub rpc_errors_total: CounterVec,
+    /// Cache hit counter
+    pub cache_hits_total: CounterVec,
+    /// Cache miss counter
+    pub cache_misses_total: CounterVec,
+    /// Current cache size
+    pub cache_size: GaugeVec,
 }
 
 impl PrometheusMetrics {
@@ -55,12 +61,30 @@ impl PrometheusMetrics {
             &["error_type", "method"]
         )?;
 
+        let cache_hits_total = CounterVec::new(
+            Opts::new("solana_mcp_cache_hits_total", "Total cache hits"),
+            &["method"]
+        )?;
+
+        let cache_misses_total = CounterVec::new(
+            Opts::new("solana_mcp_cache_misses_total", "Total cache misses"),
+            &["method"]
+        )?;
+
+        let cache_size = GaugeVec::new(
+            Opts::new("solana_mcp_cache_size", "Current cache size"),
+            &["cache_type"]
+        )?;
+
         // Try to register metrics, but ignore "AlreadyReg" errors for tests
         let _ = METRICS_REGISTRY.register(Box::new(rpc_requests_total.clone()));
         let _ = METRICS_REGISTRY.register(Box::new(rpc_requests_successful.clone()));
         let _ = METRICS_REGISTRY.register(Box::new(rpc_requests_failed.clone()));
         let _ = METRICS_REGISTRY.register(Box::new(rpc_request_duration.clone()));
         let _ = METRICS_REGISTRY.register(Box::new(rpc_errors_total.clone()));
+        let _ = METRICS_REGISTRY.register(Box::new(cache_hits_total.clone()));
+        let _ = METRICS_REGISTRY.register(Box::new(cache_misses_total.clone()));
+        let _ = METRICS_REGISTRY.register(Box::new(cache_size.clone()));
 
         Ok(Self {
             rpc_requests_total,
@@ -68,6 +92,9 @@ impl PrometheusMetrics {
             rpc_requests_failed,
             rpc_request_duration,
             rpc_errors_total,
+            cache_hits_total,
+            cache_misses_total,
+            cache_size,
         })
     }
 
@@ -103,6 +130,27 @@ impl PrometheusMetrics {
         self.rpc_request_duration
             .with_label_values(&[method, network])
             .observe(duration_seconds);
+    }
+
+    /// Record a cache hit
+    pub fn record_cache_hit(&self, method: &str) {
+        self.cache_hits_total
+            .with_label_values(&[method])
+            .inc();
+    }
+
+    /// Record a cache miss
+    pub fn record_cache_miss(&self, method: &str) {
+        self.cache_misses_total
+            .with_label_values(&[method])
+            .inc();
+    }
+
+    /// Update cache size metric
+    pub fn update_cache_size(&self, cache_type: &str, size: usize) {
+        self.cache_size
+            .with_label_values(&[cache_type])
+            .set(size as f64);
     }
 }
 
@@ -146,12 +194,30 @@ impl PrometheusMetrics {
             &["error_type", "method"]
         ).unwrap();
 
+        let cache_hits_total = CounterVec::new(
+            Opts::new("solana_mcp_cache_hits_total_test", "Total cache hits (test)"),
+            &["method"]
+        ).unwrap();
+
+        let cache_misses_total = CounterVec::new(
+            Opts::new("solana_mcp_cache_misses_total_test", "Total cache misses (test)"),
+            &["method"]
+        ).unwrap();
+
+        let cache_size = GaugeVec::new(
+            Opts::new("solana_mcp_cache_size_test", "Current cache size (test)"),
+            &["cache_type"]
+        ).unwrap();
+
         Self {
             rpc_requests_total,
             rpc_requests_successful,
             rpc_requests_failed,
             rpc_request_duration,
             rpc_errors_total,
+            cache_hits_total,
+            cache_misses_total,
+            cache_size,
         }
     }
 }
