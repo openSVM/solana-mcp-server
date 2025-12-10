@@ -25,10 +25,9 @@ pub async fn get_balance_cached(
     let params = serde_json::json!({"pubkey": pubkey.to_string()});
     
     with_cache(cache, method, &params, || {
-        let client = client;
         let pubkey = *pubkey;
         async move {
-            get_balance(&client, &pubkey).await
+            get_balance(client, &pubkey).await
         }
     }).await
 }
@@ -92,10 +91,9 @@ pub async fn get_account_info_cached(
     let params = serde_json::json!({"pubkey": pubkey.to_string()});
     
     with_cache(cache, method, &params, || {
-        let client = client;
         let pubkey = *pubkey;
         async move {
-            get_account_info(&client, &pubkey).await
+            get_account_info(client, &pubkey).await
         }
     }).await
 }

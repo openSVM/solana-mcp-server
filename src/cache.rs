@@ -168,7 +168,13 @@ impl RpcCache {
         // Only enforce size limit for new entries
         if !is_update && self.cache.len() >= self.config.max_entries {
             // Simple eviction: collect first key and remove it
-            // In a production system, you might want LRU or similar
+            // PERFORMANCE NOTE: This uses a basic FIFO eviction strategy (removes first entry)
+            // which is simple and fast but not optimal for cache efficiency.
+            // For production workloads with high cache pressure, consider implementing:
+            // - LRU (Least Recently Used): Better cache hit rates
+            // - LFU (Least Frequently Used): Good for skewed access patterns
+            // - TTL-aware eviction: Evict entries closest to expiration first
+            // Current strategy is adequate for most use cases and avoids performance overhead
             let evict_key = self.cache.iter().next().map(|entry| *entry.key());
             if let Some(k) = evict_key {
                 self.cache.remove(&k);

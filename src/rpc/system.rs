@@ -71,11 +71,8 @@ pub async fn get_version_cached(
     let method = "getVersion";
     let params = serde_json::json!({});
     
-    with_cache(cache, method, &params, || {
-        let client = client;
-        async move {
-            get_version(&client).await
-        }
+    with_cache(cache, method, &params, || async move {
+        get_version(client).await
     }).await
 }
 
