@@ -8,8 +8,22 @@ echo "🚀 Deploying Solana MCP Server Documentation to Netlify..."
 
 # Check if Netlify CLI is installed
 if ! command -v netlify &> /dev/null; then
-    echo "📦 Installing Netlify CLI..."
-    npm install -g netlify-cli
+    echo "⚠️  Netlify CLI not found."
+    echo "Please install it with: npm install -g netlify-cli"
+    echo "Or continue without CLI (requires GitHub integration)"
+    if command -v npm &> /dev/null; then
+        read -p "Install Netlify CLI now? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            npm install -g netlify-cli || { echo "❌ Failed to install Netlify CLI. Please check your npm permissions."; exit 1; }
+        else
+            echo "Aborting deployment. Netlify CLI is required."
+            exit 1
+        fi
+    else
+        echo "❌ npm is not available. Please install Node.js and npm first."
+        exit 1
+    fi
 fi
 
 # Check if Ruby and Bundle are installed

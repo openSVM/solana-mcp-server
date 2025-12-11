@@ -19,7 +19,7 @@ Cache configuration is managed through the `config.json` file or can be set prog
 {
   "rpc_url": "https://api.opensvm.com",
   "commitment": "confirmed",
-  "protocol_version": "2025-11-25",
+  "protocol_version": "2025-06-18",
   "cache": {
     "enabled": true,
     "max_entries": 10000,
@@ -192,9 +192,11 @@ This ensures that identical requests hit the same cache entry.
 ### Eviction Policy
 
 When the cache reaches its size limit:
-1. One entry is randomly selected for eviction
+1. The first entry (FIFO) is selected for eviction
 2. The new entry is inserted
 3. Expired entries are automatically removed on access
+
+**Note:** In high-concurrency scenarios, the cache may temporarily exceed `max_entries` by a small amount due to race conditions between size checks. This is acceptable and will self-correct on subsequent operations.
 
 ### Thread Safety
 

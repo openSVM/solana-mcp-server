@@ -117,6 +117,7 @@ impl ServerState {
         if self.config.cache.enabled != new_config.cache.enabled
             || self.config.cache.max_entries != new_config.cache.max_entries
             || self.config.cache.default_ttl_seconds != new_config.cache.default_ttl_seconds
+            || self.config.cache.method_ttl_overrides != new_config.cache.method_ttl_overrides
         {
             log::info!("Recreating cache with new configuration");
             self.cache = Arc::new(RpcCache::new(new_config.cache.clone()));

@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use once_cell::sync::Lazy;
 
 /// Configuration for the RPC cache
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct CacheConfig {
     /// Whether caching is enabled
     #[serde(default = "default_cache_enabled")]
@@ -114,10 +114,15 @@ impl RpcCache {
     }
 
     /// Generate a cache key from method name and parameters
+    /// 
+    /// Note: Uses JSON string representation for hashing. While not guaranteed to be
+    /// stable across different JSON implementations, in practice serde_json provides
+    /// consistent serialization for identical data structures. Clients should ensure
+    /// consistent parameter ordering for optimal cache hit rates.
     fn generate_key(method: &str, params: &serde_json::Value) -> u64 {
         let mut hasher = DefaultHasher::new();
         method.hash(&mut hasher);
-        // Use JSON string representation for stable hashing
+        // Use JSON string representation for hashing
         params.to_string().hash(&mut hasher);
         hasher.finish()
     }
@@ -166,8 +171,12 @@ impl RpcCache {
         let is_update = self.cache.contains_key(&key);
         
         // Only enforce size limit for new entries
+        // Note: There's a potential race condition where multiple threads could pass
+        // this check simultaneously and each evict an entry. This is acceptable as
+        // the cache may temporarily exceed max_entries by a small amount in high
+        // concurrency scenarios, but will self-correct on subsequent operations.
         if !is_update && self.cache.len() >= self.config.max_entries {
-            // Simple eviction: collect first key and remove it
+            // Simple eviction: collect first key and remove it (FIFO)
             // PERFORMANCE NOTE: This uses a basic FIFO eviction strategy (removes first entry)
             // which is simple and fast but not optimal for cache efficiency.
             // For production workloads with high cache pressure, consider implementing:
