@@ -427,6 +427,7 @@ For comprehensive documentation including architecture, deployment guides, and c
 - [📖 API Reference](./docs/api-reference.md) - Complete method documentation
 - [⚙️ Configuration Guide](./docs/configuration.md) - Configuration options and management
 - [💾 Caching Guide](./docs/caching.md) - RPC response caching configuration and usage
+- [💰 x402 Payment Protocol](./docs/x402-integration.md) - Monetize MCP tool calls (optional)
 
 ## Environment Variables
 
@@ -435,6 +436,8 @@ For comprehensive documentation including architecture, deployment guides, and c
 - `SOLANA_PROTOCOL_VERSION`: (Optional) MCP protocol version. Defaults to latest.
 
 For cache configuration, see `config.json` or the **[Caching Documentation](./docs/caching.md)**.
+
+For x402 payment protocol (optional, feature-gated), see **[x402 Integration Guide](./docs/x402-integration.md)**.
 
 ## Development
 

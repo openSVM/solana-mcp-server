@@ -12,6 +12,7 @@ pub mod config;
 pub mod facilitator;
 pub mod svm_exact;
 pub mod validation;
+pub mod mcp_integration;
 
 pub use types::{
     PaymentRequired, PaymentPayload, PaymentRequirements, ResourceInfo,
@@ -20,3 +21,8 @@ pub use types::{
 pub use config::X402Config;
 pub use facilitator::FacilitatorClient;
 pub use validation::{validate_caip2_network, validate_x402_version};
+pub use mcp_integration::{
+    create_payment_required_response, create_invalid_payment_response,
+    extract_payment_payload, process_payment, build_payment_requirements,
+    PAYMENT_REQUIRED_CODE, INVALID_PAYMENT_CODE,
+};
