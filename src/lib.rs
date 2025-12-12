@@ -12,6 +12,9 @@ pub mod transport;
 pub mod validation;
 pub mod websocket_server;
 
+#[cfg(feature = "x402")]
+pub mod x402;
+
 pub use cache::{with_cache, CacheConfig, RpcCache, GLOBAL_RPC_CACHE};
 pub use config::{Config, SvmNetwork};
 pub use error::{McpError, McpResult};

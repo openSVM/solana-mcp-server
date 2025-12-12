@@ -5,6 +5,9 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, fs};
 
+#[cfg(feature = "x402")]
+use crate::x402::X402Config;
+
 /// Represents a Solana Virtual Machine (SVM) network configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SvmNetwork {
@@ -34,6 +37,10 @@ pub struct Config {
     /// Cache configuration
     #[serde(default)]
     pub cache: CacheConfig,
+    /// x402 payment protocol configuration (feature-gated)
+    #[cfg(feature = "x402")]
+    #[serde(default)]
+    pub x402: X402Config,
 }
 
 /// Timeout configuration for various operations
@@ -113,6 +120,8 @@ impl Config {
                 svm_networks: HashMap::new(),
                 timeouts: TimeoutConfig::default(),
                 cache: CacheConfig::default(),
+                #[cfg(feature = "x402")]
+                x402: X402Config::default(),
             }
         };
 
@@ -148,6 +157,13 @@ impl Config {
                     network_id
                 ));
             }
+        }
+
+        // Validate x402 configuration if enabled
+        #[cfg(feature = "x402")]
+        {
+            self.x402.validate()
+                .context("Invalid x402 configuration")?;
         }
 
         Ok(())
