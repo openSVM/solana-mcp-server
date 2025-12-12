@@ -214,6 +214,522 @@ If payment is invalid, the server returns an Invalid Payment error (code -40201)
 }
 ```
 
+## Use Cases
+
+This section provides 10+ detailed use cases demonstrating how to use x402 payment protocol in various scenarios.
+
+### Use Case 1: Premium Data API Access
+
+**Scenario:** A data provider wants to charge 0.01 USDC per balance check request.
+
+**Setup:**
+```json
+{
+  "x402": {
+    "enabled": true,
+    "facilitator_base_url": "https://facilitator.example.com",
+    "networks": {
+      "solana-mainnet": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "assets": [{
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "name": "USDC",
+          "decimals": 6
+        }],
+        "pay_to": "DataProviderWalletAddress",
+        "min_compute_unit_price": 1000,
+        "max_compute_unit_price": 50000
+      }
+    }
+  }
+}
+```
+
+**Usage:**
+1. Client calls `getBalance` without payment
+2. Server returns Payment Required with amount "10000" (0.01 USDC with 6 decimals)
+3. Client creates signed transaction and includes in `_meta.payment`
+4. Server verifies and settles payment
+5. Server executes getBalance and returns result with settlement receipt
+
+### Use Case 2: Rate-Limited Free Tier with Paid Overflow
+
+**Scenario:** Allow 100 free requests per hour, then require payment for additional requests.
+
+**Implementation Strategy:**
+- Track request counts per client (not implemented in current version)
+- After limit exceeded, return Payment Required error
+- Configure small payment amount (e.g., 0.001 USDC per request)
+
+**Configuration:**
+```json
+{
+  "x402": {
+    "enabled": true,
+    "networks": {
+      "solana-mainnet": {
+        "assets": [{
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "name": "USDC",
+          "decimals": 6
+        }],
+        "pay_to": "ServiceProviderAddress"
+      }
+    }
+  }
+}
+```
+
+**Payment Required Response:**
+```json
+{
+  "error": {
+    "code": -40200,
+    "data": {
+      "x402Version": 2,
+      "error": "Rate limit exceeded. Payment required for additional requests.",
+      "resource": {
+        "url": "mcp://tool/getBalance"
+      },
+      "accepts": [{
+        "scheme": "exact",
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "amount": "1000",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "payTo": "ServiceProviderAddress",
+        "maxTimeoutSeconds": 60
+      }]
+    }
+  }
+}
+```
+
+### Use Case 3: Multi-Network Support
+
+**Scenario:** Support payments on both Solana mainnet and devnet for testing.
+
+**Configuration:**
+```json
+{
+  "x402": {
+    "enabled": true,
+    "facilitator_base_url": "https://facilitator.example.com",
+    "networks": {
+      "solana-mainnet": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "assets": [{
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "name": "USDC",
+          "decimals": 6
+        }],
+        "pay_to": "MainnetRecipient",
+        "min_compute_unit_price": 1000,
+        "max_compute_unit_price": 100000
+      },
+      "solana-devnet": {
+        "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        "assets": [{
+          "address": "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr",
+          "name": "DevUSDC",
+          "decimals": 6
+        }],
+        "pay_to": "DevnetRecipient",
+        "min_compute_unit_price": 100,
+        "max_compute_unit_price": 10000
+      }
+    }
+  }
+}
+```
+
+**Usage:**
+- Clients can choose which network to pay on
+- Devnet for testing with lower compute unit prices
+- Mainnet for production with real tokens
+
+### Use Case 4: Multiple Token Support
+
+**Scenario:** Accept payments in USDC, USDT, or SOL (wrapped).
+
+**Configuration:**
+```json
+{
+  "x402": {
+    "networks": {
+      "solana-mainnet": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "assets": [
+          {
+            "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "name": "USDC",
+            "decimals": 6
+          },
+          {
+            "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+            "name": "USDT",
+            "decimals": 6
+          },
+          {
+            "address": "So11111111111111111111111111111111111111112",
+            "name": "Wrapped SOL",
+            "decimals": 9
+          }
+        ],
+        "pay_to": "MultiTokenRecipient"
+      }
+    }
+  }
+}
+```
+
+**Payment Required Response:**
+Server returns all accepted payment methods, client chooses one:
+```json
+{
+  "accepts": [
+    {
+      "scheme": "exact",
+      "amount": "10000",
+      "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "extra": {"name": "USDC"}
+    },
+    {
+      "scheme": "exact",
+      "amount": "10000",
+      "asset": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      "extra": {"name": "USDT"}
+    },
+    {
+      "scheme": "exact",
+      "amount": "100000000",
+      "asset": "So11111111111111111111111111111111111111112",
+      "extra": {"name": "Wrapped SOL"}
+    }
+  ]
+}
+```
+
+### Use Case 5: Tiered Pricing by Tool
+
+**Scenario:** Different tools have different prices.
+
+**Strategy:**
+- Configure base payment amounts per tool (implementation-dependent)
+- Return appropriate amount in Payment Required response
+
+**Example Pricing:**
+- `getBalance`: 0.001 USDC (1000 units)
+- `getTransaction`: 0.005 USDC (5000 units)
+- `getProgramAccounts`: 0.01 USDC (10000 units)
+
+**Payment Required for Expensive Operation:**
+```json
+{
+  "error": {
+    "code": -40200,
+    "data": {
+      "x402Version": 2,
+      "error": "Payment required for getProgramAccounts",
+      "resource": {
+        "url": "mcp://tool/getProgramAccounts",
+        "description": "Expensive operation requiring 0.01 USDC"
+      },
+      "accepts": [{
+        "scheme": "exact",
+        "amount": "10000",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "payTo": "ProviderAddress",
+        "maxTimeoutSeconds": 60
+      }]
+    }
+  }
+}
+```
+
+### Use Case 6: Testing with Mock Facilitator
+
+**Scenario:** Test payment integration without real blockchain transactions.
+
+**Setup Mock Facilitator:**
+```bash
+# Run local mock facilitator for testing
+npm install -g @x402/mock-facilitator
+x402-mock-facilitator --port 3001
+```
+
+**Configuration:**
+```json
+{
+  "x402": {
+    "enabled": true,
+    "facilitator_base_url": "http://localhost:3001",
+    "request_timeout_seconds": 10,
+    "max_retries": 1,
+    "networks": {
+      "solana-devnet": {
+        "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        "assets": [{
+          "address": "TestTokenMint",
+          "name": "TestUSDC",
+          "decimals": 6
+        }],
+        "pay_to": "TestRecipient"
+      }
+    }
+  }
+}
+```
+
+**Testing Flow:**
+1. Mock facilitator always returns `isValid: true` for /verify
+2. Mock facilitator returns mock transaction hash for /settle
+3. Test payment flow without actual blockchain interaction
+4. Verify error handling and retry logic
+
+### Use Case 7: Handling Payment Verification Failures
+
+**Scenario:** Client submits payment but verification fails.
+
+**Common Failure Reasons:**
+1. Insufficient balance
+2. Invalid signature
+3. Expired authorization
+4. Amount mismatch
+
+**Example Invalid Payment Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -40201,
+    "message": "Invalid payment: insufficient balance"
+  }
+}
+```
+
+**Client Recovery Strategy:**
+1. Check wallet balance
+2. Ensure sufficient funds for payment + gas
+3. Generate new payment authorization
+4. Retry request with updated payment
+
+### Use Case 8: Compute Unit Price Bounds for Gas Abuse Prevention
+
+**Scenario:** Prevent clients from submitting transactions with excessive compute unit prices.
+
+**Configuration:**
+```json
+{
+  "x402": {
+    "networks": {
+      "solana-mainnet": {
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "assets": [{
+          "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          "name": "USDC",
+          "decimals": 6
+        }],
+        "pay_to": "RecipientAddress",
+        "min_compute_unit_price": 1000,
+        "max_compute_unit_price": 50000
+      }
+    }
+  }
+}
+```
+
+**Validation:**
+- Server validates compute unit price is within [1000, 50000] microlamports
+- Rejects transactions with prices outside bounds
+- Returns Invalid Payment error with reason
+
+**Example Rejection:**
+```json
+{
+  "error": {
+    "code": -40201,
+    "message": "Invalid payment: Compute unit price 100000 out of bounds [1000, 50000]"
+  }
+}
+```
+
+### Use Case 9: Monitoring Payment Flow with Trace IDs
+
+**Scenario:** Track payment requests across verification, settlement, and tool execution.
+
+**How It Works:**
+- Each payment request gets a unique UUID trace ID
+- Trace ID logged at all stages: verify, settle, execute
+- Use trace ID to correlate logs across services
+
+**Example Log Output:**
+```
+INFO [trace_id=550e8400-e29b-41d4-a716-446655440000] Verifying payment authorization
+INFO [trace_id=550e8400-e29b-41d4-a716-446655440000] Payment verified successfully
+INFO [trace_id=550e8400-e29b-41d4-a716-446655440000] Settling payment
+INFO [trace_id=550e8400-e29b-41d4-a716-446655440000] Payment settled: tx=5vR...abc
+INFO [trace_id=550e8400-e29b-41d4-a716-446655440000] Executing tool: getBalance
+```
+
+**Usage:**
+```bash
+# Filter logs by trace ID
+grep "550e8400-e29b-41d4-a716-446655440000" server.log
+
+# Track payment flow end-to-end
+# Useful for debugging failed payments
+```
+
+### Use Case 10: Retry Logic for Transient Failures
+
+**Scenario:** Facilitator temporarily unavailable or network issues.
+
+**Configuration:**
+```json
+{
+  "x402": {
+    "facilitator_base_url": "https://facilitator.example.com",
+    "request_timeout_seconds": 30,
+    "max_retries": 3
+  }
+}
+```
+
+**How It Works:**
+1. First request fails (network timeout)
+2. Wait 100ms + random jitter
+3. Retry request
+4. If fails again, wait 200ms + jitter
+5. Retry request
+6. If fails again, wait 400ms + jitter
+7. Final retry
+8. If all retries exhausted, return error to client
+
+**Retry Timing:**
+- Retry 1: 100ms + random(0-100ms)
+- Retry 2: 200ms + random(0-100ms)
+- Retry 3: 400ms + random(0-100ms)
+
+**Example Error After Exhausted Retries:**
+```json
+{
+  "error": {
+    "code": -32603,
+    "message": "Facilitator request failed after 3 attempts"
+  }
+}
+```
+
+### Use Case 11: Migration from Free to Paid API
+
+**Scenario:** Gradually introduce payments without breaking existing clients.
+
+**Phase 1 - Preparation:**
+```json
+{
+  "x402": {
+    "enabled": false  // Feature disabled, prepare infrastructure
+  }
+}
+```
+
+**Phase 2 - Testing:**
+```json
+{
+  "x402": {
+    "enabled": true,
+    "facilitator_base_url": "https://staging-facilitator.example.com"
+    // Test with staging facilitator
+  }
+}
+```
+
+**Phase 3 - Production:**
+```json
+{
+  "x402": {
+    "enabled": true,
+    "facilitator_base_url": "https://facilitator.example.com"
+    // Switch to production facilitator
+  }
+}
+```
+
+**Communication Strategy:**
+- Announce payment requirement with 30-day notice
+- Provide documentation and examples
+- Offer free tier or credits for transition period
+
+### Use Case 12: Handling Settlement Failures
+
+**Scenario:** Payment verification succeeds but settlement fails.
+
+**Possible Causes:**
+1. Network congestion
+2. Transaction simulation fails
+3. Blockchain state changed between verify and settle
+
+**Example Settlement Failure Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32603,
+    "message": "Payment settlement failed: transaction simulation failed"
+  }
+}
+```
+
+**Client Recovery:**
+1. Check blockchain state
+2. Verify account balances unchanged
+3. Generate new payment authorization
+4. Retry entire payment flow
+
+**Server Behavior:**
+- Log settlement failure with trace ID
+- Do NOT execute paid operation
+- Return error to client immediately
+- No partial charges
+
+### Use Case 13: Webhook Integration for Payment Events
+
+**Scenario:** Notify external systems when payments are received.
+
+**Note:** Webhook support not in current implementation, but shows integration pattern.
+
+**Future Configuration:**
+```json
+{
+  "x402": {
+    "webhooks": {
+      "payment_verified": "https://your-system.com/webhooks/payment-verified",
+      "payment_settled": "https://your-system.com/webhooks/payment-settled",
+      "payment_failed": "https://your-system.com/webhooks/payment-failed"
+    }
+  }
+}
+```
+
+**Webhook Payload Example:**
+```json
+{
+  "event": "payment_settled",
+  "timestamp": "2025-12-12T15:00:00Z",
+  "trace_id": "550e8400-e29b-41d4-a716-446655440000",
+  "payment": {
+    "amount": "10000",
+    "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "payer": "ClientWalletAddress",
+    "transaction": "5vR...abc",
+    "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+  },
+  "tool": "getBalance"
+}
+```
+
 ## Facilitator Endpoints
 
 The facilitator service must implement these HTTP endpoints:
