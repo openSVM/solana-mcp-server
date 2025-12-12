@@ -40,7 +40,7 @@ pub fn create_payment_required_response(
         code: PAYMENT_REQUIRED_CODE,
         message: payment_required.error.clone()
             .unwrap_or_else(|| "Payment required".to_string()),
-        data: Some(serde_json::to_value(payment_required).unwrap()),
+        data: serde_json::to_value(payment_required).ok(),
     };
 
     JsonRpcMessage::Response(JsonRpcResponse {

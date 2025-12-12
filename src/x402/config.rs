@@ -222,8 +222,10 @@ mod tests {
 
     #[test]
     fn test_enabled_config_requires_facilitator_url() {
-        let mut config = X402Config::default();
-        config.enabled = true;
+        let config = X402Config {
+            enabled: true,
+            ..X402Config::default()
+        };
         assert!(config.validate().is_err());
     }
 
