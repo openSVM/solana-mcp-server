@@ -100,7 +100,7 @@ pub fn validate_timeout(timeout_seconds: u64) -> McpResult<()> {
     const MIN_TIMEOUT: u64 = 1;
     const MAX_TIMEOUT: u64 = 300; // 5 minutes max
     
-    if timeout_seconds < MIN_TIMEOUT || timeout_seconds > MAX_TIMEOUT {
+    if !(MIN_TIMEOUT..=MAX_TIMEOUT).contains(&timeout_seconds) {
         return Err(McpError::validation(format!(
             "Invalid timeout {}. Must be between {} and {} seconds",
             timeout_seconds, MIN_TIMEOUT, MAX_TIMEOUT
