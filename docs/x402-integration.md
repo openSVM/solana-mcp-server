@@ -9,6 +9,354 @@ The x402 v2 payment protocol enables monetization of MCP tool calls and resource
 The implementation follows the canonical x402 v2 specification:
 https://github.com/coinbase/x402/blob/ce5085245c55c1a76416e445403cc3e10169b2e4/specs/x402-specification-v2.md
 
+## Web3 Developer Onboarding
+
+This section helps Web3 developers understand how x402 integrates blockchain payments with MCP (Model Context Protocol).
+
+### What is x402?
+
+**x402** is a protocol for monetizing API access using blockchain payments. Think of it as "HTTP 402 Payment Required" but for Web3:
+
+- **Traditional Web2**: HTTP 402 status code (rarely used) - client needs to pay via credit card/PayPal
+- **Web3 x402**: Client pays with crypto (USDC, SOL, etc.) via blockchain transactions
+- **Verification**: Payment is verified on-chain before the API executes the request
+
+### Key Concepts for Web3 Developers
+
+#### 1. **CAIP-2 Network Identifiers**
+
+CAIP-2 is a standard for identifying blockchain networks in a human-readable format:
+
+```
+<namespace>:<reference>
+```
+
+**Examples:**
+- Solana Mainnet: `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`
+- Solana Devnet: `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1`
+- Ethereum Mainnet: `eip155:1`
+- Polygon: `eip155:137`
+
+**Why it matters:** Your server can support multiple chains, and clients specify which chain they're paying on.
+
+#### 2. **SPL Token Payments (Solana)**
+
+On Solana, payments use SPL tokens (like USDC):
+
+- **Token Mint Address**: The on-chain program that controls the token (e.g., USDC: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`)
+- **Token Account**: Each wallet has an Associated Token Account (ATA) for each token type
+- **Transfer**: Payment moves tokens from payer's ATA to your ATA
+
+**Decimals Matter:**
+- USDC has 6 decimals: `1000000` units = 1 USDC
+- SOL has 9 decimals: `1000000000` lamports = 1 SOL
+- Always specify amounts in the smallest unit (like wei in Ethereum)
+
+#### 3. **Compute Units and Gas**
+
+Solana uses **Compute Units** instead of gas:
+
+- **Compute Unit Limit**: Max compute budget for the transaction (like gas limit)
+- **Compute Unit Price**: Price per compute unit in microlamports (like gas price)
+- **Total Fee**: `compute_units_used × compute_unit_price` microlamports
+
+**Why this matters for x402:**
+- Prevents clients from setting extremely high prices (gas griefing)
+- You configure min/max compute unit price bounds
+- Example: `min: 1000, max: 50000` microlamports per CU
+
+#### 4. **The Facilitator Service**
+
+The facilitator is a trusted service that:
+
+1. **Verifies** payment authorizations (simulates transaction without broadcasting)
+2. **Settles** payments (broadcasts transaction to blockchain)
+3. **Returns** transaction signatures and settlement receipts
+
+**Why use a facilitator?**
+- Your API server doesn't need to manage private keys
+- Facilitator handles transaction complexity
+- Separates payment logic from business logic
+- Can batch multiple payments for efficiency
+
+**Facilitator Endpoints:**
+- `POST /verify` - Check if payment is valid (no blockchain interaction)
+- `POST /settle` - Execute payment on blockchain
+- `GET /supported` - List supported networks and payment schemes
+
+#### 5. **Payment Flow for Web3 Developers**
+
+**Step 1: Client Request (No Payment)**
+```javascript
+// Client makes request without payment
+const response = await fetch('https://api.example.com/mcp', {
+  method: 'POST',
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tools/call',
+    params: {
+      name: 'getBalance',
+      arguments: { pubkey: 'Gh9Z...' }
+    }
+  })
+});
+```
+
+**Step 2: Server Returns Payment Required**
+```json
+{
+  "error": {
+    "code": -40200,
+    "message": "Payment required",
+    "data": {
+      "x402Version": 2,
+      "accepts": [{
+        "scheme": "exact",
+        "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        "amount": "10000",
+        "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "payTo": "FeeRecipient...",
+        "maxTimeoutSeconds": 60
+      }]
+    }
+  }
+}
+```
+
+**Step 3: Client Creates Payment Transaction**
+```javascript
+// Using @solana/web3.js
+import { Connection, Transaction, SystemProgram } from '@solana/web3.js';
+import { createTransferCheckedInstruction } from '@solana/spl-token';
+
+// 1. Create transaction with required instructions
+const transaction = new Transaction();
+
+// Add compute budget instructions
+transaction.add(
+  ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
+  ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 5000 })
+);
+
+// Add token transfer instruction
+transaction.add(
+  createTransferCheckedInstruction(
+    sourceATA,      // Your token account
+    tokenMint,      // USDC mint
+    destATA,        // Server's token account
+    wallet.publicKey, // Your wallet
+    10000,          // Amount (0.01 USDC)
+    6               // Decimals
+  )
+);
+
+// 2. Sign transaction
+transaction.feePayer = wallet.publicKey;
+transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+await wallet.signTransaction(transaction);
+
+// 3. Serialize transaction
+const serializedTx = transaction.serialize().toString('base64');
+```
+
+**Step 4: Client Retries with Payment**
+```javascript
+const retryResponse = await fetch('https://api.example.com/mcp', {
+  method: 'POST',
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'tools/call',
+    params: {
+      name: 'getBalance',
+      arguments: { pubkey: 'Gh9Z...' },
+      _meta: {
+        payment: {
+          x402Version: 2,
+          accepted: {
+            scheme: 'exact',
+            network: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            amount: '10000',
+            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+            payTo: 'FeeRecipient...',
+            maxTimeoutSeconds: 60
+          },
+          payload: {
+            transaction: serializedTx,
+            signature: transaction.signatures[0].signature.toString('base64')
+          }
+        }
+      }
+    }
+  })
+});
+```
+
+**Step 5: Server Verifies and Settles**
+- Server sends payment to facilitator `/verify` endpoint
+- Facilitator simulates transaction (checks balance, signature, etc.)
+- If valid, facilitator broadcasts to blockchain via `/settle`
+- Server executes the paid operation
+- Returns result with settlement receipt
+
+#### 6. **Security Considerations for Web3**
+
+**Transaction Validation:**
+- ✅ Signature verification: Proves the wallet owner authorized payment
+- ✅ Amount validation: Ensures payment matches requirements exactly
+- ✅ Destination validation: Confirms payment goes to correct address
+- ✅ Timeout validation: Prevents replay attacks with old transactions
+- ✅ Compute unit bounds: Prevents excessive gas price attacks
+
+**Fee Payer Rules:**
+- The facilitator pays blockchain fees (gas)
+- Facilitator's wallet must NOT be the source of payment tokens
+- This prevents the facilitator from paying itself
+- Enforced in SVM exact scheme validation
+
+**Replay Protection:**
+- Use `maxTimeoutSeconds` to limit transaction validity
+- Recent blockhash ensures transaction is current
+- Signature is unique per transaction
+
+#### 7. **Common Web3 Integration Patterns**
+
+**Pattern 1: Wallet Integration**
+```javascript
+// Using Phantom wallet (Solana)
+const connectWallet = async () => {
+  if (window.solana) {
+    await window.solana.connect();
+    return window.solana;
+  }
+  throw new Error('Phantom wallet not installed');
+};
+```
+
+**Pattern 2: Multi-Wallet Support**
+```javascript
+// Support multiple wallets
+const wallets = {
+  phantom: window.solana,
+  solflare: window.solflare,
+  // etc.
+};
+```
+
+**Pattern 3: Token Account Creation**
+```javascript
+// Create ATA if it doesn't exist
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
+
+const ata = await getAssociatedTokenAddress(mint, owner);
+const ataInfo = await connection.getAccountInfo(ata);
+
+if (!ataInfo) {
+  // Add ATA creation instruction before transfer
+  transaction.add(
+    createAssociatedTokenAccountInstruction(
+      payer, ata, owner, mint
+    )
+  );
+}
+```
+
+**Pattern 4: Transaction Status Monitoring**
+```javascript
+// Monitor transaction confirmation
+const signature = await connection.sendRawTransaction(transaction.serialize());
+await connection.confirmTransaction(signature, 'confirmed');
+
+// Check if transaction succeeded
+const status = await connection.getSignatureStatus(signature);
+if (status.value?.confirmationStatus === 'confirmed') {
+  console.log('Payment confirmed!');
+}
+```
+
+#### 8. **Testing Your Integration**
+
+**Local Development:**
+```bash
+# 1. Use Solana devnet
+# 2. Get devnet SOL from faucet
+solana airdrop 2 <your-wallet-address> --url devnet
+
+# 3. Use devnet USDC or create test token
+# 4. Configure server for devnet:
+{
+  "x402": {
+    "networks": {
+      "solana-devnet": {
+        "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+        ...
+      }
+    }
+  }
+}
+```
+
+**Mock Facilitator:**
+```javascript
+// For testing without blockchain
+// Mock facilitator always returns success
+const mockFacilitator = {
+  verify: () => ({ isValid: true, payer: 'MockWallet' }),
+  settle: () => ({ 
+    success: true, 
+    transaction: 'MockTxHash',
+    network: 'solana:devnet'
+  })
+};
+```
+
+#### 9. **Debugging Payment Issues**
+
+**Common Issues:**
+
+1. **"Insufficient funds"**
+   - Check wallet balance: `solana balance <address>`
+   - Ensure enough tokens + SOL for fees
+
+2. **"Invalid signature"**
+   - Verify wallet signed the transaction
+   - Check transaction serialization is correct
+
+3. **"Timeout exceeded"**
+   - Transaction took too long to create
+   - Generate fresh recent blockhash
+   - Reduce `maxTimeoutSeconds` if too long
+
+4. **"Compute unit price out of bounds"**
+   - Check server's min/max compute unit price settings
+   - Adjust your transaction's compute unit price
+
+5. **"Settlement failed"**
+   - Check blockchain explorer for transaction
+   - Verify facilitator has SOL for fees
+   - Ensure ATA exists for destination
+
+**Useful Tools:**
+- Solana Explorer: https://explorer.solana.com/
+- Solscan: https://solscan.io/
+- Web3.js Console: `node` REPL with @solana/web3.js
+
+#### 10. **Production Checklist**
+
+Before going to production:
+
+- [ ] Test on devnet with real transactions
+- [ ] Configure mainnet network IDs correctly
+- [ ] Set appropriate compute unit price bounds
+- [ ] Implement proper error handling in client
+- [ ] Add transaction confirmation waiting
+- [ ] Set up monitoring/alerting for failed payments
+- [ ] Document pricing for users
+- [ ] Test with multiple wallets (Phantom, Solflare, etc.)
+- [ ] Implement graceful fallback for payment failures
+- [ ] Consider offering free tier or trial credits
+
 ## Enabling x402
 
 ### 1. Build with x402 Feature
