@@ -1,0 +1,138 @@
+# Netlify Configuration for Solana MCP Server
+# This configuration deploys the Jekyll documentation site and provides
+# serverless function support for the MCP server API
+
+[build]
+  # Build command for Jekyll site
+  command = "bundle install && bundle exec jekyll build"
+  
+  # Output directory for built site
+  publish = "_site"
+  
+  # Environment variables for build
+  [build.environment]
+    RUBY_VERSION = "3.2.0"
+    JEKYLL_ENV = "production"
+
+# Build settings
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.images]
+  compress = true
+
+# Headers for security and caching
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net;"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, must-revalidate"
+
+# Redirects for clean URLs
+[[redirects]]
+  from = "/docs"
+  to = "/docs/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/api"
+  to = "/docs/api-reference/"
+  status = 301
+
+[[redirects]]
+  from = "/deployment"
+  to = "/docs/deployment/"
+  status = 301
+
+[[redirects]]
+  from = "/config"
+  to = "/docs/configuration/"
+  status = 301
+
+[[redirects]]
+  from = "/examples"
+  to = "/docs/examples/"
+  status = 301
+
+# Redirect for GitHub Pages compatibility
+[[redirects]]
+  from = "/solana-mcp-server/*"
+  to = "/:splat"
+  status = 301
+  force = false
+
+# 404 page
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
+
+# Plugin configuration
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+  
+  [plugins.inputs]
+    # Performance audits
+    output_path = "reports/lighthouse.html"
+
+# Context-specific settings
+[context.production]
+  command = "bundle install && bundle exec jekyll build"
+  
+  [context.production.environment]
+    JEKYLL_ENV = "production"
+
+[context.deploy-preview]
+  command = "bundle install && bundle exec jekyll build --drafts --future"
+
+[context.branch-deploy]
+  command = "bundle install && bundle exec jekyll build --drafts --future"
+
+# Functions configuration (for future serverless API support)
+[functions]
+  directory = "netlify/functions"
+  
+  # Node.js runtime version
+  node_bundler = "esbuild"
+
+# Dev server configuration
+[dev]
+  command = "bundle exec jekyll serve --livereload --drafts"
+  framework = "#custom"
+  targetPort = 4000
+  publish = "_site"

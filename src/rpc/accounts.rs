@@ -1,3 +1,4 @@
+use crate::cache::with_cache;
 use crate::error::{McpError, McpResult};
 use crate::logging::{log_rpc_request_start, log_rpc_request_success, log_rpc_request_failure, new_request_id};
 use serde_json::Value;
@@ -11,7 +12,25 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     pubkey::Pubkey,
 };
+use std::sync::Arc;
 use std::time::Instant;
+
+/// Get account balance for a given public key with caching support
+pub async fn get_balance_cached(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+    cache: &Arc<crate::cache::RpcCache>,
+) -> McpResult<Value> {
+    let method = "getBalance";
+    let params = serde_json::json!({"pubkey": pubkey.to_string()});
+    
+    with_cache(cache, method, &params, || {
+        let pubkey = *pubkey;
+        async move {
+            get_balance(client, &pubkey).await
+        }
+    }).await
+}
 
 /// Get account balance for a given public key
 pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value> {
@@ -60,6 +79,23 @@ pub async fn get_balance(client: &RpcClient, pubkey: &Pubkey) -> McpResult<Value
             Err(error)
         }
     }
+}
+
+/// Get account information for a given public key with caching support
+pub async fn get_account_info_cached(
+    client: &RpcClient,
+    pubkey: &Pubkey,
+    cache: &Arc<crate::cache::RpcCache>,
+) -> McpResult<Value> {
+    let method = "getAccountInfo";
+    let params = serde_json::json!({"pubkey": pubkey.to_string()});
+    
+    with_cache(cache, method, &params, || {
+        let pubkey = *pubkey;
+        async move {
+            get_account_info(client, &pubkey).await
+        }
+    }).await
 }
 
 /// Get account information for a given public key

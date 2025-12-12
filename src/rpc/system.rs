@@ -1,3 +1,4 @@
+use crate::cache::with_cache;
 use crate::error::{McpError, McpResult};
 use crate::logging::{log_rpc_request_start, log_rpc_request_success, log_rpc_request_failure, new_request_id};
 use serde_json::Value;
@@ -10,6 +11,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     message::Message,
 };
+use std::sync::Arc;
 use std::time::Instant;
 
 /// Get node health status
@@ -59,6 +61,19 @@ pub async fn get_health(client: &RpcClient) -> McpResult<Value> {
             Err(error)
         }
     }
+}
+
+/// Get node version information with caching support
+pub async fn get_version_cached(
+    client: &RpcClient,
+    cache: &Arc<crate::cache::RpcCache>,
+) -> McpResult<Value> {
+    let method = "getVersion";
+    let params = serde_json::json!({});
+    
+    with_cache(cache, method, &params, || async move {
+        get_version(client).await
+    }).await
 }
 
 /// Get node version information

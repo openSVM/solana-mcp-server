@@ -1,3 +1,4 @@
+use crate::cache::CacheConfig;
 use crate::protocol::LATEST_PROTOCOL_VERSION;
 use crate::validation::{validate_commitment, validate_rpc_url};
 use anyhow::{Context, Result};
@@ -30,6 +31,9 @@ pub struct Config {
     /// Timeout configurations
     #[serde(default)]
     pub timeouts: TimeoutConfig,
+    /// Cache configuration
+    #[serde(default)]
+    pub cache: CacheConfig,
 }
 
 /// Timeout configuration for various operations
@@ -108,6 +112,7 @@ impl Config {
                 protocol_version,
                 svm_networks: HashMap::new(),
                 timeouts: TimeoutConfig::default(),
+                cache: CacheConfig::default(),
             }
         };
 

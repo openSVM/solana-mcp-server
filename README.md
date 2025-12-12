@@ -110,9 +110,14 @@ Then configure Claude Desktop with the path to `target/release/solana-mcp-server
 
 # Vercel Edge Functions
 ./scripts/deploy-vercel.sh
+
+# Netlify (Documentation Site)
+./scripts/deploy-netlify.sh
 ```
 
 See [`scripts/README.md`](scripts/README.md) for detailed usage and requirements for each deployment option.
+
+📚 **[Netlify Deployment Guide](./docs/netlify-deployment.md)** - Complete guide for deploying documentation to Netlify
 
 ## ⚡ Autoscaling and Monitoring
 
@@ -124,6 +129,19 @@ The Solana MCP Server supports dynamic scaling to handle variable load efficient
 - **Docker scaling** guidelines and automation scripts
 - **Health checks** at `/health` endpoint
 - **MCP JSON-RPC API** for web service integration
+- **Automated RPC caching** with configurable TTL for improved performance
+
+### RPC Caching
+
+The server includes an intelligent caching layer for RPC responses to reduce latency and improve performance:
+
+- **TTL-based caching**: Configurable time-to-live per method
+- **Method-specific TTLs**: Different cache durations for different data types
+- **Prometheus metrics**: Track cache hit/miss rates
+- **Thread-safe**: Concurrent access using DashMap
+- **Size limits**: Automatic eviction when capacity is reached
+
+See **[Caching Documentation](./docs/caching.md)** for configuration and usage details.
 
 ### Web Service API
 
@@ -148,6 +166,9 @@ solana-mcp-server web --port 3000
 - `solana_mcp_rpc_requests_total` - Total RPC requests by method and network
 - `solana_mcp_rpc_request_duration_seconds` - Request latency histogram
 - `solana_mcp_rpc_requests_failed_total` - Failed requests by error type
+- `solana_mcp_cache_hits_total` - Cache hits by method
+- `solana_mcp_cache_misses_total` - Cache misses by method
+- `solana_mcp_cache_size` - Current cache size
 - Standard resource metrics (CPU, memory)
 
 ### Quick Start with Autoscaling
@@ -405,12 +426,15 @@ For comprehensive documentation including architecture, deployment guides, and c
 - [🚀 Deployment Guide](./docs/deployment.md) - Local, serverless, and endpoint deployment
 - [📖 API Reference](./docs/api-reference.md) - Complete method documentation
 - [⚙️ Configuration Guide](./docs/configuration.md) - Configuration options and management
+- [💾 Caching Guide](./docs/caching.md) - RPC response caching configuration and usage
 
 ## Environment Variables
 
 - `SOLANA_RPC_URL`: (Optional) The Solana RPC endpoint to use. Defaults to "https://api.mainnet-beta.solana.com" if not specified.
 - `SOLANA_COMMITMENT`: (Optional) Commitment level (processed|confirmed|finalized). Defaults to "confirmed".
 - `SOLANA_PROTOCOL_VERSION`: (Optional) MCP protocol version. Defaults to latest.
+
+For cache configuration, see `config.json` or the **[Caching Documentation](./docs/caching.md)**.
 
 ## Development
 

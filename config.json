@@ -1,5 +1,32 @@
 {
   "rpc_url": "https://api.opensvm.com",
   "commitment": "confirmed",
-  "protocol_version": "2025-06-18"
+  "protocol_version": "2025-06-18",
+  "svm_networks": {},
+  "timeouts": {
+    "http_request_seconds": 30,
+    "websocket_connection_seconds": 30,
+    "websocket_message_seconds": 10,
+    "subscription_seconds": 15,
+    "max_idle_seconds": 300
+  },
+  "cache": {
+    "enabled": true,
+    "max_entries": 10000,
+    "default_ttl_seconds": 30,
+    "method_ttl_overrides": {
+      "getBlock": 300,
+      "getBlockTime": 300,
+      "getBlockHeight": 5,
+      "getAccountInfo": 10,
+      "getBalance": 10,
+      "getMultipleAccounts": 10,
+      "getTokenAccountBalance": 30,
+      "getTokenSupply": 60,
+      "getGenesisHash": 3600,
+      "getVersion": 600,
+      "getEpochSchedule": 3600,
+      "getSlot": 2
+    }
+  }
 }

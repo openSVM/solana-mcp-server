@@ -67,6 +67,14 @@ This directory contains one-liner deployment scripts for the Solana MCP Server a
 - Deploys to Vercel Edge runtime
 - Requires: Vercel CLI, Node.js
 
+### Netlify (Documentation Site)
+```bash
+./scripts/deploy-netlify.sh
+```
+- Builds Jekyll documentation site
+- Deploys to Netlify CDN
+- Requires: Ruby, Bundler, Netlify CLI (optional)
+
 ## Prerequisites by Platform
 
 | Platform | Requirements |
@@ -78,6 +86,7 @@ This directory contains one-liner deployment scripts for the Solana MCP Server a
 | AWS Lambda | AWS CLI, cargo-lambda, AWS credentials |
 | Google Cloud | gcloud CLI, GCP credentials |
 | Vercel | Vercel CLI, Node.js |
+| Netlify | Ruby, Bundler, Netlify CLI (optional) |
 
 ## Environment Variables
 
