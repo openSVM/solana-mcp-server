@@ -144,50 +144,50 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
   </div>
 </section>
 
-<section style="margin: 4rem 0; padding: 3rem; background-color: var(--bg-tertiary); border: 2px solid var(--border-primary);">
-  <h2 style="text-align: center; margin-bottom: 2rem; font-size: 1.5rem;">🎯 Usage Examples</h2>
+<section class="usage-examples-section">
+  <h2>🎯 Usage Examples</h2>
   
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+  <div class="usage-examples-grid">
     <div>
-      <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">💰 Basic Queries</h3>
-      <ul style="list-style-type: none; padding: 0;">
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+      <h3>💰 Basic Queries</h3>
+      <ul>
+        <li>
           "What's the SOL balance of address Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr?"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+        <li>
           "Show me the current slot number"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+        <li>
           "Get information about the latest block"
         </li>
       </ul>
     </div>
     
     <div>
-      <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">🌐 Multi-Network</h3>
-      <ul style="list-style-type: none; padding: 0;">
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+      <h3>🌐 Multi-Network</h3>
+      <ul>
+        <li>
           "List all available SVM networks"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+        <li>
           "Enable Eclipse mainnet for queries"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+        <li>
           "Check SOL balance on all enabled networks"
         </li>
       </ul>
     </div>
     
     <div>
-      <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">🔧 Advanced Operations</h3>
-      <ul style="list-style-type: none; padding: 0;">
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+      <h3>🔧 Advanced Operations</h3>
+      <ul>
+        <li>
           "Show me the largest USDC token accounts"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+        <li>
           "Get the leader schedule for the current epoch"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
+        <li>
           "Check block production stats for a validator"
         </li>
       </ul>
@@ -195,9 +195,9 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
   </div>
 </section>
 
-<section style="text-align: center; margin: 4rem 0;">
-  <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem;">🔗 Links & Resources</h2>
-  <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+<section class="links-section">
+  <h2>🔗 Links & Resources</h2>
+  <div class="links-grid">
     <a href="{{ site.github.repository_url }}" class="btn" target="_blank" rel="noopener noreferrer">
       GitHub Repository
     </a>

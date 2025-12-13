@@ -38,16 +38,16 @@
 [data-theme="terminal"] {
     --bg-primary: #000000;
     --bg-secondary: #0a0a0a;
-    --bg-tertiary: #121212;
-    --text-primary: #00ff00;
-    --text-secondary: #00cc00;
-    --text-muted: #008800;
-    --border-primary: #00ff00;
+    --bg-tertiary: #1a1a1a;
+    --text-primary: #00ff41;
+    --text-secondary: #00cc33;
+    --text-muted: #00aa2a;
+    --border-primary: #00ff41;
     --border-secondary: #003300;
-    --accent-primary: #00ff00;
-    --accent-hover: #00ff00;
-    --error-color: #ff0000;
-    --selection-bg: #00aa00;
+    --accent-primary: #00ff41;
+    --accent-hover: #00ff41;
+    --error-color: #ff0066;
+    --selection-bg: #00aa2a;
 }
 
 [data-theme="dracula"] {
@@ -108,7 +108,7 @@ html {
 }
 
 body {
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+    font-family: 'Monaco', 'Courier New', 'SF Mono', 'Inconsolata', 'Roboto Mono', monospace;
     background: var(--bg-primary);
     min-height: 100vh;
     padding: 0;
@@ -189,7 +189,8 @@ body {
 .logo-image {
     width: 24px;
     height: 24px;
-    display: none; /* Hide logo for terminal aesthetic */
+    filter: grayscale(1) contrast(1.5);
+    opacity: 0.8;
 }
 
 /* Navigation */
@@ -1048,6 +1049,61 @@ th {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex-wrap: wrap;
+}
+
+/* Usage examples section */
+.usage-examples-section {
+    margin: 4rem 0;
+    padding: 3rem;
+    background-color: var(--bg-tertiary);
+    border: 2px solid var(--border-primary);
+}
+
+.usage-examples-section h2 {
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+}
+
+.usage-examples-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.usage-examples-section h3 {
+    color: var(--accent-primary);
+    margin-bottom: 1rem;
+}
+
+.usage-examples-section ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.usage-examples-section li {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+}
+
+/* Links section */
+.links-section {
+    text-align: center;
+    margin: 4rem 0;
+}
+
+.links-section h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.links-grid {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
     flex-wrap: wrap;
 }
 
