@@ -48,6 +48,8 @@
         
         // Toggle dropdown
         themeToggle.addEventListener('click', function(e) {
+            // Prevent the document-level click handler below from immediately closing the dropdown
+            // when the toggle is clicked. This creates an explicit dependency between these handlers.
             e.stopPropagation();
             themeDropdown.classList.toggle('active');
         });
