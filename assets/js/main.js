@@ -14,6 +14,7 @@
     }
 
     function init() {
+        initializeTheme();
         initializeSearch();
         initializeBookmarks();
         initializeNavigation();
@@ -21,6 +22,87 @@
         initializeTableOfContents();
         initializeMicroAnimations();
         initializeLLMsButton();
+    }
+
+    // Theme functionality
+    function initializeTheme() {
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeDropdown = document.getElementById('theme-dropdown');
+        const themeOptions = document.querySelectorAll('.theme-option');
+        
+        if (!themeToggle || !themeDropdown) return;
+        
+        // Robust localStorage feature detection - test if it's actually writable
+        function isLocalStorageAvailable() {
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        const storageAvailable = isLocalStorageAvailable();
+        
+        // Load saved theme or default to light
+        let savedTheme = 'light';
+        if (storageAvailable) {
+            try {
+                savedTheme = localStorage.getItem('solana-mcp-theme') || 'light';
+            } catch (e) {
+                console.warn('localStorage not accessible, using default theme');
+            }
+        }
+        applyTheme(savedTheme);
+        
+        // Toggle dropdown
+        themeToggle.addEventListener('click', function(e) {
+            // Prevent the document-level click handler below from immediately closing the dropdown
+            // when the toggle is clicked. This creates an explicit dependency between these handlers.
+            e.stopPropagation();
+            const isExpanded = themeDropdown.classList.toggle('active');
+            themeToggle.setAttribute('aria-expanded', isExpanded);
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!themeToggle.contains(e.target) && !themeDropdown.contains(e.target)) {
+                themeDropdown.classList.remove('active');
+                themeToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+        
+        // Theme selection
+        themeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                const theme = this.getAttribute('data-theme');
+                applyTheme(theme);
+                if (storageAvailable) {
+                    try {
+                        localStorage.setItem('solana-mcp-theme', theme);
+                    } catch (e) {
+                        console.warn('Cannot save theme preference');
+                    }
+                }
+                themeDropdown.classList.remove('active');
+                themeToggle.setAttribute('aria-expanded', 'false');
+            });
+        });
+        
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Update active state in dropdown
+            themeOptions.forEach(opt => {
+                if (opt.getAttribute('data-theme') === theme) {
+                    opt.classList.add('active');
+                } else {
+                    opt.classList.remove('active');
+                }
+            });
+        }
     }
 
     // Global functions that need to be accessible outside their initialization scopes
