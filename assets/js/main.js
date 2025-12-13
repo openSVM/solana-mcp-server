@@ -51,13 +51,15 @@
             // Prevent the document-level click handler below from immediately closing the dropdown
             // when the toggle is clicked. This creates an explicit dependency between these handlers.
             e.stopPropagation();
-            themeDropdown.classList.toggle('active');
+            const isExpanded = themeDropdown.classList.toggle('active');
+            themeToggle.setAttribute('aria-expanded', isExpanded);
         });
         
         // Close dropdown when clicking outside
         document.addEventListener('click', function(e) {
             if (!themeToggle.contains(e.target) && !themeDropdown.contains(e.target)) {
                 themeDropdown.classList.remove('active');
+                themeToggle.setAttribute('aria-expanded', 'false');
             }
         });
         
@@ -74,6 +76,7 @@
                     }
                 }
                 themeDropdown.classList.remove('active');
+                themeToggle.setAttribute('aria-expanded', 'false');
             });
         });
         

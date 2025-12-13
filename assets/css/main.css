@@ -304,15 +304,26 @@ body {
     font-size: 12px;
     border-bottom: 1px solid var(--border-secondary);
     transition: background-color 0.1s;
+    background: transparent;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+    display: block;
 }
 
 .theme-option:last-child {
     border-bottom: none;
 }
 
-.theme-option:hover {
+.theme-option:hover,
+.theme-option:focus {
     background: var(--accent-hover);
     color: var(--bg-secondary);
+    outline: none;
 }
 
 .theme-option::before {
@@ -956,7 +967,7 @@ th {
     color: var(--bg-secondary);
 }
 
-/* Scrollbar */
+/* Scrollbar - WebKit browsers (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
     width: 12px;
 }
@@ -972,6 +983,12 @@ th {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--accent-primary);
+}
+
+/* Scrollbar - Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-primary) var(--bg-tertiary);
 }
 
 /* LLMs.txt button */
@@ -1065,7 +1082,7 @@ th {
 .usage-examples-section h2 {
     text-align: center;
     margin-bottom: 2rem;
-    font-size: 1.5rem;
+    font-size: 24px;
 }
 
 .usage-examples-grid {
@@ -1099,7 +1116,7 @@ th {
 
 .links-section h2 {
     margin-bottom: 1.5rem;
-    font-size: 1.5rem;
+    font-size: 24px;
 }
 
 .links-grid {
