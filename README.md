@@ -428,6 +428,7 @@ For comprehensive documentation including architecture, deployment guides, and c
 - [⚙️ Configuration Guide](./docs/configuration.md) - Configuration options and management
 - [💾 Caching Guide](./docs/caching.md) - RPC response caching configuration and usage
 - [💰 x402 Payment Protocol](./docs/x402-integration.md) - Monetize MCP tool calls (optional)
+- [📘 x402 Integration Tutorial](./docs/x402-integration-tutorial.md) - Step-by-step integration guide
 
 ## Environment Variables
 
@@ -437,7 +438,9 @@ For comprehensive documentation including architecture, deployment guides, and c
 
 For cache configuration, see `config.json` or the **[Caching Documentation](./docs/caching.md)**.
 
-For x402 payment protocol (optional, feature-gated), see **[x402 Integration Guide](./docs/x402-integration.md)**.
+For x402 payment protocol (optional, feature-gated), see:
+- **[x402 Integration Guide](./docs/x402-integration.md)** - Complete reference documentation
+- **[x402 Integration Tutorial](./docs/x402-integration-tutorial.md)** - Step-by-step tutorial with code examples
 
 ## Development
 
