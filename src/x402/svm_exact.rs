@@ -7,6 +7,7 @@ use crate::error::{McpError, McpResult};
 use super::config::NetworkConfig;
 use super::types::PaymentPayload;
 use solana_sdk::pubkey::Pubkey;
+use spl_token::instruction::TokenInstruction;
 use std::str::FromStr;
 
 /// Validates SVM exact scheme payment payload
@@ -94,6 +95,7 @@ fn decode_transaction(tx_str: &str) -> McpResult<Vec<u8>> {
 /// 4. Token::TransferChecked
 fn validate_instruction_layout(tx: &solana_sdk::transaction::Transaction) -> McpResult<()> {
     let instructions = &tx.message.instructions;
+    let account_keys = &tx.message.account_keys;
 
     if instructions.is_empty() {
         return Err(McpError::validation("Transaction has no instructions".to_string()));
@@ -107,11 +109,109 @@ fn validate_instruction_layout(tx: &solana_sdk::transaction::Transaction) -> Mcp
         )));
     }
 
-    // TODO: Implement detailed instruction layout validation
-    // This requires parsing compute budget and token program instructions
-    // For now, we do basic validation
+    // Well-known program IDs
+    let compute_budget_program = solana_sdk::compute_budget::ID;
+    let token_program = spl_token::ID;
+    let ata_program = spl_associated_token_account::ID;
 
-    tracing::debug!("Instruction layout validation - detailed checks pending implementation");
+    // Track which instructions we've found
+    let mut has_cu_limit = false;
+    let mut has_cu_price = false;
+    let mut has_transfer_checked = false;
+    let mut ata_create_index: Option<usize> = None;
+    let mut transfer_index: Option<usize> = None;
+
+    for (idx, instruction) in instructions.iter().enumerate() {
+        let program_id = account_keys.get(instruction.program_id_index as usize)
+            .ok_or_else(|| McpError::validation(format!("Invalid program_id_index at instruction {}", idx)))?;
+
+        // Check compute budget instructions
+        if program_id == &compute_budget_program {
+            // Try to deserialize as compute budget instruction
+            if !instruction.data.is_empty() {
+                // First byte is the instruction discriminator
+                match instruction.data[0] {
+                    2 => { // SetComputeUnitLimit
+                        has_cu_limit = true;
+                        tracing::debug!("Found SetComputeUnitLimit at index {}", idx);
+                    }
+                    3 => { // SetComputeUnitPrice
+                        has_cu_price = true;
+                        tracing::debug!("Found SetComputeUnitPrice at index {}", idx);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // Check ATA program instructions
+        else if program_id == &ata_program {
+            // ATA Create instruction typically has discriminator 0
+            if instruction.data.is_empty() || instruction.data[0] == 0 {
+                ata_create_index = Some(idx);
+                tracing::debug!("Found ATA Create at index {}", idx);
+            }
+        }
+        // Check token program instructions
+        else if program_id == &token_program {
+            // Try to unpack token instruction
+            if let Ok(token_ix) = TokenInstruction::unpack(&instruction.data) {
+                if matches!(token_ix, TokenInstruction::TransferChecked { .. }) {
+                    has_transfer_checked = true;
+                    transfer_index = Some(idx);
+                    tracing::debug!("Found TransferChecked at index {}", idx);
+                }
+            }
+        }
+    }
+
+    // Validate required instructions are present
+    if !has_cu_limit {
+        return Err(McpError::validation(
+            "Missing required SetComputeUnitLimit instruction".to_string()
+        ));
+    }
+
+    if !has_cu_price {
+        return Err(McpError::validation(
+            "Missing required SetComputeUnitPrice instruction".to_string()
+        ));
+    }
+
+    if !has_transfer_checked {
+        return Err(McpError::validation(
+            "Missing required TransferChecked instruction".to_string()
+        ));
+    }
+
+    // Validate instruction ordering
+    // TransferChecked must be last (or ATA create must be just before it)
+    if let Some(transfer_idx) = transfer_index {
+        let expected_last_idx = instructions.len() - 1;
+        
+        if let Some(ata_idx) = ata_create_index {
+            // If ATA create exists, it should be right before TransferChecked
+            if ata_idx + 1 != transfer_idx {
+                return Err(McpError::validation(
+                    "ATA Create must immediately precede TransferChecked instruction".to_string()
+                ));
+            }
+            // And transfer should be last
+            if transfer_idx != expected_last_idx {
+                return Err(McpError::validation(
+                    "TransferChecked must be the last instruction".to_string()
+                ));
+            }
+        } else {
+            // No ATA create, transfer should be last
+            if transfer_idx != expected_last_idx {
+                return Err(McpError::validation(
+                    "TransferChecked must be the last instruction".to_string()
+                ));
+            }
+        }
+    }
+
+    tracing::debug!("Instruction layout validation passed");
 
     Ok(())
 }
@@ -145,16 +245,29 @@ fn validate_compute_unit_price(
 }
 
 /// Extracts compute unit price from transaction
-fn extract_compute_unit_price(_tx: &solana_sdk::transaction::Transaction) -> McpResult<u64> {
-    // TODO: Parse compute budget instructions to extract price
-    // For now, return a placeholder
-    
-    // This is a simplified implementation - actual implementation would parse
-    // ComputeBudgetInstruction::SetComputeUnitPrice from the transaction
-    
-    tracing::debug!("Compute unit price extraction - using placeholder");
-    
-    Ok(1000) // Placeholder value
+fn extract_compute_unit_price(tx: &solana_sdk::transaction::Transaction) -> McpResult<u64> {
+    let instructions = &tx.message.instructions;
+    let account_keys = &tx.message.account_keys;
+    let compute_budget_program = solana_sdk::compute_budget::ID;
+
+    for instruction in instructions.iter() {
+        let program_id = account_keys.get(instruction.program_id_index as usize)
+            .ok_or_else(|| McpError::validation("Invalid program_id_index in instruction".to_string()))?;
+
+        if program_id == &compute_budget_program {
+            // SetComputeUnitPrice: discriminator (1 byte) = 3, followed by u64 price (8 bytes)
+            if instruction.data.len() == 9 && instruction.data[0] == 3 {
+                let price_bytes = &instruction.data[1..9];
+                let price = u64::from_le_bytes(price_bytes.try_into().unwrap());
+                tracing::debug!(compute_unit_price = price, "Extracted compute unit price");
+                return Ok(price);
+            }
+        }
+    }
+
+    Err(McpError::validation(
+        "No SetComputeUnitPrice instruction found in transaction".to_string()
+    ))
 }
 
 /// Validates facilitator fee payer constraints
@@ -162,63 +275,206 @@ fn validate_fee_payer_constraints(
     tx: &solana_sdk::transaction::Transaction,
     _payload: &PaymentPayload,
 ) -> McpResult<()> {
-    let fee_payer = tx.message.account_keys.first()
+    let account_keys = &tx.message.account_keys;
+    let fee_payer = account_keys.first()
         .ok_or_else(|| McpError::validation("Transaction has no fee payer".to_string()))?;
 
-    // TODO: Implement actual validation
-    // 1. Fee payer must not appear in TransferChecked instruction accounts
-    // 2. Fee payer must not be the authority or source of the transfer
+    let token_program = spl_token::ID;
 
-    tracing::debug!(
-        fee_payer = %fee_payer,
-        "Fee payer constraints validation - detailed checks pending"
-    );
+    // Find TransferChecked instruction
+    for instruction in tx.message.instructions.iter() {
+        let program_id = account_keys.get(instruction.program_id_index as usize)
+            .ok_or_else(|| McpError::validation("Invalid program_id_index".to_string()))?;
 
-    Ok(())
+        if program_id == &token_program {
+            if let Ok(token_ix) = TokenInstruction::unpack(&instruction.data) {
+                if matches!(token_ix, TokenInstruction::TransferChecked { .. }) {
+                
+                // Get accounts involved in TransferChecked
+                // TransferChecked accounts: [source, mint, destination, authority, ...signers]
+                let transfer_accounts = &instruction.accounts;
+                
+                if transfer_accounts.len() < 4 {
+                    return Err(McpError::validation(
+                        "TransferChecked instruction has insufficient accounts".to_string()
+                    ));
+                }
+
+                // Get the actual account keys from indices
+                let source_idx = transfer_accounts[0] as usize;
+                let authority_idx = transfer_accounts[3] as usize;
+
+                let source_key = account_keys.get(source_idx)
+                    .ok_or_else(|| McpError::validation("Invalid source account index".to_string()))?;
+                let authority_key = account_keys.get(authority_idx)
+                    .ok_or_else(|| McpError::validation("Invalid authority account index".to_string()))?;
+
+                // Fee payer must not be the source
+                if fee_payer == source_key {
+                    return Err(McpError::validation(
+                        "Fee payer cannot be the source of the transfer".to_string()
+                    ));
+                }
+
+                // Fee payer must not be the authority
+                if fee_payer == authority_key {
+                    return Err(McpError::validation(
+                        "Fee payer cannot be the authority of the transfer".to_string()
+                    ));
+                }
+
+                // Fee payer should not appear in any TransferChecked accounts
+                for &account_idx in transfer_accounts.iter() {
+                    let account_key = account_keys.get(account_idx as usize)
+                        .ok_or_else(|| McpError::validation("Invalid account index in TransferChecked".to_string()))?;
+                    
+                    if fee_payer == account_key {
+                        return Err(McpError::validation(
+                            "Fee payer must not appear in TransferChecked instruction accounts".to_string()
+                        ));
+                    }
+                }
+
+                    tracing::debug!(
+                        fee_payer = %fee_payer,
+                        "Fee payer constraints validated successfully"
+                    );
+
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    Err(McpError::validation(
+        "No TransferChecked instruction found for fee payer validation".to_string()
+    ))
 }
 
 /// Validates transfer amount matches requirements
 fn validate_transfer_amount(
-    _tx: &solana_sdk::transaction::Transaction,
+    tx: &solana_sdk::transaction::Transaction,
     required_amount: &str,
 ) -> McpResult<()> {
-    // TODO: Extract actual transfer amount from TransferChecked instruction
-    // and compare with required_amount
-    
-    let _required: u64 = required_amount.parse()
+    let required: u64 = required_amount.parse()
         .map_err(|e| McpError::validation(format!("Invalid required amount: {}", e)))?;
 
-    tracing::debug!(
-        required_amount = required_amount,
-        "Transfer amount validation - detailed checks pending"
-    );
+    let account_keys = &tx.message.account_keys;
+    let token_program = spl_token::ID;
 
-    Ok(())
+    // Find TransferChecked instruction and extract amount
+    for instruction in tx.message.instructions.iter() {
+        let program_id = account_keys.get(instruction.program_id_index as usize)
+            .ok_or_else(|| McpError::validation("Invalid program_id_index".to_string()))?;
+
+        if program_id == &token_program {
+            if let Ok(TokenInstruction::TransferChecked { amount, decimals: _ }) = 
+                TokenInstruction::unpack(&instruction.data) {
+                
+                if amount != required {
+                    return Err(McpError::validation(format!(
+                        "Transfer amount mismatch. Required: {}, Got: {}",
+                        required, amount
+                    )));
+                }
+
+                tracing::debug!(
+                    required_amount = required,
+                    actual_amount = amount,
+                    "Transfer amount validated successfully"
+                );
+
+                return Ok(());
+            }
+        }
+    }
+
+    Err(McpError::validation(
+        "No TransferChecked instruction found for amount validation".to_string()
+    ))
 }
 
 /// Validates destination account matches payTo and asset
 fn validate_destination_account(
-    _tx: &solana_sdk::transaction::Transaction,
+    tx: &solana_sdk::transaction::Transaction,
     pay_to: &str,
     asset: &str,
 ) -> McpResult<()> {
     // Parse addresses
-    let _pay_to_pubkey = Pubkey::from_str(pay_to)
+    let pay_to_pubkey = Pubkey::from_str(pay_to)
         .map_err(|e| McpError::validation(format!("Invalid payTo address: {}", e)))?;
     
-    let _asset_pubkey = Pubkey::from_str(asset)
+    let asset_pubkey = Pubkey::from_str(asset)
         .map_err(|e| McpError::validation(format!("Invalid asset address: {}", e)))?;
 
-    // TODO: Validate destination ATA is derived correctly from payTo and asset
-    // This requires computing the associated token account address and comparing
-
-    tracing::debug!(
-        pay_to = pay_to,
-        asset = asset,
-        "Destination account validation - detailed checks pending"
+    // Compute the expected Associated Token Account (ATA) address
+    let expected_destination = spl_associated_token_account::get_associated_token_address(
+        &pay_to_pubkey,
+        &asset_pubkey,
     );
 
-    Ok(())
+    let account_keys = &tx.message.account_keys;
+    let token_program = spl_token::ID;
+
+    // Find TransferChecked instruction and check destination
+    for instruction in tx.message.instructions.iter() {
+        let program_id = account_keys.get(instruction.program_id_index as usize)
+            .ok_or_else(|| McpError::validation("Invalid program_id_index".to_string()))?;
+
+        if program_id == &token_program {
+            if let Ok(token_ix) = TokenInstruction::unpack(&instruction.data) {
+                if matches!(token_ix, TokenInstruction::TransferChecked { .. }) {
+                
+                // TransferChecked accounts: [source, mint, destination, authority, ...signers]
+                let transfer_accounts = &instruction.accounts;
+                
+                if transfer_accounts.len() < 3 {
+                    return Err(McpError::validation(
+                        "TransferChecked instruction has insufficient accounts".to_string()
+                    ));
+                }
+
+                let destination_idx = transfer_accounts[2] as usize;
+                let mint_idx = transfer_accounts[1] as usize;
+
+                let destination_key = account_keys.get(destination_idx)
+                    .ok_or_else(|| McpError::validation("Invalid destination account index".to_string()))?;
+                let mint_key = account_keys.get(mint_idx)
+                    .ok_or_else(|| McpError::validation("Invalid mint account index".to_string()))?;
+
+                // Validate mint matches asset
+                if mint_key != &asset_pubkey {
+                    return Err(McpError::validation(format!(
+                        "Mint address mismatch. Expected: {}, Got: {}",
+                        asset_pubkey, mint_key
+                    )));
+                }
+
+                // Validate destination is the correct ATA
+                if destination_key != &expected_destination {
+                    return Err(McpError::validation(format!(
+                        "Destination ATA mismatch. Expected: {}, Got: {}",
+                        expected_destination, destination_key
+                    )));
+                }
+
+                    tracing::debug!(
+                        pay_to = %pay_to_pubkey,
+                        asset = %asset_pubkey,
+                        expected_ata = %expected_destination,
+                        actual_destination = %destination_key,
+                        "Destination account validated successfully"
+                    );
+
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    Err(McpError::validation(
+        "No TransferChecked instruction found for destination validation".to_string()
+    ))
 }
 
 #[cfg(test)]

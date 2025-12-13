@@ -122,22 +122,33 @@ Seamless integration with MCP protocol:
 
 ### 6. SVM Exact Scheme Validation (src/x402/svm_exact.rs)
 
-Framework for Solana-specific payment validation:
+Complete Solana-specific payment validation:
 
-**Implemented:**
-- Basic transaction decoding (base64/base58)
-- Transaction deserialization
-- Instruction count validation
-- Framework for detailed checks
+**Fully Implemented:**
+- Transaction decoding (base64/base58)
+- Transaction deserialization  
+- **Detailed instruction layout validation**
+  - SetComputeUnitLimit detection
+  - SetComputeUnitPrice detection
+  - Optional ATA Create instruction
+  - TransferChecked instruction
+  - Instruction ordering enforcement
+- **Compute budget instruction extraction**
+  - Parses SetComputeUnitPrice from transaction
+  - Validates against configured bounds
+- **Fee payer constraint enforcement**
+  - Fee payer cannot be transfer source
+  - Fee payer cannot be transfer authority
+  - Fee payer cannot appear in TransferChecked accounts
+- **ATA validation against payTo/asset**
+  - Computes expected ATA address
+  - Validates destination matches derived ATA
+  - Validates mint matches asset
+- **Transfer amount exact matching**
+  - Extracts amount from TransferChecked
+  - Compares with required amount exactly
 
-**Placeholder (Ready for Enhancement):**
-- Detailed instruction layout parsing
-- Compute budget instruction extraction
-- Fee payer constraint enforcement
-- ATA validation against payTo/asset
-- Transfer amount exact matching
-
-The framework is in place with clear TODOs for production hardening.
+All x402 v2 specification requirements for SVM exact scheme are now implemented.
 
 ### 7. Comprehensive Testing
 
@@ -187,55 +198,27 @@ All tests pass in both configurations:
 
 ## What's Not Implemented (Future Work)
 
-### SVM Exact Scheme - Detailed Validation
-
-The SVM exact scheme has a solid framework but needs production-ready validation:
-
-1. **Instruction Layout Parsing**
-   - Parse ComputeBudget instructions
-   - Extract compute unit price and limit
-   - Validate ATA creation instruction
-   - Parse TransferChecked instruction details
-
-2. **Fee Payer Constraints**
-   - Verify fee payer not in instruction accounts
-   - Ensure fee payer is not authority/source
-   - Check fee payer role in transaction
-
-3. **Compute Unit Price Extraction**
-   - Parse SetComputeUnitPrice instruction data
-   - Extract actual price from transaction
-   - Compare against configured bounds
-
-4. **Destination Validation**
-   - Compute expected ATA from payTo/asset
-   - Verify destination matches expected ATA
-   - Check ATA ownership and mint
-
-5. **Amount Validation**
-   - Extract transfer amount from TransferChecked
-   - Verify exact match with requirements
-   - Handle decimal conversions properly
-
 ### Tool-Level Integration
 
-The payment infrastructure is ready but not yet wired into actual tool calls:
+The x402 payment infrastructure is complete, but it's not yet wired into actual tool calls:
 
 1. **Tool Configuration**
    - Define which tools require payment
-   - Configure per-tool pricing
-   - Support dynamic pricing
+   - Configure per-tool pricing  
+   - Support dynamic pricing based on request parameters
 
 2. **Request Handler Integration**
    - Check for payment in handle_tools_call
    - Generate PaymentRequired when needed
    - Process payment before execution
-   - Include settlement in response
+   - Include settlement receipt in response
 
 3. **Resource Protection**
-   - Support payment for resources
+   - Support payment requirements for resources
    - Document resource URI patterns
    - Handle resource-specific pricing
+
+This is straightforward to add - the infrastructure (types, validation, facilitator client) is ready and tested.
 
 ## Architecture Decisions
 
