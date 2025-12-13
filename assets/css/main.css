@@ -289,6 +289,8 @@ body {
     border: 1px solid var(--border-primary);
     margin-top: 4px;
     min-width: 180px;
+    max-width: 90vw;
+    overflow-x: auto;
     z-index: 1000;
 }
 
