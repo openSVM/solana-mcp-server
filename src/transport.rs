@@ -4,17 +4,12 @@ use serde_json::Value;
 use std::io::{self, BufRead, BufReader, Write};
 use std::sync::Mutex;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum JsonRpcVersion {
     #[serde(rename = "2.0")]
+    #[default]
     V2,
-}
-
-impl Default for JsonRpcVersion {
-    fn default() -> Self {
-        Self::V2
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
