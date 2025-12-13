@@ -67,7 +67,7 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
 </div>
 
 <section class="docs-section">
-  <h2 style="text-align: center; margin-bottom: 2rem; font-size: 2.25rem; color: var(--eink-black);">📚 Documentation</h2>
+  <h2>📚 Documentation</h2>
   
   <div class="docs-grid">
     <a href="{{ '/docs/onboarding/' | relative_url }}" class="docs-card">
@@ -144,50 +144,50 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
   </div>
 </section>
 
-<section style="margin: 4rem 0; padding: 3rem; background-color: var(--eink-white); border: 1px solid var(--eink-medium-gray); border-radius: 12px;">
-  <h2 style="text-align: center; margin-bottom: 2rem; font-size: 2rem; color: var(--eink-black);">🎯 Usage Examples</h2>
+<section style="margin: 4rem 0; padding: 3rem; background-color: var(--bg-tertiary); border: 2px solid var(--border-primary);">
+  <h2 style="text-align: center; margin-bottom: 2rem; font-size: 1.5rem;">🎯 Usage Examples</h2>
   
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
     <div>
-      <h3 style="color: var(--accent-teal); margin-bottom: 1rem;">💰 Basic Queries</h3>
+      <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">💰 Basic Queries</h3>
       <ul style="list-style-type: none; padding: 0;">
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "What's the SOL balance of address Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr?"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Show me the current slot number"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Get information about the latest block"
         </li>
       </ul>
     </div>
     
     <div>
-      <h3 style="color: var(--accent-teal); margin-bottom: 1rem;">🌐 Multi-Network</h3>
+      <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">🌐 Multi-Network</h3>
       <ul style="list-style-type: none; padding: 0;">
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "List all available SVM networks"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Enable Eclipse mainnet for queries"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Check SOL balance on all enabled networks"
         </li>
       </ul>
     </div>
     
     <div>
-      <h3 style="color: var(--accent-teal); margin-bottom: 1rem;">🔧 Advanced Operations</h3>
+      <h3 style="color: var(--accent-primary); margin-bottom: 1rem;">🔧 Advanced Operations</h3>
       <ul style="list-style-type: none; padding: 0;">
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Show me the largest USDC token accounts"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Get the leader schedule for the current epoch"
         </li>
-        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--eink-light-gray); border-radius: 6px;">
+        <li style="margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border: 1px solid var(--border-secondary);">
           "Check block production stats for a validator"
         </li>
       </ul>
@@ -196,22 +196,18 @@ description: "A comprehensive Model Context Protocol server for seamless Solana 
 </section>
 
 <section style="text-align: center; margin: 4rem 0;">
-  <h2 style="margin-bottom: 1.5rem; font-size: 2rem; color: var(--eink-black);">🔗 Links & Resources</h2>
-  <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
-    <a href="{{ site.github.repository_url }}" target="_blank" rel="noopener noreferrer" 
-       style="color: var(--accent-teal); text-decoration: none; font-weight: 600;">
+  <h2 style="margin-bottom: 1.5rem; font-size: 1.5rem;">🔗 Links & Resources</h2>
+  <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+    <a href="{{ site.github.repository_url }}" class="btn" target="_blank" rel="noopener noreferrer">
       GitHub Repository
     </a>
-    <a href="{{ site.github.repository_url }}/releases" target="_blank" rel="noopener noreferrer"
-       style="color: var(--accent-teal); text-decoration: none; font-weight: 600;">
+    <a href="{{ site.github.repository_url }}/releases" class="btn" target="_blank" rel="noopener noreferrer">
       Releases
     </a>
-    <a href="{{ site.github.repository_url }}/issues" target="_blank" rel="noopener noreferrer"
-       style="color: var(--accent-teal); text-decoration: none; font-weight: 600;">
+    <a href="{{ site.github.repository_url }}/issues" class="btn" target="_blank" rel="noopener noreferrer">
       Report Issues
     </a>
-    <a href="{{ '/search/' | relative_url }}"
-       style="color: var(--accent-teal); text-decoration: none; font-weight: 600;">
+    <a href="{{ '/search/' | relative_url }}" class="btn">
       Search Documentation
     </a>
   </div>

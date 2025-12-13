@@ -61,18 +61,27 @@
                 <!-- Search and utilities -->
                 <div class="header-utilities">
                     <button class="search-toggle" id="search-toggle" aria-label="Toggle search" aria-expanded="false">
-                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
+                        Search
                     </button>
                     
                     <button class="bookmark-toggle" id="bookmark-toggle" aria-label="Bookmark this page" 
                             data-url="{{ page.url }}" data-title="{{ page.title | default: site.title }}">
-                        <svg class="bookmark-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
-                        </svg>
+                        Bookmark
                     </button>
+                    
+                    <div class="theme-selector">
+                        <button class="theme-toggle" id="theme-toggle" aria-label="Change theme">
+                            Theme
+                        </button>
+                        <div class="theme-dropdown" id="theme-dropdown">
+                            <div class="theme-option" data-theme="light">Light</div>
+                            <div class="theme-option" data-theme="dark">Dark</div>
+                            <div class="theme-option" data-theme="terminal">Terminal</div>
+                            <div class="theme-option" data-theme="dracula">Dracula</div>
+                            <div class="theme-option" data-theme="nord">Nord</div>
+                            <div class="theme-option" data-theme="solarized">Solarized</div>
+                        </div>
+                    </div>
                     
                     <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
                         <span class="menu-bar"></span>
