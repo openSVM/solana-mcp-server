@@ -116,6 +116,34 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Utility Classes - Bracket styling for terminal aesthetic */
+/* Apply this to buttons, links, and interactive elements for consistent bracket decoration */
+.btn::before,
+.btn-primary::before,
+.btn-secondary::before,
+.main-nav .nav-link::before,
+.search-toggle::before,
+.bookmark-toggle::before,
+.theme-toggle::before,
+.footer-links a::before,
+.llms-floating-btn::before,
+.github-source-btn::before {
+    content: '[';
+}
+
+.btn::after,
+.btn-primary::after,
+.btn-secondary::after,
+.main-nav .nav-link::after,
+.search-toggle::after,
+.bookmark-toggle::after,
+.theme-toggle::after,
+.footer-links a::after,
+.llms-floating-btn::after,
+.github-source-btn::after {
+    content: ']';
+}
+
 /* Container */
 .container {
     max-width: 1200px;
@@ -216,12 +244,10 @@ body {
 }
 
 .main-nav .nav-link::before {
-    content: '[';
     margin-right: 4px;
 }
 
 .main-nav .nav-link::after {
-    content: ']';
     margin-left: 4px;
 }
 
@@ -255,17 +281,7 @@ body {
     font-weight: 600;
 }
 
-.search-toggle::before,
-.bookmark-toggle::before,
-.theme-toggle::before {
-    content: '[';
-}
-
-.search-toggle::after,
-.bookmark-toggle::after,
-.theme-toggle::after {
-    content: ']';
-}
+/* Bracket content inherited from .bracket-style utility class */
 
 .search-toggle:hover,
 .bookmark-toggle:hover,
@@ -408,17 +424,7 @@ body {
     font-family: inherit;
 }
 
-.btn::before,
-.btn-primary::before,
-.btn-secondary::before {
-    content: '[';
-}
-
-.btn::after,
-.btn-primary::after,
-.btn-secondary::after {
-    content: ']';
-}
+/* Bracket content inherited from .bracket-style utility class */
 
 .btn:hover,
 .btn-primary:hover,
@@ -655,13 +661,7 @@ a:hover {
     border: 1px solid var(--border-primary);
 }
 
-.footer-links a::before {
-    content: '[';
-}
-
-.footer-links a::after {
-    content: ']';
-}
+/* Bracket content inherited from .bracket-style utility class */
 
 /* Search overlay */
 .search-overlay {
@@ -1011,13 +1011,7 @@ th {
     transition: all 0.2s;
 }
 
-.llms-floating-btn::before {
-    content: '[';
-}
-
-.llms-floating-btn::after {
-    content: ']';
-}
+/* Bracket content inherited from .bracket-style utility class */
 
 .llms-floating-btn:hover {
     background: var(--accent-hover);
@@ -1051,13 +1045,7 @@ th {
     color: var(--text-primary);
 }
 
-.github-source-btn::before {
-    content: '[';
-}
-
-.github-source-btn::after {
-    content: ']';
-}
+/* Bracket content inherited from .bracket-style utility class */
 
 .github-source-btn:hover {
     background: var(--accent-hover);

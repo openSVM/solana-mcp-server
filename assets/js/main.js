@@ -32,8 +32,19 @@
         
         if (!themeToggle || !themeDropdown) return;
         
-        // Check if localStorage is available
-        const storageAvailable = typeof(Storage) !== 'undefined';
+        // Robust localStorage feature detection - test if it's actually writable
+        function isLocalStorageAvailable() {
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        const storageAvailable = isLocalStorageAvailable();
         
         // Load saved theme or default to light
         let savedTheme = 'light';
