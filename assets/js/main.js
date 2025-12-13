@@ -32,12 +32,17 @@
         
         if (!themeToggle || !themeDropdown) return;
         
-        // Load saved theme or default to light (with localStorage error handling)
+        // Check if localStorage is available
+        const storageAvailable = typeof(Storage) !== 'undefined';
+        
+        // Load saved theme or default to light
         let savedTheme = 'light';
-        try {
-            savedTheme = localStorage.getItem('solana-mcp-theme') || 'light';
-        } catch (e) {
-            console.warn('localStorage not available, using default theme');
+        if (storageAvailable) {
+            try {
+                savedTheme = localStorage.getItem('solana-mcp-theme') || 'light';
+            } catch (e) {
+                console.warn('localStorage not accessible, using default theme');
+            }
         }
         applyTheme(savedTheme);
         
@@ -59,10 +64,12 @@
             option.addEventListener('click', function() {
                 const theme = this.getAttribute('data-theme');
                 applyTheme(theme);
-                try {
-                    localStorage.setItem('solana-mcp-theme', theme);
-                } catch (e) {
-                    console.warn('Cannot save theme preference');
+                if (storageAvailable) {
+                    try {
+                        localStorage.setItem('solana-mcp-theme', theme);
+                    } catch (e) {
+                        console.warn('Cannot save theme preference');
+                    }
                 }
                 themeDropdown.classList.remove('active');
             });

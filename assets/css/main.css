@@ -39,10 +39,10 @@
     --bg-primary: #000000;
     --bg-secondary: #0a0a0a;
     --bg-tertiary: #1a1a1a;
-    --text-primary: #00ff41;
-    --text-secondary: #00cc33;
-    --text-muted: #00aa2a;
-    --border-primary: #00ff41;
+    --text-primary: #00cc33;
+    --text-secondary: #00aa2a;
+    --text-muted: #008822;
+    --border-primary: #00cc33;
     --border-secondary: #003300;
     --accent-primary: #00ff41;
     --accent-hover: #00ff41;
