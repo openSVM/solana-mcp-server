@@ -61,6 +61,9 @@ impl SecurityScanner {
         Self::check_symbols(&mut vulnerabilities, &elf);
         Self::check_relocations(&mut vulnerabilities, &elf);
         Self::check_code_patterns(&mut vulnerabilities, data);
+        Self::check_solana_security(&mut vulnerabilities, data);
+        Self::check_arithmetic_safety(&mut vulnerabilities, data);
+        Self::check_account_validation(&mut vulnerabilities, data);
 
         // Count by severity
         let critical_count = vulnerabilities
@@ -84,9 +87,11 @@ impl SecurityScanner {
             .filter(|v| v.severity == Severity::Info)
             .count();
 
-        // Calculate risk score (0-100)
-        let risk_score = (critical_count * 25 + high_count * 15 + medium_count * 8 + low_count * 3)
-            .min(100) as u32;
+        // Calculate risk score (0-100) with exponential weighting
+        // Multiple critical/high issues compound risk
+        let base_score = critical_count * 30 + high_count * 18 + medium_count * 10 + low_count * 4;
+        let multiplier = 1.0 + (critical_count as f32 * 0.2) + (high_count as f32 * 0.1);
+        let risk_score = ((base_score as f32 * multiplier).min(100.0)) as u32;
 
         // Pass if no critical or high severity issues
         let passed = critical_count == 0 && high_count == 0;
@@ -356,6 +361,186 @@ impl SecurityScanner {
                 title: "Owner and signer checks detected".to_string(),
                 description: "Binary appears to contain owner and signer validation logic (good practice).".to_string(),
                 recommendation: "Verify these checks are performed on all privileged operations.".to_string(),
+                location: None,
+            });
+        }
+    }
+
+    fn check_solana_security(vulnerabilities: &mut Vec<Vulnerability>, data: &[u8]) {
+        // Check for Solana-specific security patterns and vulnerabilities
+
+        // 1. CPI (Cross-Program Invocation) security
+        if Self::contains_pattern(data, b"invoke") || Self::contains_pattern(data, b"invoke_signed") {
+            // Check if there are proper signer checks around CPI calls
+            let has_signer_check = Self::contains_pattern(data, b"is_signer");
+            if !has_signer_check {
+                vulnerabilities.push(Vulnerability {
+                    severity: Severity::High,
+                    category: "CPI Security".to_string(),
+                    title: "CPI calls without signer validation".to_string(),
+                    description: "Program contains CPI (invoke/invoke_signed) but no signer validation detected. This could allow unauthorized cross-program calls.".to_string(),
+                    recommendation: "Always verify account.is_signer before making privileged CPI calls. Example: if !account.is_signer { return Err(...); }".to_string(),
+                    location: None,
+                });
+            }
+        }
+
+        // 2. PDA (Program Derived Address) validation
+        if Self::contains_pattern(data, b"create_program_address")
+            || Self::contains_pattern(data, b"find_program_address") {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::Info,
+                category: "PDA Usage".to_string(),
+                title: "PDA derivation detected".to_string(),
+                description: "Program uses Program Derived Addresses (PDAs). Ensure bump seeds are validated and PDAs are derived correctly.".to_string(),
+                recommendation: "Always validate PDA bump seeds and verify derived addresses match expected values. Store bump seeds in account data.".to_string(),
+                location: None,
+            });
+        }
+
+        // 3. Rent exemption checks
+        if !Self::contains_pattern(data, b"rent") && !Self::contains_pattern(data, b"minimum_balance") {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::Medium,
+                category: "Rent Exemption".to_string(),
+                title: "No rent checks detected".to_string(),
+                description: "Program does not appear to check rent exemption. Accounts may be closed if not rent-exempt.".to_string(),
+                recommendation: "Ensure all persistent accounts are rent-exempt: let rent = Rent::get()?; if !rent.is_exempt(account.lamports(), account.data_len()) { return Err(...); }".to_string(),
+                location: None,
+            });
+        }
+
+        // 4. Account reinitialization check
+        if !Self::contains_pattern(data, b"is_initialized") && !Self::contains_pattern(data, b"discriminator") {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::High,
+                category: "Account Security".to_string(),
+                title: "Missing initialization checks".to_string(),
+                description: "No initialization state checks detected. Program may be vulnerable to reinitialization attacks.".to_string(),
+                recommendation: "Add initialization flags to account data and check them: if account.is_initialized { return Err(AlreadyInitialized); }".to_string(),
+                location: None,
+            });
+        }
+
+        // 5. Token program security (if using SPL Token)
+        if Self::contains_pattern(data, b"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") {
+            // SPL Token program ID detected
+            let has_amount_check = Self::contains_pattern(data, b"amount");
+            if !has_amount_check {
+                vulnerabilities.push(Vulnerability {
+                    severity: Severity::High,
+                    category: "Token Security".to_string(),
+                    title: "SPL Token operations without amount validation".to_string(),
+                    description: "Program interacts with SPL Token but no amount validation detected. May be vulnerable to zero-amount or overflow attacks.".to_string(),
+                    recommendation: "Always validate token amounts: if amount == 0 || amount > MAX_AMOUNT { return Err(...); }".to_string(),
+                    location: None,
+                });
+            }
+        }
+    }
+
+    fn check_arithmetic_safety(vulnerabilities: &mut Vec<Vulnerability>, data: &[u8]) {
+        // Check for arithmetic operation safety
+
+        // 1. Look for checked math usage
+        let has_checked_math = Self::contains_pattern(data, b"checked_add")
+            || Self::contains_pattern(data, b"checked_sub")
+            || Self::contains_pattern(data, b"checked_mul")
+            || Self::contains_pattern(data, b"checked_div");
+
+        // 2. Count potential arithmetic operations (BPF opcodes)
+        let mut add_count = 0;
+        let mut mul_count = 0;
+
+        for window in data.windows(8) {
+            match window[0] {
+                0x07 | 0x0f => add_count += 1,      // BPF_ADD
+                0x27 | 0x2f => mul_count += 1,      // BPF_MUL
+                _ => {}
+            }
+        }
+
+        let total_arithmetic = add_count + mul_count;
+
+        // If there are many arithmetic operations but no checked math
+        if total_arithmetic > 20 && !has_checked_math {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::High,
+                category: "Arithmetic Safety".to_string(),
+                title: "Unchecked arithmetic operations".to_string(),
+                description: format!(
+                    "Detected ~{} arithmetic operations (add/mul) with no checked_* function usage. Vulnerable to integer overflow/underflow.",
+                    total_arithmetic
+                ),
+                recommendation: "Use checked arithmetic: amount.checked_add(value).ok_or(ErrorCode::Overflow)? instead of amount + value".to_string(),
+                location: None,
+            });
+        }
+
+        // 3. Look for potential price calculation vulnerabilities
+        if Self::contains_pattern(data, b"price") || Self::contains_pattern(data, b"rate") {
+            if !has_checked_math {
+                vulnerabilities.push(Vulnerability {
+                    severity: Severity::Critical,
+                    category: "Arithmetic Safety".to_string(),
+                    title: "Price calculations without overflow protection".to_string(),
+                    description: "Program performs price/rate calculations without checked arithmetic. Critical vulnerability - attackers can manipulate prices via integer overflow.".to_string(),
+                    recommendation: "CRITICAL: Use checked_mul() and checked_div() for all price calculations. Example: let value = price.checked_mul(amount)?.checked_div(decimals)?;".to_string(),
+                    location: None,
+                });
+            }
+        }
+    }
+
+    fn check_account_validation(vulnerabilities: &mut Vec<Vulnerability>, data: &[u8]) {
+        // Check for proper account validation patterns
+
+        // 1. Owner checks
+        let has_owner_check = Self::contains_pattern(data, b"owner") && Self::contains_pattern(data, b"key");
+        if !has_owner_check {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::Critical,
+                category: "Account Validation".to_string(),
+                title: "Missing account owner checks".to_string(),
+                description: "No account owner validation detected. This is the #1 cause of Solana exploits. Attackers can pass malicious accounts owned by their programs.".to_string(),
+                recommendation: "CRITICAL: Verify account ownership: if account.owner != program_id { return Err(InvalidOwner); } or if account.owner != expected_program { return Err(InvalidOwner); }".to_string(),
+                location: None,
+            });
+        }
+
+        // 2. Signer checks
+        let has_signer_check = Self::contains_pattern(data, b"is_signer");
+        if !has_signer_check {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::Critical,
+                category: "Account Validation".to_string(),
+                title: "Missing signer verification".to_string(),
+                description: "No signer checks detected. Attackers can pass accounts they don't own and execute privileged operations.".to_string(),
+                recommendation: "CRITICAL: Verify signers for privileged operations: if !authority.is_signer { return Err(MissingSignature); }".to_string(),
+                location: None,
+            });
+        }
+
+        // 3. Account data length validation
+        if !Self::contains_pattern(data, b"data_len") && !Self::contains_pattern(data, b"len()") {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::High,
+                category: "Account Validation".to_string(),
+                title: "No account data length validation".to_string(),
+                description: "Program doesn't validate account data length before access. May cause out-of-bounds reads or panics.".to_string(),
+                recommendation: "Validate data length: if account.data.len() < EXPECTED_SIZE { return Err(InvalidDataLength); }".to_string(),
+                location: None,
+            });
+        }
+
+        // 4. Writable account checks
+        if Self::contains_pattern(data, b"is_writable") {
+            vulnerabilities.push(Vulnerability {
+                severity: Severity::Info,
+                category: "Account Validation".to_string(),
+                title: "Writable account checks present".to_string(),
+                description: "Program validates account mutability (good practice). Ensure all accounts that will be modified are checked.".to_string(),
+                recommendation: "Continue validating: if !account.is_writable { return Err(AccountNotWritable); }".to_string(),
                 location: None,
             });
         }
