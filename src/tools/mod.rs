@@ -9,6 +9,7 @@ use crate::validation::{
 };
 use crate::SvmNetwork;
 use anyhow::Result;
+use base64::Engine;
 use reqwest;
 use serde::Deserialize;
 use serde_json::Value;
@@ -1679,6 +1680,97 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["networkId", "rpcUrl"]
             }),
         },
+        ToolDefinition {
+            name: "testSbpfProgram".to_string(),
+            description: Some("Test an sBPF program locally without deploying to network".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "programBinary": {
+                        "type": "string",
+                        "description": "Base64-encoded sBPF program binary (ELF format)"
+                    },
+                    "accounts": {
+                        "type": "array",
+                        "description": "Accounts to pass to the program",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "pubkey": {
+                                    "type": "string",
+                                    "description": "Account public key (base58)"
+                                },
+                                "lamports": {
+                                    "type": "number",
+                                    "description": "Account lamports balance"
+                                },
+                                "data": {
+                                    "type": "string",
+                                    "description": "Account data (base64-encoded)"
+                                },
+                                "owner": {
+                                    "type": "string",
+                                    "description": "Account owner program ID (base58)"
+                                },
+                                "executable": {
+                                    "type": "boolean",
+                                    "description": "Whether the account is executable"
+                                },
+                                "isSigner": {
+                                    "type": "boolean",
+                                    "description": "Whether the account is a signer"
+                                },
+                                "isWritable": {
+                                    "type": "boolean",
+                                    "description": "Whether the account is writable"
+                                }
+                            },
+                            "required": ["pubkey"]
+                        }
+                    },
+                    "instructionData": {
+                        "type": "string",
+                        "description": "Instruction data (base64-encoded)"
+                    },
+                    "signers": {
+                        "type": "array",
+                        "description": "Signing keypairs",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": ["programBinary"]
+            }),
+        },
+        ToolDefinition {
+            name: "validateSbpfBinary".to_string(),
+            description: Some("Validate an sBPF binary without execution".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "programBinary": {
+                        "type": "string",
+                        "description": "Base64-encoded sBPF program binary (ELF format)"
+                    }
+                },
+                "required": ["programBinary"]
+            }),
+        },
+        ToolDefinition {
+            name: "deploySbpfProgramLocal".to_string(),
+            description: Some("Deploy an sBPF program to local VM (returns program ID)".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "programBinary": {
+                        "type": "string",
+                        "description": "Base64-encoded sBPF program binary (ELF format)"
+                    }
+                },
+                "required": ["programBinary"]
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -1719,12 +1811,12 @@ pub async fn handle_tools_call(
     let result = match tool_name {
         "getHealth" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_health(&state_guard.rpc_client).await
+            crate::rpc::system::get_health(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Health check failed: {}", e))
         }
         "getVersion" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_version(&state_guard.rpc_client).await
+            crate::rpc::system::get_version(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Version check failed: {}", e))
         }
         "getBalance" => {
@@ -1735,7 +1827,7 @@ pub async fn handle_tools_call(
             let pubkey = Pubkey::try_from(pubkey_str)?;
             
             let state_guard = state.read().await;
-            crate::rpc::accounts::get_balance(&state_guard.rpc_client, &pubkey).await
+            crate::rpc::accounts::get_balance(state_guard.get_next_rpc_client(), &pubkey).await
                 .map_err(|e| anyhow::anyhow!("Get balance failed: {}", e))
         }
         "getAccountInfo" => {
@@ -1746,7 +1838,7 @@ pub async fn handle_tools_call(
             let pubkey = Pubkey::try_from(pubkey_str)?;
             
             let state_guard = state.read().await;
-            crate::rpc::accounts::get_account_info(&state_guard.rpc_client, &pubkey).await
+            crate::rpc::accounts::get_account_info(state_guard.get_next_rpc_client(), &pubkey).await
                 .map_err(|e| anyhow::anyhow!("Get account info failed: {}", e))
         }
         "getAccountOwner" => {
@@ -1757,7 +1849,7 @@ pub async fn handle_tools_call(
             let pubkey = Pubkey::try_from(pubkey_str)?;
             
             let state_guard = state.read().await;
-            let account_info = crate::rpc::accounts::get_account_info(&state_guard.rpc_client, &pubkey).await
+            let account_info = crate::rpc::accounts::get_account_info(state_guard.get_next_rpc_client(), &pubkey).await
                 .map_err(|e| anyhow::anyhow!("Get account info failed: {}", e))?;
             
             // Extract owner from account info
@@ -1780,31 +1872,35 @@ pub async fn handle_tools_call(
             }
 
             let state_guard = state.read().await;
-            crate::rpc::accounts::get_multiple_accounts(&state_guard.rpc_client, &pubkeys).await
+            crate::rpc::accounts::get_multiple_accounts(state_guard.get_next_rpc_client(), &pubkeys).await
                 .map_err(|e| anyhow::anyhow!("Get multiple accounts failed: {}", e))
         }
         "getSlot" => {
+            log::info!("getSlot: About to acquire state lock");
             let state_guard = state.read().await;
-            crate::rpc::blocks::get_slot(&state_guard.rpc_client).await
+            log::info!("getSlot: State lock acquired");
+            let client = state_guard.get_next_rpc_client();
+            log::info!("getSlot: Got RPC client, about to call get_slot");
+            crate::rpc::blocks::get_slot(client).await
         }
         "getTransactionCount" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_transaction_count(&state_guard.rpc_client).await
+            crate::rpc::system::get_transaction_count(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get transaction count failed: {}", e))
         }
         "getLatestBlockhash" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_latest_blockhash(&state_guard.rpc_client).await
+            crate::rpc::system::get_latest_blockhash(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get latest blockhash failed: {}", e))
         }
         "getEpochInfo" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_epoch_info(&state_guard.rpc_client).await
+            crate::rpc::system::get_epoch_info(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get epoch info failed: {}", e))
         }
         "getClusterNodes" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_cluster_nodes(&state_guard.rpc_client).await
+            crate::rpc::system::get_cluster_nodes(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get cluster nodes failed: {}", e))
         }
         // New critical missing methods
@@ -1822,7 +1918,7 @@ pub async fn handle_tools_call(
                 });
 
             let state_guard = state.read().await;
-            crate::rpc::system::is_blockhash_valid(&state_guard.rpc_client, blockhash, commitment).await
+            crate::rpc::system::is_blockhash_valid(state_guard.get_next_rpc_client(), blockhash, commitment).await
                 .map_err(|e| anyhow::anyhow!("Check blockhash validity failed: {}", e))
         }
         "getSlotLeader" => {
@@ -1836,45 +1932,45 @@ pub async fn handle_tools_call(
                 });
 
             let state_guard = state.read().await;
-            crate::rpc::system::get_slot_leader(&state_guard.rpc_client, commitment).await
+            crate::rpc::system::get_slot_leader(state_guard.get_next_rpc_client(), commitment).await
                 .map_err(|e| anyhow::anyhow!("Get slot leader failed: {}", e))
         }
         "minimumLedgerSlot" => {
             let state_guard = state.read().await;
-            crate::rpc::system::minimum_ledger_slot(&state_guard.rpc_client).await
+            crate::rpc::system::minimum_ledger_slot(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get minimum ledger slot failed: {}", e))
         }
         "getMaxRetransmitSlot" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_max_retransmit_slot(&state_guard.rpc_client).await
+            crate::rpc::system::get_max_retransmit_slot(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get max retransmit slot failed: {}", e))
         }
         "getMaxShredInsertSlot" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_max_shred_insert_slot(&state_guard.rpc_client).await
+            crate::rpc::system::get_max_shred_insert_slot(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get max shred insert slot failed: {}", e))
         }
         "getHighestSnapshotSlot" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_highest_snapshot_slot(&state_guard.rpc_client).await
+            crate::rpc::system::get_highest_snapshot_slot(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get highest snapshot slot failed: {}", e))
         }
         // Deprecated methods
         "getRecentBlockhash" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_recent_blockhash(&state_guard.rpc_client).await
+            crate::rpc::system::get_recent_blockhash(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get recent blockhash failed: {}", e))
         }
         "getFees" => {
             let state_guard = state.read().await;
-            crate::rpc::system::get_fees(&state_guard.rpc_client).await
+            crate::rpc::system::get_fees(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get fees failed: {}", e))
         }
         "getConfirmedBlock" => {
             let state_guard = state.read().await;
             let slot = arguments.get("slot").and_then(|v| v.as_u64())
                 .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
-            crate::rpc::blocks::get_confirmed_block(&state_guard.rpc_client, slot).await
+            crate::rpc::blocks::get_confirmed_block(state_guard.get_next_rpc_client(), slot).await
                 .map_err(|e| anyhow::anyhow!("Get confirmed block failed: {}", e))
         }
         "getConfirmedTransaction" => {
@@ -1882,7 +1978,7 @@ pub async fn handle_tools_call(
             let signature_str = arguments.get("signature").and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("Missing signature parameter"))?;
             let signature = signature_str.parse()?;
-            crate::rpc::transactions::get_confirmed_transaction(&state_guard.rpc_client, &signature).await
+            crate::rpc::transactions::get_confirmed_transaction(state_guard.get_next_rpc_client(), &signature).await
                 .map_err(|e| anyhow::anyhow!("Get confirmed transaction failed: {}", e))
         }
         "getConfirmedBlocks" => {
@@ -1890,7 +1986,7 @@ pub async fn handle_tools_call(
             let start_slot = arguments.get("startSlot").and_then(|v| v.as_u64())
                 .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
             let end_slot = arguments.get("endSlot").and_then(|v| v.as_u64());
-            crate::rpc::blocks::get_confirmed_blocks(&state_guard.rpc_client, start_slot, end_slot).await
+            crate::rpc::blocks::get_confirmed_blocks(state_guard.get_next_rpc_client(), start_slot, end_slot).await
                 .map_err(|e| anyhow::anyhow!("Get confirmed blocks failed: {}", e))
         }
         "getConfirmedBlocksWithLimit" => {
@@ -1899,7 +1995,7 @@ pub async fn handle_tools_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing startSlot parameter"))?;
             let limit = arguments.get("limit").and_then(|v| v.as_u64())
                 .ok_or_else(|| anyhow::anyhow!("Missing limit parameter"))? as usize;
-            crate::rpc::blocks::get_confirmed_blocks_with_limit(&state_guard.rpc_client, start_slot, limit).await
+            crate::rpc::blocks::get_confirmed_blocks_with_limit(state_guard.get_next_rpc_client(), start_slot, limit).await
                 .map_err(|e| anyhow::anyhow!("Get confirmed blocks with limit failed: {}", e))
         }
         "getConfirmedSignaturesForAddress2" => {
@@ -1908,7 +2004,7 @@ pub async fn handle_tools_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing address parameter"))?;
             let address = Pubkey::try_from(address_str)?;
             let limit = arguments.get("limit").and_then(|v| v.as_u64());
-            crate::rpc::transactions::get_confirmed_signatures_for_address_2(&state_guard.rpc_client, &address, None, None, limit).await
+            crate::rpc::transactions::get_confirmed_signatures_for_address_2(state_guard.get_next_rpc_client(), &address, None, None, limit).await
                 .map_err(|e| anyhow::anyhow!("Get confirmed signatures for address failed: {}", e))
         }
         "getAccountInfoAndContext" => {
@@ -1921,7 +2017,7 @@ pub async fn handle_tools_call(
             let parsed_pubkey = pubkey.parse::<solana_sdk::pubkey::Pubkey>()
                 .map_err(|e| anyhow::anyhow!("Invalid pubkey: {}", e))?;
             
-            crate::rpc::accounts::get_account_info_and_context(&state_guard.rpc_client, &parsed_pubkey)
+            crate::rpc::accounts::get_account_info_and_context(state_guard.get_next_rpc_client(), &parsed_pubkey)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get account info with context failed: {}", e))
         }
@@ -1935,7 +2031,7 @@ pub async fn handle_tools_call(
             let parsed_pubkey = pubkey.parse::<solana_sdk::pubkey::Pubkey>()
                 .map_err(|e| anyhow::anyhow!("Invalid pubkey: {}", e))?;
             
-            crate::rpc::accounts::get_balance_and_context(&state_guard.rpc_client, &parsed_pubkey)
+            crate::rpc::accounts::get_balance_and_context(state_guard.get_next_rpc_client(), &parsed_pubkey)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get balance with context failed: {}", e))
         }
@@ -1952,7 +2048,7 @@ pub async fn handle_tools_call(
             let parsed_pubkeys = parsed_pubkeys
                 .map_err(|e| anyhow::anyhow!("Invalid pubkey: {}", e))?;
             
-            crate::rpc::accounts::get_multiple_accounts_and_context(&state_guard.rpc_client, &parsed_pubkeys)
+            crate::rpc::accounts::get_multiple_accounts_and_context(state_guard.get_next_rpc_client(), &parsed_pubkeys)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get multiple accounts with context failed: {}", e))
         }
@@ -1966,7 +2062,7 @@ pub async fn handle_tools_call(
             let parsed_program_id = program_id.parse::<solana_sdk::pubkey::Pubkey>()
                 .map_err(|e| anyhow::anyhow!("Invalid program_id: {}", e))?;
             
-            crate::rpc::accounts::get_program_accounts_and_context(&state_guard.rpc_client, &parsed_program_id, None)
+            crate::rpc::accounts::get_program_accounts_and_context(state_guard.get_next_rpc_client(), &parsed_program_id, None)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get program accounts with context failed: {}", e))
         }
@@ -1976,7 +2072,7 @@ pub async fn handle_tools_call(
                 .and_then(|v| v.as_u64())
                 .map(|v| v as usize);
             
-            crate::rpc::system::get_recent_performance_samples(&state_guard.rpc_client, limit)
+            crate::rpc::system::get_recent_performance_samples(state_guard.get_next_rpc_client(), limit)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get recent performance samples failed: {}", e))
         }
@@ -1985,7 +2081,7 @@ pub async fn handle_tools_call(
             let addresses: Option<Vec<String>> = arguments.get("addresses")
                 .and_then(|v| serde_json::from_value(v.clone()).ok());
             
-            crate::rpc::system::get_recent_prioritization_fees(&state_guard.rpc_client, addresses)
+            crate::rpc::system::get_recent_prioritization_fees(state_guard.get_next_rpc_client(), addresses)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get recent prioritization fees failed: {}", e))
         }
@@ -2005,7 +2101,7 @@ pub async fn handle_tools_call(
                     _ => None,
                 });
             
-            crate::rpc::missing_methods::get_stake_activation(&state_guard.rpc_client, &pubkey, commitment)
+            crate::rpc::missing_methods::get_stake_activation(state_guard.get_next_rpc_client(), &pubkey, commitment)
                 .await
                 .map_err(|e| anyhow::anyhow!("Get stake activation failed: {}", e))
         }
@@ -2029,7 +2125,7 @@ pub async fn handle_tools_call(
                 .unwrap_or(false);
 
             let state_guard = state.read().await;
-            crate::rpc::transactions::get_signature_statuses(&state_guard.rpc_client, &signatures, Some(search_transaction_history)).await
+            crate::rpc::transactions::get_signature_statuses(state_guard.get_next_rpc_client(), &signatures, Some(search_transaction_history)).await
                 .map_err(|e| anyhow::anyhow!("Get signature statuses failed: {}", e))
         }
         // Manual RPC methods for missing functionality
@@ -2038,12 +2134,12 @@ pub async fn handle_tools_call(
                 .ok_or_else(|| anyhow::anyhow!("Missing slot parameter"))?;
 
             let state_guard = state.read().await;
-            crate::rpc::missing_methods::get_block_commitment(&state_guard.rpc_client, slot).await
+            crate::rpc::missing_methods::get_block_commitment(state_guard.get_next_rpc_client(), slot).await
                 .map_err(|e| anyhow::anyhow!("Get block commitment failed: {}", e))
         }
         "getSnapshotSlot" => {
             let state_guard = state.read().await;
-            crate::rpc::missing_methods::get_snapshot_slot(&state_guard.rpc_client).await
+            crate::rpc::missing_methods::get_snapshot_slot(state_guard.get_next_rpc_client()).await
                 .map_err(|e| anyhow::anyhow!("Get snapshot slot failed: {}", e))
         }
         // WebSocket subscription methods  
@@ -2249,10 +2345,88 @@ pub async fn handle_tools_call(
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("Missing mint parameter"))?;
             let mint = Pubkey::try_from(mint_str)?;
-            
+
             let state_guard = state.read().await;
-            crate::rpc::tokens::get_token_accounts_by_mint(&state_guard.rpc_client, &mint).await
+            crate::rpc::tokens::get_token_accounts_by_mint(state_guard.get_next_rpc_client(), &mint).await
                 .map_err(|e| anyhow::anyhow!("Get token accounts by mint failed: {}", e))
+        }
+        "testSbpfProgram" => {
+            let binary_b64 = arguments
+                .get("programBinary")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing programBinary parameter"))?;
+
+            let binary = base64::engine::general_purpose::STANDARD
+                .decode(binary_b64)
+                .map_err(|e| anyhow::anyhow!("Invalid base64: {}", e))?;
+
+            let accounts = arguments
+                .get("accounts")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .map(|v| serde_json::from_value::<crate::sbpf::AccountSpec>(v.clone()))
+                        .collect::<Result<Vec<_>, _>>()
+                })
+                .transpose()
+                .map_err(|e| anyhow::anyhow!("Invalid accounts: {}", e))?
+                .unwrap_or_default();
+
+            let instruction_data = arguments
+                .get("instructionData")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let signers = arguments
+                .get("signers")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let test_params = crate::sbpf::TestParams {
+                binary,
+                accounts,
+                instruction_data,
+                signers,
+            };
+
+            let executor = crate::sbpf::TestExecutor::new();
+            executor.execute_test(test_params).await
+                .map(|result| serde_json::to_value(result).unwrap())
+                .map_err(|e| anyhow::anyhow!("Test execution failed: {}", e))
+        }
+        "validateSbpfBinary" => {
+            let binary_b64 = arguments
+                .get("programBinary")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing programBinary parameter"))?;
+
+            let binary = base64::engine::general_purpose::STANDARD
+                .decode(binary_b64)
+                .map_err(|e| anyhow::anyhow!("Invalid base64: {}", e))?;
+
+            crate::sbpf::TestExecutor::validate_only(&binary)
+                .map(|metadata| serde_json::to_value(metadata).unwrap())
+                .map_err(|e| anyhow::anyhow!("Validation failed: {}", e))
+        }
+        "deploySbpfProgramLocal" => {
+            let binary_b64 = arguments
+                .get("programBinary")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing programBinary parameter"))?;
+
+            let binary = base64::engine::general_purpose::STANDARD
+                .decode(binary_b64)
+                .map_err(|e| anyhow::anyhow!("Invalid base64: {}", e))?;
+
+            let vm = crate::sbpf::SbpfVmWrapper::new();
+            vm.deploy_program(binary).await
+                .map(|response| serde_json::to_value(response).unwrap())
+                .map_err(|e| anyhow::anyhow!("Deployment failed: {}", e))
         }
         _ => {
             return Ok(create_error_response(
@@ -2506,8 +2680,13 @@ pub async fn handle_request(
 
     match message {
         JsonRpcMessage::Request(req) => {
-            let mut state_guard = state.write().await;
-            let protocol_version = Some(state_guard.protocol_version.as_str());
+            // First, check protocol version and initialization state with a read lock
+            let (protocol_version, initialized) = {
+                let state_guard = state.read().await;
+                (state_guard.protocol_version.clone(), state_guard.initialized)
+            }; // Read lock is dropped here
+
+            let protocol_version = Some(protocol_version.as_str());
 
             if req.jsonrpc != JsonRpcVersion::V2 {
                 log::error!("Invalid JSON-RPC version: {:?}", req.jsonrpc);
@@ -2520,7 +2699,7 @@ pub async fn handle_request(
             }
 
             // Only allow initialize method if not initialized
-            if !state_guard.initialized && req.method.as_str() != "initialize" {
+            if !initialized && req.method.as_str() != "initialize" {
                 log::error!("Server not initialized, received method: {}", req.method);
                 return Ok(create_error_response(
                     -32002,
@@ -2533,14 +2712,17 @@ pub async fn handle_request(
             log::info!("Handling method: {}", req.method);
             match req.method.as_str() {
                 "initialize" => {
+                    let state_guard = state.read().await;
                     let response = handle_initialize(
                         req.params,
                         Some(req.id.clone()),
                         &state_guard,
                     )
                     .await?;
+                    drop(state_guard); // Drop read lock before acquiring write lock
 
                     if response.is_success() {
+                        let mut state_guard = state.write().await;
                         state_guard.initialized = true;
                         log::info!("Server initialized successfully");
                     } else {
@@ -2549,6 +2731,7 @@ pub async fn handle_request(
                     Ok(response)
                 }
                 "cancelled" => {
+                    let state_guard = state.read().await;
                     handle_cancelled(
                         req.params,
                         Some(req.id.clone()),
@@ -2557,6 +2740,7 @@ pub async fn handle_request(
                     .await
                 }
                 "tools/list" => {
+                    let state_guard = state.read().await;
                     handle_tools_list(Some(req.id.clone()), &state_guard)
                         .await
                 }
