@@ -1,0 +1,253 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to solahaha.com
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Build release binary
+        run: |
+          cargo build --release --verbose
+          strip target/release/solana-mcp-server || true
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p deploy
+          cp target/release/solana-mcp-server deploy/
+          cp config.json deploy/
+          chmod +x deploy/solana-mcp-server
+
+          # Create systemd service file
+          cat > deploy/solana-mcp-server.service << 'EOF'
+          [Unit]
+          Description=Solana MCP Server
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=www-data
+          WorkingDirectory=/opt/solana-mcp-server
+          ExecStart=/opt/solana-mcp-server/solana-mcp-server web --port 3001
+          Restart=always
+          RestartSec=10
+          Environment="RUST_LOG=info"
+          Environment="SOLANA_RPC_URL=https://api.mainnet-beta.solana.com"
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+          # Create nginx config
+          cat > deploy/nginx-solahaha.conf << 'EOF'
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name solahaha.com;
+
+              # Redirect HTTP to HTTPS
+              return 301 https://$server_name$request_uri;
+          }
+
+          server {
+              listen 443 ssl http2;
+              listen [::]:443 ssl http2;
+              server_name solahaha.com;
+
+              # SSL configuration (assumes certbot is used)
+              ssl_certificate /etc/letsencrypt/live/solahaha.com/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/solahaha.com/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers HIGH:!aNULL:!MD5;
+
+              # Security headers
+              add_header X-Frame-Options "SAMEORIGIN" always;
+              add_header X-Content-Type-Options "nosniff" always;
+              add_header X-XSS-Protection "1; mode=block" always;
+
+              # MCP API endpoint
+              location /api/mcp {
+                  proxy_pass http://localhost:3001/api/mcp;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_read_timeout 300s;
+                  proxy_connect_timeout 75s;
+              }
+
+              # Health check endpoint
+              location /health {
+                  proxy_pass http://localhost:3001/health;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  access_log off;
+              }
+
+              # Metrics endpoint (optional, can be restricted)
+              location /metrics {
+                  proxy_pass http://localhost:3001/metrics;
+                  proxy_http_version 1.1;
+                  # Restrict access
+                  allow 127.0.0.1;
+                  deny all;
+              }
+
+              # Root path - serve documentation or redirect
+              location / {
+                  root /var/www/solahaha.com/html;
+                  index index.html;
+                  try_files $uri $uri/ =404;
+              }
+          }
+          EOF
+
+          # Create deployment script
+          cat > deploy/deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          echo "🚀 Deploying Solana MCP Server to solahaha.com"
+
+          # Stop existing service
+          sudo systemctl stop solana-mcp-server || true
+
+          # Create directory
+          sudo mkdir -p /opt/solana-mcp-server
+
+          # Copy binary and config
+          sudo cp solana-mcp-server /opt/solana-mcp-server/
+          sudo cp config.json /opt/solana-mcp-server/
+          sudo chown -R www-data:www-data /opt/solana-mcp-server
+
+          # Install systemd service
+          sudo cp solana-mcp-server.service /etc/systemd/system/
+          sudo systemctl daemon-reload
+          sudo systemctl enable solana-mcp-server
+          sudo systemctl start solana-mcp-server
+
+          # Wait for service to start
+          sleep 3
+
+          # Check status
+          sudo systemctl status solana-mcp-server --no-pager || true
+
+          # Test health endpoint
+          curl -f http://localhost:3001/health || echo "Health check failed"
+
+          echo "✅ Deployment complete!"
+          EOF
+
+          chmod +x deploy/deploy.sh
+
+      - name: Create deployment tarball
+        run: |
+          cd deploy
+          tar -czf ../solana-mcp-server-deploy.tar.gz *
+          cd ..
+          ls -lh solana-mcp-server-deploy.tar.gz
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-mcp-server-deploy
+          path: solana-mcp-server-deploy.tar.gz
+          retention-days: 30
+
+      - name: Deploy to server via SSH
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: solahaha.com
+          SSH_USER: ${{ secrets.DEPLOY_SSH_USER || 'larp' }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+
+          # Upload deployment package
+          scp -i ~/.ssh/deploy_key solana-mcp-server-deploy.tar.gz $SSH_USER@$SSH_HOST:/tmp/
+
+          # Extract and deploy
+          ssh -i ~/.ssh/deploy_key $SSH_USER@$SSH_HOST << 'ENDSSH'
+            cd /tmp
+            tar -xzf solana-mcp-server-deploy.tar.gz
+            bash deploy.sh
+            rm -rf solana-mcp-server-deploy.tar.gz deploy.sh *.service *.conf solana-mcp-server config.json
+          ENDSSH
+
+          # Cleanup
+          rm ~/.ssh/deploy_key
+
+      - name: Verify deployment
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: |
+          sleep 5
+          curl -f https://solahaha.com/health || echo "Health check failed"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment to solahaha.com successful!"
+          else
+            echo "❌ Deployment to solahaha.com failed!"
+          fi

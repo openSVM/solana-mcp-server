@@ -4,9 +4,9 @@ metadata:
   name: solana-mcp-server
   labels:
     app: solana-mcp-server
-    version: v1.0.2
+    version: v1.1.1
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: solana-mcp-server
@@ -16,15 +16,21 @@ spec:
         app: solana-mcp-server
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
+        prometheus.io/port: "3000"
         prometheus.io/path: "/metrics"
     spec:
       containers:
       - name: solana-mcp-server
-        image: solana-mcp-server:latest
+        image: ghcr.io/opensvm/solana-mcp-server:latest
+        imagePullPolicy: IfNotPresent
         ports:
-        - name: metrics
-          containerPort: 8080
+        - name: http
+          containerPort: 3000
+          hostPort: 80
+          protocol: TCP
+        - name: https
+          containerPort: 3000
+          hostPort: 443
           protocol: TCP
         env:
         - name: SOLANA_RPC_URL
@@ -33,25 +39,29 @@ spec:
           value: "confirmed"
         - name: RUST_LOG
           value: "info"
+        - name: SSL_CERT_FILE
+          value: "/etc/ssl/certs/ca-certificates.crt"
+        - name: SSL_CERT_DIR
+          value: "/etc/ssl/certs"
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "64Mi"
+            cpu: "10m"
           limits:
-            memory: "1Gi"
-            cpu: "500m"
+            memory: "128Mi"
+            cpu: "100m"
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
-          initialDelaySeconds: 30
+            port: 3000
+          initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
@@ -59,12 +69,10 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
-          runAsUser: 1000
+          runAsUser: 65532
           capabilities:
             drop:
             - ALL
-            add:
-            - NET_BIND_SERVICE
 ---
 apiVersion: v1
 kind: Service
@@ -74,17 +82,62 @@ metadata:
     app: solana-mcp-server
   annotations:
     prometheus.io/scrape: "true"
-    prometheus.io/port: "8080"
+    prometheus.io/port: "3000"
     prometheus.io/path: "/metrics"
 spec:
   selector:
     app: solana-mcp-server
   ports:
-  - name: metrics
+  - name: http
     protocol: TCP
-    port: 8080
-    targetPort: 8080
+    port: 80
+    targetPort: 3000
   type: ClusterIP
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: solana-mcp-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - svmai.ai
+    - svm.run
+    - solahaha.com
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: PASSTHROUGH
+    hosts:
+    - svmai.ai
+    - svm.run
+    - solahaha.com
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: solana-mcp-vs
+spec:
+  hosts:
+  - svmai.ai
+  - svm.run
+  - solahaha.com
+  gateways:
+  - solana-mcp-gateway
+  http:
+  - route:
+    - destination:
+        host: solana-mcp-service
+        port:
+          number: 80
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
