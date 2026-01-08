@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana XR Blockchain Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #info-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            max-width: 400px;
+            z-index: 100;
+            font-size: 14px;
+            box-shadow: 0 8px 32px rgba(112, 0, 255, 0.15);
+        }
+
+        .metric {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            color: #00ff88;
+            font-size: 18px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-value.purple {
+            color: #9d4edd;
+        }
+
+        .metric-value.blue {
+            color: #4cc9f0;
+        }
+
+        .metric-value.orange {
+            color: #f77f00;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        button {
+            background: linear-gradient(135deg, #7000ff 0%, #9d4edd 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(112, 0, 255, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.active {
+            background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        #status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 12px;
+            display: none;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(112, 0, 255, 0.2);
+            border-top-color: #7000ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+        }
+
+        .legend {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(112, 0, 255, 0.2);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Initializing Solana XR Visualizer...</div>
+    </div>
+
+    <div id="info-overlay">
+        <div class="title">Solana Network</div>
+        <div class="metric">
+            <span class="metric-label">Current Slot</span>
+            <span class="metric-value" id="slot">--</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">TPS</span>
+            <span class="metric-value purple" id="tps">--</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Block Height</span>
+            <span class="metric-value blue" id="blockHeight">--</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Network Health</span>
+            <span class="metric-value orange" id="health">OK</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Active Nodes</span>
+            <span class="metric-value" id="nodes">100</span>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #7000ff;"></div>
+                <span>Validators</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #00ff88;"></div>
+                <span>Active Transactions</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4cc9f0;"></div>
+                <span>Network Links</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="status">
+        <div class="status-dot"></div>
+        <span>Live Data Feed</span>
+    </div>
+
+    <div id="controls">
+        <button id="pauseBtn">Pause</button>
+        <button id="vrBtn">Enter XR</button>
+        <button id="resetBtn">Reset View</button>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+        // Configuration
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        const UPDATE_INTERVAL = 2000; // 2 seconds
+        const NUM_NODES = 100;
+        const NETWORK_RADIUS = 15;
+
+        // Scene setup
+        let scene, camera, renderer, controls;
+        let nodes = [];
+        let connections = [];
+        let transactionParticles = [];
+        let isPaused = false;
+        let animationId;
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 30, 60);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 15, 30);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.xr.enabled = true;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 10;
+            controls.maxDistance = 50;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 1);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0x7000ff, 2, 50);
+            pointLight1.position.set(10, 10, 10);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x00ff88, 1.5, 50);
+            pointLight2.position.set(-10, -10, -10);
+            scene.add(pointLight2);
+
+            // Create network visualization
+            createNetworkNodes();
+            createConnections();
+            createCenterCore();
+
+            // VR Button
+            const vrButton = VRButton.createButton(renderer);
+            vrButton.style.display = 'none'; // We'll use custom button
+
+            // Event listeners
+            setupEventListeners();
+
+            // Start animation
+            animate();
+
+            // Start data updates
+            updateData();
+            setInterval(updateData, UPDATE_INTERVAL);
+
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function createNetworkNodes() {
+            const nodeGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+
+            for (let i = 0; i < NUM_NODES; i++) {
+                // Distribute nodes in a spherical pattern
+                const phi = Math.acos(-1 + (2 * i) / NUM_NODES);
+                const theta = Math.sqrt(NUM_NODES * Math.PI) * phi;
+
+                const x = NETWORK_RADIUS * Math.cos(theta) * Math.sin(phi);
+                const y = NETWORK_RADIUS * Math.sin(theta) * Math.sin(phi);
+                const z = NETWORK_RADIUS * Math.cos(phi);
+
+                const nodeMaterial = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
+                    emissive: new THREE.Color(0x7000ff),
+                    emissiveIntensity: 0.3,
+                    shininess: 100
+                });
+
+                const node = new THREE.Mesh(nodeGeometry, nodeMaterial);
+                node.position.set(x, y, z);
+                node.userData = {
+                    originalPosition: new THREE.Vector3(x, y, z),
+                    velocity: new THREE.Vector3(),
+                    isValidator: Math.random() > 0.7
+                };
+
+                // Validators are larger
+                if (node.userData.isValidator) {
+                    node.scale.set(1.5, 1.5, 1.5);
+                    nodeMaterial.emissiveIntensity = 0.6;
+                }
+
+                scene.add(node);
+                nodes.push(node);
+            }
+        }
+
+        function createConnections() {
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: 0x4cc9f0,
+                transparent: true,
+                opacity: 0.15,
+                blending: THREE.AdditiveBlending
+            });
+
+            // Create connections between nearby nodes
+            for (let i = 0; i < nodes.length; i++) {
+                const connectionsPerNode = 3 + Math.floor(Math.random() * 3);
+
+                for (let j = 0; j < connectionsPerNode; j++) {
+                    const targetIndex = Math.floor(Math.random() * nodes.length);
+                    if (targetIndex !== i) {
+                        const points = [];
+                        points.push(nodes[i].position.clone());
+                        points.push(nodes[targetIndex].position.clone());
+
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const line = new THREE.Line(geometry, lineMaterial);
+                        scene.add(line);
+                        connections.push(line);
+                    }
+                }
+            }
+        }
+
+        function createCenterCore() {
+            // Central core representing MCP server
+            const coreGeometry = new THREE.IcosahedronGeometry(2, 1);
+            const coreMaterial = new THREE.MeshPhongMaterial({
+                color: 0x7000ff,
+                emissive: 0x7000ff,
+                emissiveIntensity: 0.8,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            scene.add(core);
+
+            // Rotating glow ring
+            const ringGeometry = new THREE.TorusGeometry(3, 0.1, 16, 100);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 0.4
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.rotation.x = Math.PI / 2;
+            scene.add(ring);
+
+            // Animate core
+            function animateCore() {
+                if (!isPaused) {
+                    core.rotation.y += 0.01;
+                    ring.rotation.z += 0.005;
+                }
+            }
+
+            renderer.setAnimationLoop(() => {
+                animateCore();
+            });
+        }
+
+        function createTransactionParticle() {
+            const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 1
+            });
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+
+            // Start from random node
+            const startNode = nodes[Math.floor(Math.random() * nodes.length)];
+            const endNode = nodes[Math.floor(Math.random() * nodes.length)];
+
+            particle.position.copy(startNode.position);
+            particle.userData = {
+                startPos: startNode.position.clone(),
+                endPos: endNode.position.clone(),
+                progress: 0,
+                speed: 0.01 + Math.random() * 0.02
+            };
+
+            scene.add(particle);
+            transactionParticles.push(particle);
+        }
+
+        function updateTransactionParticles() {
+            for (let i = transactionParticles.length - 1; i >= 0; i--) {
+                const particle = transactionParticles[i];
+                particle.userData.progress += particle.userData.speed;
+
+                if (particle.userData.progress >= 1) {
+                    scene.remove(particle);
+                    transactionParticles.splice(i, 1);
+                } else {
+                    particle.position.lerpVectors(
+                        particle.userData.startPos,
+                        particle.userData.endPos,
+                        particle.userData.progress
+                    );
+                    particle.material.opacity = 1 - particle.userData.progress;
+                }
+            }
+        }
+
+        async function callMCP(method, params = {}) {
+            try {
+                const response = await fetch(MCP_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        id: Date.now(),
+                        params: {
+                            name: method,
+                            arguments: params
+                        }
+                    })
+                });
+                const data = await response.json();
+                return data.result || data;
+            } catch (error) {
+                console.error(`MCP call failed (${method}):`, error);
+                return null;
+            }
+        }
+
+        let lastSlot = 0;
+        let slotHistory = [];
+
+        async function updateData() {
+            if (isPaused) return;
+
+            // Get current slot
+            const slotData = await callMCP('getSlot');
+            if (slotData && slotData.slot) {
+                const currentSlot = slotData.slot;
+                document.getElementById('slot').textContent = currentSlot.toLocaleString();
+
+                // Calculate TPS
+                if (lastSlot > 0) {
+                    const slotDiff = currentSlot - lastSlot;
+                    const tps = Math.round((slotDiff * 500) / (UPDATE_INTERVAL / 1000)); // ~500 tx/slot avg
+                    document.getElementById('tps').textContent = tps.toLocaleString();
+
+                    // Create transaction particles based on TPS
+                    const particleCount = Math.min(Math.floor(tps / 1000), 10);
+                    for (let i = 0; i < particleCount; i++) {
+                        createTransactionParticle();
+                    }
+                }
+                lastSlot = currentSlot;
+            }
+
+            // Get health
+            const healthData = await callMCP('getHealth');
+            if (healthData) {
+                document.getElementById('health').textContent = 'OK';
+            }
+
+            // Simulate block height (slightly behind slot)
+            if (lastSlot > 0) {
+                const blockHeight = lastSlot - Math.floor(Math.random() * 100);
+                document.getElementById('blockHeight').textContent = blockHeight.toLocaleString();
+            }
+
+            // Animate nodes based on activity
+            animateNodes();
+        }
+
+        function animateNodes() {
+            nodes.forEach((node, i) => {
+                if (!isPaused) {
+                    // Pulse effect based on activity
+                    const scale = 1 + Math.sin(Date.now() * 0.001 + i) * 0.1;
+                    node.scale.set(scale, scale, scale);
+
+                    // Subtle movement
+                    const offset = 0.2;
+                    node.position.x = node.userData.originalPosition.x + Math.sin(Date.now() * 0.0005 + i) * offset;
+                    node.position.y = node.userData.originalPosition.y + Math.cos(Date.now() * 0.0005 + i) * offset;
+                }
+            });
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            if (!isPaused) {
+                controls.update();
+                updateTransactionParticles();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function setupEventListeners() {
+            // Pause button
+            document.getElementById('pauseBtn').addEventListener('click', () => {
+                isPaused = !isPaused;
+                const btn = document.getElementById('pauseBtn');
+                btn.textContent = isPaused ? 'Resume' : 'Pause';
+                btn.classList.toggle('active');
+                controls.autoRotate = !isPaused;
+            });
+
+            // VR button
+            document.getElementById('vrBtn').addEventListener('click', () => {
+                if (navigator.xr) {
+                    renderer.xr.enabled = true;
+                    navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                        if (supported) {
+                            navigator.xr.requestSession('immersive-vr').then((session) => {
+                                renderer.xr.setSession(session);
+                            });
+                        } else {
+                            alert('XR not supported on this device. Try viewing on a VR headset or AR-capable device.');
+                        }
+                    });
+                } else {
+                    alert('WebXR not available. Please use a compatible browser (Chrome, Firefox) on an XR device.');
+                }
+            });
+
+            // Reset view
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                camera.position.set(0, 15, 30);
+                controls.reset();
+            });
+
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

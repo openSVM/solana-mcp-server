@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump.fun - Holder Analytics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            background: #000;
+            color: #0f0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .panel {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #0f0;
+            padding: 15px;
+            font-family: 'SF Mono', monospace;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 25px;
+            background: linear-gradient(180deg, rgba(0, 255, 0, 0.1) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        /* Panel Layout - 5 panels */
+        #token-feed {
+            top: 20px;
+            left: 20px;
+            width: 380px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #holder-analysis {
+            top: 20px;
+            right: 20px;
+            width: 450px;
+            max-height: 680px;
+            overflow-y: auto;
+        }
+
+        #concentration-risk {
+            top: 440px;
+            left: 20px;
+            width: 380px;
+        }
+
+        #bonding-curve {
+            bottom: 20px;
+            left: 20px;
+            width: 380px;
+        }
+
+        #top-movers {
+            bottom: 20px;
+            right: 20px;
+            width: 450px;
+        }
+
+        .panel-title {
+            color: #0ff;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 8px;
+        }
+
+        .panel-title::before {
+            content: '> ';
+            color: #0f0;
+        }
+
+        /* Token items */
+        .token-item {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #0f0;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .token-item:hover {
+            background: rgba(0, 255, 0, 0.15);
+            border-color: #0ff;
+        }
+
+        .token-item.selected {
+            border: 2px solid #ff0;
+            background: rgba(255, 255, 0, 0.1);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+
+        .token-name {
+            color: #0ff;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .token-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+            color: #0f0;
+        }
+
+        .token-stat .label {
+            color: #888;
+        }
+
+        .token-stat .value {
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        /* Holder Analysis */
+        .holder-summary {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #0ff;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .holder-count {
+            font-size: 36px;
+            color: #0ff;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .holder-delta {
+            text-align: center;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .holder-delta.up {
+            color: #0f0;
+        }
+
+        .holder-delta.up::before {
+            content: '↑ ';
+        }
+
+        .holder-delta.down {
+            color: #f00;
+        }
+
+        .holder-delta.down::before {
+            content: '↓ ';
+        }
+
+        /* Distribution chart */
+        .distribution-chart {
+            margin: 20px 0;
+        }
+
+        .distribution-bar {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 11px;
+        }
+
+        .bar-label {
+            width: 100px;
+            color: #888;
+        }
+
+        .bar-fill-container {
+            flex: 1;
+            height: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #0f0;
+            position: relative;
+            margin: 0 10px;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0 0%, #0ff 100%);
+            transition: width 0.5s ease;
+        }
+
+        .bar-value {
+            color: #0f0;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        /* Top holders */
+        .holder-item {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #0f0;
+            border-left: 3px solid;
+            padding: 10px;
+            margin: 6px 0;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .holder-item.creator {
+            border-left-color: #f0f;
+            background: rgba(255, 0, 255, 0.1);
+        }
+
+        .holder-item.whale {
+            border-left-color: #ff0;
+            background: rgba(255, 255, 0, 0.05);
+        }
+
+        .holder-address {
+            font-family: monospace;
+            color: #888;
+            font-size: 10px;
+        }
+
+        .holder-percentage {
+            color: #0ff;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .holder-badge {
+            background: #f0f;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        /* Risk alerts */
+        .risk-alert {
+            background: rgba(255, 0, 0, 0.1);
+            border: 2px solid #f00;
+            padding: 15px;
+            margin: 10px 0;
+            animation: pulse-danger 2s infinite;
+        }
+
+        .risk-alert.warning {
+            background: rgba(255, 255, 0, 0.1);
+            border-color: #ff0;
+        }
+
+        .risk-alert.safe {
+            background: rgba(0, 255, 0, 0.1);
+            border-color: #0f0;
+        }
+
+        @keyframes pulse-danger {
+            0%, 100% {
+                box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+            }
+        }
+
+        .risk-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .risk-alert.safe .risk-title {
+            color: #0f0;
+        }
+
+        .risk-alert.warning .risk-title {
+            color: #ff0;
+        }
+
+        .risk-alert .risk-title {
+            color: #f00;
+        }
+
+        .risk-details {
+            font-size: 10px;
+            color: #aaa;
+            margin: 5px 0;
+        }
+
+        /* Holder growth chart */
+        .growth-chart {
+            width: 100%;
+            height: 80px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .growth-canvas {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #0f0;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Bonding curve */
+        .curve-progress {
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0 0%, #0ff 100%);
+            transition: width 1s ease;
+        }
+
+        .progress-label {
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+        }
+
+        /* Top movers */
+        .mover-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 6px 0;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #0f0;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mover-item:hover {
+            background: rgba(0, 255, 0, 0.15);
+            border-color: #0ff;
+        }
+
+        .mover-rank {
+            background: #0f0;
+            color: #000;
+            padding: 4px 8px;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .mover-info {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .mover-name {
+            color: #0ff;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .mover-holders {
+            color: #888;
+            font-size: 10px;
+        }
+
+        .mover-change {
+            font-weight: bold;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f0;
+        }
+
+        /* Controls */
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #0f0;
+            padding: 12px 20px;
+            z-index: 200;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 11px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #0ff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <!-- Token Feed -->
+    <div class="panel" id="token-feed">
+        <div class="panel-title">🚀 Active Tokens</div>
+        <div id="token-list"></div>
+    </div>
+
+    <!-- Holder Analysis Panel -->
+    <div class="panel" id="holder-analysis">
+        <div class="panel-title">👥 Holder Analytics</div>
+
+        <div class="holder-summary">
+            <div style="color: #888; font-size: 11px; text-align: center; margin-bottom: 5px;">TOTAL HOLDERS</div>
+            <div class="holder-count" id="holder-count">---</div>
+            <div class="holder-delta" id="holder-delta"></div>
+        </div>
+
+        <div class="growth-chart">
+            <canvas id="growth-canvas" class="growth-canvas"></canvas>
+        </div>
+
+        <div style="color: #0ff; font-size: 12px; margin: 20px 0 10px 0; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            HOLDER DISTRIBUTION
+        </div>
+
+        <div class="distribution-chart">
+            <div class="distribution-bar">
+                <div class="bar-label">Top 1</div>
+                <div class="bar-fill-container">
+                    <div class="bar-fill" id="top1-bar" style="width: 0%"></div>
+                </div>
+                <div class="bar-value" id="top1-value">0%</div>
+            </div>
+            <div class="distribution-bar">
+                <div class="bar-label">Top 10</div>
+                <div class="bar-fill-container">
+                    <div class="bar-fill" id="top10-bar" style="width: 0%"></div>
+                </div>
+                <div class="bar-value" id="top10-value">0%</div>
+            </div>
+            <div class="distribution-bar">
+                <div class="bar-label">Top 50</div>
+                <div class="bar-fill-container">
+                    <div class="bar-fill" id="top50-bar" style="width: 0%"></div>
+                </div>
+                <div class="bar-value" id="top50-value">0%</div>
+            </div>
+            <div class="distribution-bar">
+                <div class="bar-label">Others</div>
+                <div class="bar-fill-container">
+                    <div class="bar-fill" id="others-bar" style="width: 0%"></div>
+                </div>
+                <div class="bar-value" id="others-value">0%</div>
+            </div>
+        </div>
+
+        <div style="color: #0ff; font-size: 12px; margin: 20px 0 10px 0; border-bottom: 1px solid #0f0; padding-bottom: 5px;">
+            TOP HOLDERS
+        </div>
+
+        <div id="top-holders-list"></div>
+    </div>
+
+    <!-- Concentration Risk -->
+    <div class="panel" id="concentration-risk">
+        <div class="panel-title">⚠️ Risk Analysis</div>
+        <div id="risk-content"></div>
+    </div>
+
+    <!-- Bonding Curve -->
+    <div class="panel" id="bonding-curve">
+        <div class="panel-title">📈 Bonding Curve</div>
+        <div id="curve-content"></div>
+    </div>
+
+    <!-- Top Movers -->
+    <div class="panel" id="top-movers">
+        <div class="panel-title">🔥 Top by Holder Growth</div>
+        <div id="movers-list"></div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button class="control-btn" onclick="togglePause()">Pause</button>
+        <button class="control-btn" onclick="refreshData()">Refresh</button>
+        <button class="control-btn" onclick="window.location.href='/pump-token-flow.html'">Token Flow</button>
+        <button class="control-btn" onclick="window.location.href='/'">Home</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        let isPaused = false;
+        let selectedToken = null;
+        let holderHistory = [];
+        let scene, camera, renderer;
+
+        // Mock token data with holder information
+        const tokens = [
+            {
+                name: '$PEPE2',
+                holders: 1247,
+                holderGrowth: 34,
+                top1: 12.5,
+                top10: 38.2,
+                top50: 67.8,
+                topHolders: [
+                    { address: 'Hvf8...x3k2', percent: 12.5, isCreator: true },
+                    { address: '9mK4...p7n1', percent: 8.3, isCreator: false },
+                    { address: 'Bx73...q4m9', percent: 6.1, isCreator: false },
+                    { address: 'K2n8...r5p3', percent: 4.8, isCreator: false },
+                    { address: 'Wp94...t2k7', percent: 3.2, isCreator: false }
+                ],
+                liquidity: 85,
+                volume: 450000
+            },
+            {
+                name: '$WOJAK',
+                holders: 892,
+                holderGrowth: 12,
+                top1: 45.2,
+                top10: 78.5,
+                top50: 92.1,
+                topHolders: [
+                    { address: 'Qw3r...y7u8', percent: 45.2, isCreator: true },
+                    { address: '2Kj9...h3f6', percent: 12.3, isCreator: false },
+                    { address: 'Lp45...m8n1', percent: 8.4, isCreator: false },
+                    { address: 'Vx72...b9c4', percent: 5.3, isCreator: false },
+                    { address: 'Nm31...k6j2', percent: 4.1, isCreator: false }
+                ],
+                liquidity: 72,
+                volume: 320000
+            },
+            {
+                name: '$BONK2',
+                holders: 2341,
+                holderGrowth: 89,
+                top1: 8.2,
+                top10: 24.5,
+                top50: 51.3,
+                topHolders: [
+                    { address: 'Zt89...w4e5', percent: 8.2, isCreator: true },
+                    { address: 'Cx56...r3t2', percent: 5.1, isCreator: false },
+                    { address: 'Fh23...y8u9', percent: 4.3, isCreator: false },
+                    { address: 'Nk67...i5o4', percent: 3.8, isCreator: false },
+                    { address: 'Pm12...a7s6', percent: 2.9, isCreator: false }
+                ],
+                liquidity: 92,
+                volume: 680000
+            },
+            {
+                name: '$SMOL',
+                holders: 445,
+                holderGrowth: 156,
+                top1: 28.7,
+                top10: 62.3,
+                top50: 84.9,
+                topHolders: [
+                    { address: 'Gb74...l1k9', percent: 28.7, isCreator: true },
+                    { address: 'Yh36...m4n7', percent: 9.8, isCreator: false },
+                    { address: 'Rt81...p2q5', percent: 7.4, isCreator: false },
+                    { address: 'Uw52...b8v3', percent: 6.2, isCreator: false },
+                    { address: 'Je29...c6x1', percent: 5.1, isCreator: false }
+                ],
+                liquidity: 45,
+                volume: 180000
+            },
+            {
+                name: '$MOON',
+                holders: 3127,
+                holderGrowth: 67,
+                top1: 5.3,
+                top10: 18.9,
+                top50: 42.7,
+                topHolders: [
+                    { address: 'Dk93...z2x4', percent: 5.3, isCreator: true },
+                    { address: 'Ol47...v7c8', percent: 4.2, isCreator: false },
+                    { address: 'Tp68...b3n5', percent: 3.8, isCreator: false },
+                    { address: 'Ms14...m9k2', percent: 2.9, isCreator: false },
+                    { address: 'Aq52...h6g7', percent: 2.5, isCreator: false }
+                ],
+                liquidity: 95,
+                volume: 890000
+            }
+        ];
+
+        function init() {
+            // 3D background
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            createBackground();
+            animate3D();
+
+            // Initialize UI
+            updateTokenList();
+            selectToken(tokens[0]);
+            setInterval(simulateHolderGrowth, 3000);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createBackground() {
+            // Particle system
+            const particleCount = 500;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 100;
+                positions[i + 1] = (Math.random() - 0.5) * 100;
+                positions[i + 2] = (Math.random() - 0.5) * 100;
+
+                const color = new THREE.Color(0x00ff00);
+                colors[i] = color.r;
+                colors[i + 1] = color.g;
+                colors[i + 2] = color.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.3,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            if (!isPaused) {
+                scene.children.forEach(child => {
+                    if (child.type === 'Points') {
+                        child.rotation.y += 0.0005;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function updateTokenList() {
+            const list = document.getElementById('token-list');
+            list.innerHTML = '';
+
+            tokens.forEach(token => {
+                const el = document.createElement('div');
+                el.className = 'token-item' + (selectedToken === token ? ' selected' : '');
+                el.innerHTML = `
+                    <div class="token-name">${token.name}</div>
+                    <div class="token-stat">
+                        <span class="label">Holders:</span>
+                        <span class="value">${token.holders.toLocaleString()}</span>
+                    </div>
+                    <div class="token-stat">
+                        <span class="label">24h Growth:</span>
+                        <span class="value" style="color: ${token.holderGrowth > 0 ? '#0f0' : '#f00'}">
+                            ${token.holderGrowth > 0 ? '+' : ''}${token.holderGrowth}
+                        </span>
+                    </div>
+                `;
+                el.onclick = () => selectToken(token);
+                list.appendChild(el);
+            });
+        }
+
+        function selectToken(token) {
+            selectedToken = token;
+            updateTokenList();
+            updateHolderAnalysis();
+            updateRiskAnalysis();
+            updateBondingCurve();
+            updateTopMovers();
+        }
+
+        function updateHolderAnalysis() {
+            if (!selectedToken) return;
+
+            // Holder count
+            document.getElementById('holder-count').textContent = selectedToken.holders.toLocaleString();
+
+            // Delta
+            const deltaEl = document.getElementById('holder-delta');
+            if (selectedToken.holderGrowth > 0) {
+                deltaEl.className = 'holder-delta up';
+                deltaEl.textContent = `${selectedToken.holderGrowth} new holders (24h)`;
+            } else if (selectedToken.holderGrowth < 0) {
+                deltaEl.className = 'holder-delta down';
+                deltaEl.textContent = `${Math.abs(selectedToken.holderGrowth)} holders left (24h)`;
+            } else {
+                deltaEl.className = 'holder-delta';
+                deltaEl.textContent = 'No change (24h)';
+            }
+
+            // Distribution bars
+            document.getElementById('top1-bar').style.width = selectedToken.top1 + '%';
+            document.getElementById('top1-value').textContent = selectedToken.top1.toFixed(1) + '%';
+
+            document.getElementById('top10-bar').style.width = selectedToken.top10 + '%';
+            document.getElementById('top10-value').textContent = selectedToken.top10.toFixed(1) + '%';
+
+            document.getElementById('top50-bar').style.width = selectedToken.top50 + '%';
+            document.getElementById('top50-value').textContent = selectedToken.top50.toFixed(1) + '%';
+
+            const others = 100 - selectedToken.top50;
+            document.getElementById('others-bar').style.width = others + '%';
+            document.getElementById('others-value').textContent = others.toFixed(1) + '%';
+
+            // Top holders list
+            const holdersList = document.getElementById('top-holders-list');
+            holdersList.innerHTML = '';
+
+            selectedToken.topHolders.forEach((holder, index) => {
+                const el = document.createElement('div');
+                el.className = 'holder-item' + (holder.isCreator ? ' creator' : (holder.percent > 10 ? ' whale' : ''));
+                el.innerHTML = `
+                    <div>
+                        <div style="display: flex; align-items: center; margin-bottom: 3px;">
+                            <span style="color: #0f0; margin-right: 8px;">#${index + 1}</span>
+                            <span class="holder-address">${holder.address}</span>
+                            ${holder.isCreator ? '<span class="holder-badge">CREATOR</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="holder-percentage">${holder.percent.toFixed(1)}%</div>
+                `;
+                holdersList.appendChild(el);
+            });
+
+            // Update growth chart
+            drawGrowthChart();
+        }
+
+        function drawGrowthChart() {
+            const canvas = document.getElementById('growth-canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Simulate holder growth history
+            if (holderHistory.length === 0) {
+                const baseHolders = selectedToken.holders - selectedToken.holderGrowth;
+                for (let i = 0; i < 20; i++) {
+                    holderHistory.push(baseHolders + (selectedToken.holderGrowth / 20) * i + Math.random() * 50);
+                }
+            }
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = (canvas.height / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw line
+            const maxHolders = Math.max(...holderHistory);
+            const minHolders = Math.min(...holderHistory);
+
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            holderHistory.forEach((count, i) => {
+                const x = (i / (holderHistory.length - 1)) * canvas.width;
+                const y = canvas.height - ((count - minHolders) / (maxHolders - minHolders)) * canvas.height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+        }
+
+        function updateRiskAnalysis() {
+            if (!selectedToken) return;
+
+            const riskContent = document.getElementById('risk-content');
+            let riskClass = 'safe';
+            let riskTitle = '✅ Low Risk';
+            let riskMessage = 'Well distributed, low concentration';
+
+            if (selectedToken.top1 > 40) {
+                riskClass = '';
+                riskTitle = '🚨 HIGH RUG RISK';
+                riskMessage = `Top holder owns ${selectedToken.top1}% - EXTREME CONCENTRATION`;
+            } else if (selectedToken.top1 > 25) {
+                riskClass = 'warning';
+                riskTitle = '⚠️ MEDIUM RISK';
+                riskMessage = `Top holder owns ${selectedToken.top1}% - High concentration`;
+            } else if (selectedToken.top10 > 60) {
+                riskClass = 'warning';
+                riskTitle = '⚠️ MEDIUM RISK';
+                riskMessage = `Top 10 holders own ${selectedToken.top10}% - Moderate concentration`;
+            }
+
+            riskContent.innerHTML = `
+                <div class="risk-alert ${riskClass}">
+                    <div class="risk-title">${riskTitle}</div>
+                    <div class="risk-details">${riskMessage}</div>
+                    <div class="risk-details" style="margin-top: 10px;">
+                        • Creator holds: ${selectedToken.topHolders[0].percent.toFixed(1)}%<br>
+                        • Top 10 own: ${selectedToken.top10.toFixed(1)}%<br>
+                        • Total holders: ${selectedToken.holders.toLocaleString()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateBondingCurve() {
+            if (!selectedToken) return;
+
+            const curveContent = document.getElementById('curve-content');
+            const migrating = selectedToken.liquidity >= 90;
+
+            curveContent.innerHTML = `
+                <div class="curve-progress">
+                    ${migrating ? '<div style="background: rgba(255,255,0,0.1); border: 2px solid #ff0; padding: 8px; margin-bottom: 10px; text-align: center; font-weight: bold; color: #ff0;">⚡ MIGRATING TO RAYDIUM ⚡</div>' : ''}
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${selectedToken.liquidity}%"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>Bonding Curve</span>
+                        <span>${selectedToken.liquidity}% Complete</span>
+                    </div>
+                    <div class="token-stat" style="margin-top: 10px;">
+                        <span class="label">Volume:</span>
+                        <span class="value">$${selectedToken.volume.toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateTopMovers() {
+            const moversList = document.getElementById('movers-list');
+            const sorted = [...tokens].sort((a, b) => b.holderGrowth - a.holderGrowth);
+
+            moversList.innerHTML = '';
+
+            sorted.forEach((token, index) => {
+                const el = document.createElement('div');
+                el.className = 'mover-item';
+                el.onclick = () => selectToken(token);
+                el.innerHTML = `
+                    <div class="mover-rank">#${index + 1}</div>
+                    <div class="mover-info">
+                        <div class="mover-name">${token.name}</div>
+                        <div class="mover-holders">${token.holders.toLocaleString()} holders</div>
+                    </div>
+                    <div class="mover-change" style="color: ${token.holderGrowth > 0 ? '#0f0' : '#f00'}">
+                        ${token.holderGrowth > 0 ? '+' : ''}${token.holderGrowth}
+                    </div>
+                `;
+                moversList.appendChild(el);
+            });
+        }
+
+        function simulateHolderGrowth() {
+            if (isPaused) return;
+
+            tokens.forEach(token => {
+                const change = Math.floor(Math.random() * 20) - 5;
+                token.holders += change;
+                token.holderGrowth += change;
+
+                // Update distribution slightly
+                token.top1 += (Math.random() - 0.5) * 2;
+                token.top1 = Math.max(1, Math.min(50, token.top1));
+            });
+
+            // Add to history
+            holderHistory.push(selectedToken.holders);
+            if (holderHistory.length > 20) {
+                holderHistory.shift();
+            }
+
+            if (selectedToken) {
+                updateHolderAnalysis();
+                updateRiskAnalysis();
+                updateTopMovers();
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.togglePause = function() {
+            isPaused = !isPaused;
+        };
+
+        window.refreshData = function() {
+            holderHistory = [];
+            if (selectedToken) {
+                updateHolderAnalysis();
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>

@@ -54,8 +54,14 @@ pub struct SbpfVmWrapper {
 impl SbpfVmWrapper {
     /// Create a new VM instance
     pub fn new() -> Self {
+        // Create VM without signature verification for testing
+        let mut vm = LiteSVM::new();
+
+        // Note: liteSVM 0.9 may have limited support for certain program types
+        // If execution fails, the validation and deployment features still work
+
         Self {
-            vm: Arc::new(Mutex::new(LiteSVM::new())),
+            vm: Arc::new(Mutex::new(vm)),
             deployed_programs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -69,8 +75,24 @@ impl SbpfVmWrapper {
         let program_id_sdk = program_keypair.pubkey();
         let program_id_litesvm = sdk_pubkey_to_litesvm(&program_id_sdk);
 
+        log::info!("Deploying program with ID: {}", program_id_sdk);
+        log::debug!("Program binary size: {} bytes", binary.len());
+
         // Deploy to liteSVM
+        // Note: add_program should make the program executable and ready for invocation
         vm.add_program(program_id_litesvm, &binary);
+
+        // Verify the program was added by checking if the account exists
+        if let Some(account) = vm.get_account(&program_id_litesvm) {
+            log::debug!(
+                "Program account created: executable={}, owner={:?}, data_len={}",
+                account.executable,
+                account.owner,
+                account.data.len()
+            );
+        } else {
+            log::warn!("Program account not found after add_program");
+        }
 
         // Store in our deployed programs map
         let size_bytes = binary.len();
@@ -78,6 +100,8 @@ impl SbpfVmWrapper {
             .lock()
             .await
             .insert(program_id_sdk, binary);
+
+        log::info!("Program deployed successfully: {}", program_id_sdk);
 
         Ok(DeployResponse {
             program_id: program_id_sdk.to_string(),
@@ -105,8 +129,32 @@ impl SbpfVmWrapper {
                 .map_err(|e| SbpfError::AccountError(format!("{:?}", e)))?;
         }
 
-        // Create instruction using litesvm types
+        // Verify program exists before trying to execute
         let program_id_lite = sdk_pubkey_to_litesvm(program_id);
+        if let Some(program_account) = vm.get_account(&program_id_lite) {
+            log::debug!(
+                "Found program account: executable={}, owner={:?}, data_len={}",
+                program_account.executable,
+                program_account.owner,
+                program_account.data.len()
+            );
+
+            if !program_account.executable {
+                log::warn!("Program account exists but executable=false");
+                return Err(SbpfError::ExecutionError(
+                    "Program account is not marked as executable".to_string()
+                ));
+            }
+        } else {
+            log::error!("Program account not found: {}", program_id);
+            return Err(SbpfError::ExecutionError(
+                format!("Program {} not found in VM", program_id)
+            ));
+        }
+
+        log::info!("Creating instruction for program: {}", program_id);
+
+        // Create instruction using litesvm types
         let account_metas_lite: Vec<solana_instruction::AccountMeta> = account_metas
             .iter()
             .map(|am| solana_instruction::AccountMeta {
@@ -116,11 +164,15 @@ impl SbpfVmWrapper {
             })
             .collect();
 
+        log::debug!("Instruction accounts: {}", account_metas_lite.len());
+
         let instruction = solana_instruction::Instruction {
             program_id: program_id_lite,
             accounts: account_metas_lite,
-            data: instruction_data,
+            data: instruction_data.clone(),
         };
+
+        log::debug!("Instruction data length: {} bytes", instruction_data.len());
 
         // Create and sign transaction
         let payer = LiteKeypair::new();

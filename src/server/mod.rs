@@ -6,6 +6,7 @@ use anyhow::Result;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -14,8 +15,12 @@ use tokio::sync::RwLock;
 /// Manages the main Solana RPC client, additional SVM network clients,
 /// and server configuration. Thread-safe through Arc<RwLock<>> wrapper.
 pub struct ServerState {
-    /// Primary Solana RPC client
+    /// Primary Solana RPC client (kept for backwards compatibility)
     pub rpc_client: RpcClient,
+    /// Pool of RPC clients for round-robin load balancing
+    pub rpc_clients: Vec<RpcClient>,
+    /// Round-robin counter for client selection
+    rpc_client_index: Arc<AtomicUsize>,
     /// Map of enabled SVM network clients by network ID
     pub svm_clients: HashMap<String, RpcClient>,
     /// Current server configuration
@@ -43,11 +48,38 @@ impl ServerState {
     pub fn new(config: Config) -> Self {
         let commitment = Self::parse_commitment(&config.commitment);
 
-        log::info!(
-            "Creating RPC client for: {}",
-            sanitize_for_logging(&config.rpc_url)
+        // Create RPC clients pool for round-robin
+        let mut rpc_clients = Vec::new();
+        for url in &config.rpc_urls {
+            log::info!(
+                "Creating RPC client for: {}",
+                sanitize_for_logging(url)
+            );
+            let client = RpcClient::new_with_commitment(url.clone(), commitment);
+            rpc_clients.push(client);
+        }
+
+        // Fallback to single rpc_url if rpc_urls is empty (backwards compatibility)
+        if rpc_clients.is_empty() {
+            log::info!(
+                "Creating RPC client for: {}",
+                sanitize_for_logging(&config.rpc_url)
+            );
+            let client = RpcClient::new_with_commitment(config.rpc_url.clone(), commitment);
+            rpc_clients.push(client);
+        }
+
+        // Keep first client as primary for backwards compatibility
+        let rpc_client = RpcClient::new_with_commitment(
+            if !config.rpc_urls.is_empty() {
+                config.rpc_urls[0].clone()
+            } else {
+                config.rpc_url.clone()
+            },
+            commitment
         );
-        let rpc_client = RpcClient::new_with_commitment(config.rpc_url.clone(), commitment);
+
+        log::info!("RPC pool created with {} endpoint(s)", rpc_clients.len());
 
         // Create RPC clients for enabled SVM networks
         let mut svm_clients = HashMap::new();
@@ -69,12 +101,27 @@ impl ServerState {
 
         Self {
             rpc_client,
+            rpc_clients,
+            rpc_client_index: Arc::new(AtomicUsize::new(0)),
             svm_clients,
             protocol_version: config.protocol_version.clone(),
             config,
             initialized: false,
             cache,
         }
+    }
+
+    /// Gets the next RPC client using round-robin load balancing
+    ///
+    /// # Returns
+    /// * `&RpcClient` - Reference to the next RPC client in rotation
+    pub fn get_next_rpc_client(&self) -> &RpcClient {
+        if self.rpc_clients.len() == 1 {
+            return &self.rpc_clients[0];
+        }
+
+        let index = self.rpc_client_index.fetch_add(1, Ordering::Relaxed) % self.rpc_clients.len();
+        &self.rpc_clients[index]
     }
 
     /// Updates the server configuration and recreates clients as needed

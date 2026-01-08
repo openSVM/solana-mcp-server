@@ -121,3 +121,50 @@ pub struct DeployResponse {
     /// Size of deployed binary
     pub size_bytes: usize,
 }
+
+/// Response from deploying a program to devnet
+#[derive(Debug, Clone, Serialize)]
+pub struct DevnetDeployResponse {
+    /// Deployed program ID (or placeholder if not yet deployed)
+    pub program_id: String,
+
+    /// Transaction signature (or N/A if using CLI)
+    pub signature: String,
+
+    /// Whether deployment succeeded
+    pub deployed: bool,
+
+    /// Size of deployed binary
+    pub size_bytes: usize,
+
+    /// Network (devnet/testnet/mainnet)
+    pub network: String,
+
+    /// RPC URL used
+    pub rpc_url: String,
+
+    /// CLI commands for manual deployment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cli_commands: Option<String>,
+
+    /// Whether binary passed validation
+    pub binary_valid: bool,
+
+    /// Any validation warnings or notes
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation_notes: Option<String>,
+}
+
+/// Parameters for devnet deployment
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DevnetDeployParams {
+    /// The compiled sBPF binary (base64-encoded)
+    pub program_binary: String,
+
+    /// Payer keypair (base64-encoded array of 64 bytes) - optional, will use airdrop if not provided
+    pub payer_keypair: Option<String>,
+
+    /// Custom RPC URL (defaults to devnet)
+    pub rpc_url: Option<String>,
+}

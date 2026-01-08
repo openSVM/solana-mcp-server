@@ -1,5 +1,9 @@
 {
-  "rpc_url": "https://api.opensvm.com",
+  "rpc_url": "https://api.mainnet-beta.solana.com",
+  "rpc_urls": [
+    "https://api.mainnet-beta.solana.com",
+    "https://api.mainnet.solana.com"
+  ],
   "commitment": "confirmed",
   "protocol_version": "2025-06-18",
   "svm_networks": {},

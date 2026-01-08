@@ -11,7 +11,9 @@ use solana_sdk::commitment_config::CommitmentConfig;
 use solana_transaction_status::{TransactionDetails, UiTransactionEncoding};
 
 pub async fn get_slot(client: &RpcClient) -> Result<Value> {
+    log::info!("get_slot: About to call client.get_slot() on URL: {}", client.url());
     let slot = client.get_slot().await?;
+    log::info!("get_slot: Successfully got slot: {}", slot);
     Ok(serde_json::json!({ "slot": slot }))
 }
 

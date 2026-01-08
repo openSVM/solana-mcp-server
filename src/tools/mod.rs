@@ -1772,6 +1772,24 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
             }),
         },
         ToolDefinition {
+            name: "prepareDevnetDeploy".to_string(),
+            description: Some("Prepare sBPF program for Solana devnet deployment and get CLI instructions".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "programBinary": {
+                        "type": "string",
+                        "description": "Base64-encoded sBPF program binary (ELF format)"
+                    },
+                    "rpcUrl": {
+                        "type": "string",
+                        "description": "Optional custom RPC URL (defaults to devnet)"
+                    }
+                },
+                "required": ["programBinary"]
+            }),
+        },
+        ToolDefinition {
             name: "getSbpfReadme".to_string(),
             description: Some("Get README documentation for sBPF testing tools".to_string()),
             input_schema: serde_json::json!({
@@ -2471,6 +2489,26 @@ pub async fn handle_tools_call(
             vm.deploy_program(binary).await
                 .map(|response| serde_json::to_value(response).unwrap())
                 .map_err(|e| anyhow::anyhow!("Deployment failed: {}", e))
+        }
+        "prepareDevnetDeploy" => {
+            let binary_b64 = arguments
+                .get("programBinary")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing programBinary parameter"))?;
+
+            let binary = base64::engine::general_purpose::STANDARD
+                .decode(binary_b64)
+                .map_err(|e| anyhow::anyhow!("Invalid base64: {}", e))?;
+
+            let rpc_url = arguments
+                .get("rpcUrl")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let deployer = crate::sbpf::DevnetDeployer::new(rpc_url);
+            deployer.prepare_deployment(binary).await
+                .map(|response| serde_json::to_value(response).unwrap())
+                .map_err(|e| anyhow::anyhow!("Devnet deployment preparation failed: {}", e))
         }
         "getSbpfReadme" => {
             Ok(serde_json::json!({

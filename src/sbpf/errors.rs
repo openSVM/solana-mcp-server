@@ -37,6 +37,9 @@ pub enum SbpfError {
 
     #[error("liteSVM error: {0}")]
     LiteSvmError(String),
+
+    #[error("Invalid payer keypair: {0}")]
+    InvalidPayer(String),
 }
 
 // Conversion to our MCP error type
@@ -88,6 +91,10 @@ impl From<SbpfError> for crate::error::McpError {
             }
             SbpfError::LiteSvmError(msg) => {
                 McpError::server(format!("VM error: {}", msg))
+            }
+            SbpfError::InvalidPayer(msg) => {
+                McpError::validation(msg)
+                    .with_parameter("payerKeypair")
             }
         }
     }

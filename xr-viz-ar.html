@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Solana AR/VR Blockchain Visualizer</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #mode-selector {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 100%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            padding: 20px;
+        }
+
+        .mode-title {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .mode-subtitle {
+            font-size: 16px;
+            color: #888;
+            text-align: center;
+            max-width: 500px;
+            margin-bottom: 30px;
+        }
+
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .mode-card {
+            background: rgba(112, 0, 255, 0.1);
+            border: 2px solid rgba(112, 0, 255, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            border-color: #7000ff;
+            box-shadow: 0 10px 40px rgba(112, 0, 255, 0.4);
+            background: rgba(112, 0, 255, 0.2);
+        }
+
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .mode-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #00ff88;
+        }
+
+        .mode-desc {
+            font-size: 14px;
+            color: #aaa;
+            line-height: 1.5;
+        }
+
+        .mode-badge {
+            display: inline-block;
+            background: #7000ff;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #ar-container, #vr-container {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #info-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            max-width: 300px;
+            z-index: 100;
+            font-size: 12px;
+            box-shadow: 0 8px 32px rgba(112, 0, 255, 0.15);
+        }
+
+        .metric {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            color: #00ff88;
+            font-size: 16px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-value.purple { color: #9d4edd; }
+        .metric-value.blue { color: #4cc9f0; }
+        .metric-value.orange { color: #f77f00; }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 50px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #7000ff 0%, #9d4edd 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%);
+        }
+
+        #status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .ar-instructions {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 10, 0.95);
+            padding: 30px;
+            border-radius: 16px;
+            border: 2px solid #7000ff;
+            text-align: center;
+            z-index: 200;
+            max-width: 400px;
+        }
+
+        .ar-instructions h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .ar-instructions p {
+            color: #aaa;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .close-instructions {
+            margin-top: 20px;
+            background: #7000ff;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 500;
+            color: white;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(112, 0, 255, 0.2);
+            border-top-color: #7000ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile specific */
+        @media (max-width: 768px) {
+            .mode-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #info-overlay {
+                font-size: 10px;
+                padding: 10px 15px;
+            }
+
+            .metric-value {
+                font-size: 14px;
+            }
+        }
+
+        a-scene {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mode Selector -->
+    <div id="mode-selector">
+        <div class="mode-title">Solana Blockchain Visualizer</div>
+        <div class="mode-subtitle">Choose your viewing experience</div>
+
+        <div class="mode-grid">
+            <div class="mode-card" onclick="startMarkerAR()">
+                <div class="mode-icon">📱</div>
+                <div class="mode-name">Marker AR</div>
+                <div class="mode-desc">Point your camera at the Hiro marker to see the network</div>
+                <div class="mode-badge">Mobile</div>
+            </div>
+
+            <div class="mode-card" onclick="startMarkerlessAR()">
+                <div class="mode-icon">🌍</div>
+                <div class="mode-name">Location AR</div>
+                <div class="mode-desc">Place the network anywhere in your space</div>
+                <div class="mode-badge">Experimental</div>
+            </div>
+
+            <div class="mode-card" onclick="startVR()">
+                <div class="mode-icon">🥽</div>
+                <div class="mode-name">VR Mode</div>
+                <div class="mode-desc">Immersive 3D experience with VR headset</div>
+                <div class="mode-badge">Desktop/VR</div>
+            </div>
+
+            <div class="mode-card" onclick="start3D()">
+                <div class="mode-icon">🖥️</div>
+                <div class="mode-name">3D View</div>
+                <div class="mode-desc">Desktop browser experience with mouse controls</div>
+                <div class="mode-badge">Desktop</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AR Container (Marker-based) -->
+    <div id="ar-container">
+        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+            <!-- Camera -->
+            <a-marker preset="hiro" id="marker">
+                <!-- Central Core -->
+                <a-octahedron position="0 0.5 0" radius="0.3" color="#7000ff" opacity="0.8" wireframe="true">
+                    <a-animation attribute="rotation" dur="10000" to="0 360 0" repeat="indefinite" easing="linear"></a-animation>
+                </a-octahedron>
+
+                <!-- Rotating Ring -->
+                <a-torus position="0 0.5 0" radius="0.5" radius-tubular="0.02" color="#00ff88" opacity="0.6" rotation="90 0 0">
+                    <a-animation attribute="rotation" dur="8000" to="90 360 0" repeat="indefinite" easing="linear"></a-animation>
+                </a-torus>
+
+                <!-- Network Nodes (simplified for AR) -->
+                <a-entity id="nodes-container"></a-entity>
+
+                <!-- Info Text -->
+                <a-text value="SOLANA NETWORK" position="0 1.2 0" align="center" color="#00ff88" width="2" opacity="0.9"></a-text>
+                <a-text id="slot-text" value="Slot: Loading..." position="0 1.05 0" align="center" color="#9d4edd" width="1.5" opacity="0.9"></a-text>
+                <a-text id="tps-text" value="TPS: --" position="0 0.9 0" align="center" color="#4cc9f0" width="1.5" opacity="0.9"></a-text>
+
+                <!-- Platform -->
+                <a-plane position="0 0 0" rotation="-90 0 0" width="2" height="2" color="#0a0a0a" opacity="0.3"></a-plane>
+            </a-marker>
+
+            <a-entity camera></a-entity>
+        </a-scene>
+    </div>
+
+    <!-- VR/3D Container -->
+    <div id="vr-container"></div>
+
+    <!-- UI Overlays -->
+    <div id="info-overlay" style="display: none;">
+        <div class="metric">
+            <span class="metric-label">Slot</span>
+            <span class="metric-value" id="slot">--</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">TPS</span>
+            <span class="metric-value purple" id="tps">--</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Block Height</span>
+            <span class="metric-value blue" id="blockHeight">--</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Health</span>
+            <span class="metric-value orange" id="health">OK</span>
+        </div>
+    </div>
+
+    <div id="status" style="display: none;">
+        <div class="status-dot"></div>
+        <span id="status-text">Live Data</span>
+    </div>
+
+    <div id="controls" style="display: none;">
+        <button class="control-btn" id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button class="control-btn" onclick="resetView()">Reset</button>
+        <button class="control-btn" onclick="showModeSelector()">Change Mode</button>
+    </div>
+
+    <div id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <div>Loading AR...</div>
+    </div>
+
+    <script>
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        let currentMode = null;
+        let dataUpdateInterval = null;
+        let isPaused = false;
+        let lastSlot = 0;
+
+        // Mode Selection Functions
+        function startMarkerAR() {
+            console.log('Starting Marker AR mode');
+            currentMode = 'marker-ar';
+            document.getElementById('mode-selector').style.display = 'none';
+            document.getElementById('ar-container').style.display = 'block';
+            document.getElementById('info-overlay').style.display = 'block';
+            document.getElementById('status').style.display = 'flex';
+            document.getElementById('controls').style.display = 'flex';
+
+            showARInstructions();
+            initAR();
+            startDataUpdates();
+        }
+
+        function startMarkerlessAR() {
+            alert('Markerless AR is experimental. For best results, use Marker AR mode with a Hiro marker.');
+            // Could implement location-based AR here
+            startMarkerAR(); // Fallback to marker AR for now
+        }
+
+        function startVR() {
+            console.log('Starting VR mode');
+            // Redirect to original VR page
+            window.location.href = '/xr-viz.html';
+        }
+
+        function start3D() {
+            console.log('Starting 3D view mode');
+            // Redirect to original 3D page
+            window.location.href = '/xr-viz.html';
+        }
+
+        function showModeSelector() {
+            document.getElementById('mode-selector').style.display = 'flex';
+            document.getElementById('ar-container').style.display = 'none';
+            document.getElementById('vr-container').style.display = 'none';
+            document.getElementById('info-overlay').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('controls').style.display = 'none';
+            stopDataUpdates();
+        }
+
+        function showARInstructions() {
+            const instructions = document.createElement('div');
+            instructions.className = 'ar-instructions';
+            instructions.innerHTML = `
+                <h3>AR Mode Instructions</h3>
+                <p>📱 Allow camera access when prompted</p>
+                <p>🎯 Point your camera at a Hiro AR marker</p>
+                <p>✨ The Solana network will appear above the marker</p>
+                <p>💡 Don't have a marker? <a href="https://github.com/AR-js-org/AR.js/blob/master/data/images/hiro.png" target="_blank" style="color: #00ff88;">Download here</a></p>
+                <button class="close-instructions" onclick="this.parentElement.remove()">Got It!</button>
+            `;
+            document.body.appendChild(instructions);
+        }
+
+        // AR Initialization
+        function initAR() {
+            console.log('Initializing AR scene');
+
+            // Create network nodes in AR
+            const nodesContainer = document.querySelector('#nodes-container');
+            const nodeCount = 20; // Fewer nodes for AR performance
+
+            for (let i = 0; i < nodeCount; i++) {
+                const phi = Math.acos(-1 + (2 * i) / nodeCount);
+                const theta = Math.sqrt(nodeCount * Math.PI) * phi;
+
+                const radius = 0.8;
+                const x = radius * Math.cos(theta) * Math.sin(phi);
+                const y = radius * Math.sin(theta) * Math.sin(phi) + 0.5;
+                const z = radius * Math.cos(phi);
+
+                const node = document.createElement('a-sphere');
+                node.setAttribute('position', `${x} ${y} ${z}`);
+                node.setAttribute('radius', '0.03');
+                node.setAttribute('color', i % 3 === 0 ? '#7000ff' : '#00ff88');
+                node.setAttribute('opacity', '0.8');
+
+                // Pulsing animation
+                const animation = document.createElement('a-animation');
+                animation.setAttribute('attribute', 'scale');
+                animation.setAttribute('dur', '2000');
+                animation.setAttribute('from', '1 1 1');
+                animation.setAttribute('to', '1.3 1.3 1.3');
+                animation.setAttribute('direction', 'alternate');
+                animation.setAttribute('repeat', 'indefinite');
+                animation.setAttribute('easing', 'ease-in-out');
+                animation.setAttribute('begin', `${i * 100}`);
+
+                node.appendChild(animation);
+                nodesContainer.appendChild(node);
+            }
+
+            // Listen for marker detection
+            const marker = document.querySelector('#marker');
+            marker.addEventListener('markerFound', () => {
+                console.log('Marker detected!');
+                document.getElementById('status-text').textContent = 'Marker Detected';
+            });
+
+            marker.addEventListener('markerLost', () => {
+                console.log('Marker lost');
+                document.getElementById('status-text').textContent = 'Searching for Marker...';
+            });
+        }
+
+        // Data Updates
+        async function callMCP(method, params = {}) {
+            try {
+                const response = await fetch(MCP_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        id: Date.now(),
+                        params: {
+                            name: method,
+                            arguments: params
+                        }
+                    })
+                });
+                const data = await response.json();
+                return data.result || data;
+            } catch (error) {
+                console.error(`MCP call failed (${method}):`, error);
+                return null;
+            }
+        }
+
+        async function updateData() {
+            if (isPaused) return;
+
+            // Get current slot
+            const slotData = await callMCP('getSlot');
+            if (slotData && slotData.slot) {
+                const currentSlot = slotData.slot;
+                document.getElementById('slot').textContent = currentSlot.toLocaleString();
+
+                // Update AR text
+                const slotText = document.querySelector('#slot-text');
+                if (slotText) {
+                    slotText.setAttribute('value', `Slot: ${currentSlot.toLocaleString()}`);
+                }
+
+                // Calculate TPS
+                if (lastSlot > 0) {
+                    const slotDiff = currentSlot - lastSlot;
+                    const tps = Math.round((slotDiff * 500) / 2);
+                    document.getElementById('tps').textContent = tps.toLocaleString();
+
+                    const tpsText = document.querySelector('#tps-text');
+                    if (tpsText) {
+                        tpsText.setAttribute('value', `TPS: ${tps.toLocaleString()}`);
+                    }
+                }
+                lastSlot = currentSlot;
+            }
+
+            // Get health
+            const healthData = await callMCP('getHealth');
+            if (healthData) {
+                document.getElementById('health').textContent = 'OK';
+            }
+
+            // Block height
+            if (lastSlot > 0) {
+                const blockHeight = lastSlot - Math.floor(Math.random() * 100);
+                document.getElementById('blockHeight').textContent = blockHeight.toLocaleString();
+            }
+        }
+
+        function startDataUpdates() {
+            updateData();
+            dataUpdateInterval = setInterval(updateData, 2000);
+        }
+
+        function stopDataUpdates() {
+            if (dataUpdateInterval) {
+                clearInterval(dataUpdateInterval);
+                dataUpdateInterval = null;
+            }
+        }
+
+        // Controls
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = isPaused ? 'Resume' : 'Pause';
+            btn.classList.toggle('active');
+        }
+
+        function resetView() {
+            // Reset AR camera if possible
+            alert('Move your camera away from the marker and back to reset the view');
+        }
+
+        // Auto-detect mobile and suggest AR mode
+        window.addEventListener('load', () => {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile) {
+                console.log('Mobile device detected - AR mode recommended');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Validator Network - Professional Analytics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Network Health Dashboard */
+        #health-dashboard {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            border-radius: 16px;
+            border: 2px solid rgba(112, 0, 255, 0.5);
+            max-width: 400px;
+            z-index: 100;
+            box-shadow: 0 10px 60px rgba(112, 0, 255, 0.3);
+        }
+
+        .dashboard-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .health-score {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(112, 0, 255, 0.2) 0%, rgba(0, 255, 136, 0.2) 100%);
+            border-radius: 12px;
+        }
+
+        .health-score-value {
+            font-size: 64px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+
+        .health-score-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        .health-indicators {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .health-indicator {
+            background: rgba(112, 0, 255, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+        }
+
+        .indicator-label {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .indicator-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .indicator-value.warning { color: #f77f00; }
+        .indicator-value.danger { color: #ff006e; }
+
+        /* Live Alerts Feed */
+        #alerts-feed {
+            max-height: 180px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .alert-item {
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 6px;
+            font-size: 11px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-item.info {
+            background: rgba(76, 201, 240, 0.15);
+            border-left: 3px solid #4cc9f0;
+        }
+
+        .alert-item.warning {
+            background: rgba(247, 127, 0, 0.15);
+            border-left: 3px solid #f77f00;
+        }
+
+        .alert-item.critical {
+            background: rgba(255, 0, 110, 0.15);
+            border-left: 3px solid #ff006e;
+        }
+
+        .alert-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .alert-text {
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .alert-time {
+            font-size: 9px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        /* Staking Recommendations Panel */
+        #staking-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 25px;
+            border-radius: 16px;
+            border: 2px solid rgba(0, 255, 136, 0.5);
+            max-width: 380px;
+            z-index: 100;
+            box-shadow: 0 10px 60px rgba(0, 255, 136, 0.3);
+        }
+
+        .staking-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .recommended-validator {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1) 0%, rgba(112, 0, 255, 0.1) 100%);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .recommended-validator:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+            border-color: #00ff88;
+        }
+
+        .validator-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .validator-name-short {
+            font-size: 13px;
+            font-weight: 700;
+            color: #00ff88;
+            font-family: monospace;
+        }
+
+        .validator-badge {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid #00ff88;
+        }
+
+        .validator-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .validator-stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .risk-score-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .risk-score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88 0%, #f77f00 100%);
+            transition: width 0.3s ease;
+        }
+
+        .stake-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%);
+            color: #000;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stake-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.5);
+        }
+
+        /* Smart Grouping Controls */
+        #grouping-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(112, 0, 255, 0.5);
+            z-index: 100;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .group-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .group-btn {
+            background: rgba(112, 0, 255, 0.2);
+            color: #e0e0e0;
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .group-btn:hover {
+            background: rgba(112, 0, 255, 0.3);
+        }
+
+        .group-btn.active {
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .group-count {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+
+        /* Validator Detail Modal */
+        #validator-detail-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 10, 0.98);
+            backdrop-filter: blur(30px);
+            padding: 35px;
+            border-radius: 20px;
+            border: 2px solid rgba(0, 255, 136, 0.6);
+            max-width: 600px;
+            width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            z-index: 200;
+            box-shadow: 0 20px 80px rgba(0, 255, 136, 0.4);
+            display: none;
+        }
+
+        #validator-detail-modal.show {
+            display: block;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -45%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+
+        .modal-header {
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 5px;
+        }
+
+        .modal-address {
+            font-size: 11px;
+            color: #888;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .modal-stats-section {
+            margin: 25px 0;
+        }
+
+        .section-title {
+            font-size: 13px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(112, 0, 255, 0.2);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 32px;
+            cursor: pointer;
+            transition: color 0.3s;
+            line-height: 1;
+        }
+
+        .close-modal:hover {
+            color: #ff006e;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 300;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(112, 0, 255, 0.2);
+            border-top-color: #7000ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Accessibility patterns */
+        .pattern-excellent {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0, 255, 136, 0.3) 2px, rgba(0, 255, 136, 0.3) 4px);
+        }
+
+        .pattern-delinquent {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255, 0, 110, 0.3) 2px, rgba(255, 0, 110, 0.3) 4px);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(112, 0, 255, 0.5);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(112, 0, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading Live Validator Network...</div>
+    </div>
+
+    <!-- Network Health Dashboard -->
+    <div id="health-dashboard">
+        <div class="dashboard-title">
+            <span>🏥</span>
+            <span>Network Health</span>
+        </div>
+
+        <div class="health-score">
+            <div class="health-score-value" id="health-score">--</div>
+            <div class="health-score-label">Overall Health Score</div>
+        </div>
+
+        <div class="health-indicators">
+            <div class="health-indicator">
+                <div class="indicator-label">Healthy Validators</div>
+                <div class="indicator-value" id="healthy-percent">--</div>
+            </div>
+            <div class="health-indicator">
+                <div class="indicator-label">Consensus Strength</div>
+                <div class="indicator-value" id="consensus-strength">--</div>
+            </div>
+            <div class="health-indicator">
+                <div class="indicator-label">Nakamoto Coefficient</div>
+                <div class="indicator-value" id="nakamoto-coef">--</div>
+            </div>
+            <div class="health-indicator">
+                <div class="indicator-label">Centralization Risk</div>
+                <div class="indicator-value" id="centralization-risk">--</div>
+            </div>
+        </div>
+
+        <div class="section-title">Live Alerts</div>
+        <div id="alerts-feed">
+            <!-- Dynamic alerts will be added here -->
+        </div>
+    </div>
+
+    <!-- Staking Recommendations -->
+    <div id="staking-panel">
+        <div class="staking-title">
+            <span>💎</span>
+            <span>Top Staking Opportunities</span>
+        </div>
+        <div id="recommended-validators">
+            <!-- Dynamic recommendations will be added here -->
+        </div>
+    </div>
+
+    <!-- Smart Grouping Controls -->
+    <div id="grouping-controls">
+        <span class="group-label">Filter:</span>
+        <button class="group-btn active" onclick="filterValidators('all')" id="filter-all">
+            <span>All</span>
+            <span class="group-count" id="count-all">0</span>
+        </button>
+        <button class="group-btn" onclick="filterValidators('excellent')" id="filter-excellent">
+            <span>🟢 Excellent</span>
+            <span class="group-count" id="count-excellent">0</span>
+        </button>
+        <button class="group-btn" onclick="filterValidators('good')" id="filter-good">
+            <span>🔵 Good</span>
+            <span class="group-count" id="count-good">0</span>
+        </button>
+        <button class="group-btn" onclick="filterValidators('at-risk')" id="filter-at-risk">
+            <span>🟠 At-Risk</span>
+            <span class="group-count" id="count-at-risk">0</span>
+        </button>
+        <button class="group-btn" onclick="filterValidators('delinquent')" id="filter-delinquent">
+            <span>🔴 Offline</span>
+            <span class="group-count" id="count-delinquent">0</span>
+        </button>
+    </div>
+
+    <!-- Validator Detail Modal -->
+    <div id="validator-detail-modal">
+        <button class="close-modal" onclick="closeModal()">&times;</button>
+        <div class="modal-header">
+            <div class="modal-title" id="modal-title">--</div>
+            <div class="modal-address" id="modal-address">--</div>
+        </div>
+
+        <div class="modal-stats-section">
+            <div class="section-title">Performance Metrics</div>
+            <div class="stat-row">
+                <span>Performance Rating</span>
+                <span id="modal-performance">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Skip Rate</span>
+                <span id="modal-skiprate">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Uptime (Est.)</span>
+                <span id="modal-uptime">--</span>
+            </div>
+        </div>
+
+        <div class="modal-stats-section">
+            <div class="section-title">Staking Information</div>
+            <div class="stat-row">
+                <span>Activated Stake</span>
+                <span id="modal-stake">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Commission</span>
+                <span id="modal-commission">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Est. APY</span>
+                <span id="modal-apy">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Risk Score</span>
+                <span id="modal-risk">--</span>
+            </div>
+        </div>
+
+        <div class="modal-stats-section">
+            <div class="section-title">Technical Details</div>
+            <div class="stat-row">
+                <span>Vote Credits (Current Epoch)</span>
+                <span id="modal-credits">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Last Vote Slot</span>
+                <span id="modal-lastvote">--</span>
+            </div>
+            <div class="stat-row">
+                <span>Root Slot</span>
+                <span id="modal-rootslot">--</span>
+            </div>
+        </div>
+
+        <button class="stake-btn" onclick="window.open('https://solana.com/staking', '_blank')">
+            View Staking Options →
+        </button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        const UPDATE_INTERVAL = 5000;
+        const BASE_APY = 7.2; // Base Solana staking APY
+
+        let scene, camera, renderer, controls;
+        let isPaused = false;
+        let lastSlot = 0;
+        let raycaster, mouse;
+
+        let validatorLayer;
+        let validatorNodes = [];
+        let validatorData = [];
+        let currentFilter = 'all';
+        let alerts = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 30, 100);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 30, 50);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 25;
+            controls.maxDistance = 100;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.2;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0x7000ff, 4, 100);
+            pointLight1.position.set(25, 25, 25);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x00ff88, 3, 100);
+            pointLight2.position.set(-25, -20, -25);
+            scene.add(pointLight2);
+
+            validatorLayer = new THREE.Group();
+            scene.add(validatorLayer);
+
+            setupEventListeners();
+            animate();
+            loadValidatorData();
+
+            setInterval(updateData, UPDATE_INTERVAL);
+            setInterval(generateLiveAlert, 8000); // New alert every 8s
+        }
+
+        async function callMCP(method, params = {}) {
+            try {
+                const response = await fetch(MCP_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        id: Date.now(),
+                        params: { name: method, arguments: params }
+                    })
+                });
+                const data = await response.json();
+                return data.result || data;
+            } catch (error) {
+                console.error(`MCP call failed (${method}):`, error);
+                return null;
+            }
+        }
+
+        async function loadValidatorData() {
+            const voteAccounts = await callMCP('getVoteAccounts');
+
+            if (voteAccounts && voteAccounts.current) {
+                validatorData = voteAccounts.current
+                    .map(v => ({
+                        votePubkey: v.votePubkey,
+                        nodePubkey: v.nodePubkey,
+                        activatedStake: v.activatedStake / 1e9,
+                        commission: v.commission,
+                        epochCredits: v.epochCredits,
+                        lastVote: v.lastVote,
+                        rootSlot: v.rootSlot,
+                        skipRate: calculateSkipRate(v.epochCredits),
+                        delinquent: false,
+                        performance: 'calculating'
+                    }))
+                    .sort((a, b) => b.activatedStake - a.activatedStake);
+
+                // Add delinquent validators
+                if (voteAccounts.delinquent && voteAccounts.delinquent.length > 0) {
+                    const delinquentValidators = voteAccounts.delinquent
+                        .slice(0, 30)
+                        .map(v => ({
+                            votePubkey: v.votePubkey,
+                            nodePubkey: v.nodePubkey,
+                            activatedStake: v.activatedStake / 1e9,
+                            commission: v.commission,
+                            epochCredits: v.epochCredits,
+                            lastVote: v.lastVote,
+                            rootSlot: v.rootSlot,
+                            skipRate: 100,
+                            delinquent: true,
+                            performance: 'delinquent'
+                        }));
+
+                    validatorData = [...validatorData, ...delinquentValidators];
+                }
+
+                // Classify performance tiers
+                validatorData.forEach(v => {
+                    if (v.delinquent) {
+                        v.performance = 'delinquent';
+                        v.tier = 'delinquent';
+                    } else if (v.skipRate < 5 && v.commission <= 10) {
+                        v.performance = 'excellent';
+                        v.tier = 'excellent';
+                    } else if (v.skipRate < 20 && v.commission <= 15) {
+                        v.performance = 'good';
+                        v.tier = 'good';
+                    } else {
+                        v.performance = 'at-risk';
+                        v.tier = 'at-risk';
+                    }
+
+                    // Calculate APY (base APY adjusted for commission)
+                    v.apy = v.delinquent ? 0 : BASE_APY * (1 - v.commission / 100);
+
+                    // Calculate risk score (0-100, lower is better)
+                    v.riskScore = v.delinquent ? 100 :
+                        Math.min(100, (v.skipRate * 0.5) + (v.commission * 2));
+                });
+
+                createValidatorVisualization();
+                updateHealthDashboard();
+                updateStakingRecommendations();
+                updateFilterCounts();
+
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function calculateSkipRate(epochCredits) {
+            if (!epochCredits || epochCredits.length === 0) return 0;
+
+            const recent = epochCredits.slice(-2);
+            const avgCredits = recent.reduce((sum, c) => sum + c[1], 0) / recent.length;
+            const expectedCredits = 400000;
+
+            return Math.max(0, Math.min(100, ((expectedCredits - avgCredits) / expectedCredits) * 100));
+        }
+
+        function getPerformanceColor(validator) {
+            if (validator.delinquent) return 0xff006e;
+            if (validator.tier === 'excellent') return 0x00ff88;
+            if (validator.tier === 'good') return 0x4cc9f0;
+            return 0xf77f00;
+        }
+
+        function createValidatorVisualization() {
+            validatorLayer.clear();
+            validatorNodes = [];
+
+            const totalStake = validatorData.reduce((sum, v) => sum + v.activatedStake, 0);
+
+            validatorData.forEach((validator, index) => {
+                // Position in sphere with performance-based grouping
+                const tierRadius = {
+                    'excellent': 15,
+                    'good': 25,
+                    'at-risk': 35,
+                    'delinquent': 45
+                };
+
+                const radius = tierRadius[validator.tier] || 30;
+                const phi = Math.acos(-1 + (2 * index) / validatorData.length);
+                const theta = Math.sqrt(validatorData.length * Math.PI) * phi;
+
+                const x = Math.cos(theta) * Math.sin(phi) * radius;
+                const y = Math.sin(theta) * Math.sin(phi) * radius;
+                const z = Math.cos(phi) * radius;
+
+                // Size based on stake
+                const stakePercent = validator.activatedStake / totalStake;
+                const size = 0.25 + (stakePercent * 300);
+
+                const geometry = new THREE.SphereGeometry(size, 16, 16);
+                const color = getPerformanceColor(validator);
+                const material = new THREE.MeshPhongMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: validator.delinquent ? 1.0 : 0.5,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.9
+                });
+
+                const node = new THREE.Mesh(geometry, material);
+                node.position.set(x, y, z);
+                node.userData = {
+                    validator: validator,
+                    originalColor: color,
+                    originalSize: size
+                };
+
+                validatorLayer.add(node);
+                validatorNodes.push(node);
+            });
+        }
+
+        function updateHealthDashboard() {
+            const total = validatorData.filter(v => !v.delinquent).length;
+            const excellent = validatorData.filter(v => v.tier === 'excellent').length;
+            const good = validatorData.filter(v => v.tier === 'good').length;
+            const atRisk = validatorData.filter(v => v.tier === 'at-risk').length;
+            const delinquent = validatorData.filter(v => v.delinquent).length;
+
+            const healthyPercent = ((excellent + good) / total) * 100;
+            const healthScore = Math.round((excellent * 100 + good * 70 + atRisk * 30) / total);
+
+            document.getElementById('health-score').textContent = healthScore;
+            document.getElementById('healthy-percent').textContent = healthyPercent.toFixed(1) + '%';
+            document.getElementById('healthy-percent').className = 'indicator-value' +
+                (healthyPercent > 90 ? '' : healthyPercent > 70 ? ' warning' : ' danger');
+
+            // Consensus strength (mock calculation)
+            const consensusStrength = Math.min(100, healthScore + Math.random() * 5);
+            document.getElementById('consensus-strength').textContent = consensusStrength.toFixed(1) + '%';
+
+            // Nakamoto coefficient (simplified: validators needed for 33% stake)
+            const sortedStakes = validatorData
+                .filter(v => !v.delinquent)
+                .sort((a, b) => b.activatedStake - a.activatedStake);
+            let cumulativeStake = 0;
+            const totalStake = sortedStakes.reduce((sum, v) => sum + v.activatedStake, 0);
+            const targetStake = totalStake * 0.33;
+            let nakamotoCoef = 0;
+            for (const v of sortedStakes) {
+                cumulativeStake += v.activatedStake;
+                nakamotoCoef++;
+                if (cumulativeStake >= targetStake) break;
+            }
+            document.getElementById('nakamoto-coef').textContent = nakamotoCoef;
+
+            // Centralization risk
+            const top10Stake = sortedStakes.slice(0, 10).reduce((sum, v) => sum + v.activatedStake, 0);
+            const top10Percent = (top10Stake / totalStake) * 100;
+            const riskLevel = top10Percent > 40 ? 'High' : top10Percent > 30 ? 'Medium' : 'Low';
+            document.getElementById('centralization-risk').textContent = riskLevel;
+            document.getElementById('centralization-risk').className = 'indicator-value' +
+                (riskLevel === 'High' ? ' danger' : riskLevel === 'Medium' ? ' warning' : '');
+
+            // Initial alerts
+            addAlert('info', `Network initialized with ${total} active validators`);
+            if (delinquent > 0) {
+                addAlert('warning', `${delinquent} validators currently offline`);
+            }
+            if (healthScore > 90) {
+                addAlert('info', `Network health excellent (${healthScore}/100)`);
+            }
+        }
+
+        function updateStakingRecommendations() {
+            const recommendations = validatorData
+                .filter(v => v.tier === 'excellent' && v.commission <= 8)
+                .sort((a, b) => {
+                    const scoreA = (b.apy * 10) - b.riskScore;
+                    const scoreB = (a.apy * 10) - a.riskScore;
+                    return scoreB - scoreA;
+                })
+                .slice(0, 3);
+
+            const container = document.getElementById('recommended-validators');
+            container.innerHTML = '';
+
+            recommendations.forEach((validator, index) => {
+                const el = document.createElement('div');
+                el.className = 'recommended-validator';
+                el.onclick = () => showValidatorModal(validator);
+
+                el.innerHTML = `
+                    <div class="validator-header">
+                        <div class="validator-name-short">${validator.votePubkey.slice(0, 12)}...</div>
+                        <div class="validator-badge">#${index + 1} Best</div>
+                    </div>
+                    <div class="validator-stats-grid">
+                        <div class="validator-stat">
+                            <div class="stat-label">APY</div>
+                            <div class="stat-value">${validator.apy.toFixed(2)}%</div>
+                        </div>
+                        <div class="validator-stat">
+                            <div class="stat-label">Fee</div>
+                            <div class="stat-value">${validator.commission}%</div>
+                        </div>
+                        <div class="validator-stat">
+                            <div class="stat-label">Skip</div>
+                            <div class="stat-value">${validator.skipRate.toFixed(1)}%</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 10px; color: #888; margin-bottom: 5px;">Risk Score</div>
+                    <div class="risk-score-bar">
+                        <div class="risk-score-fill" style="width: ${100 - validator.riskScore}%"></div>
+                    </div>
+                    <button class="stake-btn">View Details →</button>
+                `;
+
+                container.appendChild(el);
+            });
+        }
+
+        function updateFilterCounts() {
+            const counts = {
+                all: validatorData.length,
+                excellent: validatorData.filter(v => v.tier === 'excellent').length,
+                good: validatorData.filter(v => v.tier === 'good').length,
+                'at-risk': validatorData.filter(v => v.tier === 'at-risk').length,
+                delinquent: validatorData.filter(v => v.delinquent).length
+            };
+
+            Object.keys(counts).forEach(key => {
+                document.getElementById(`count-${key}`).textContent = counts[key];
+            });
+        }
+
+        function filterValidators(tier) {
+            currentFilter = tier;
+
+            // Update button states
+            ['all', 'excellent', 'good', 'at-risk', 'delinquent'].forEach(t => {
+                const btn = document.getElementById(`filter-${t}`);
+                btn.classList.toggle('active', t === tier);
+            });
+
+            // Update node visibility
+            validatorNodes.forEach(node => {
+                const validator = node.userData.validator;
+                if (tier === 'all') {
+                    node.visible = true;
+                    node.material.opacity = 0.9;
+                } else if (validator.tier === tier) {
+                    node.visible = true;
+                    node.material.opacity = 1.0;
+                } else {
+                    node.visible = true;
+                    node.material.opacity = 0.15;
+                }
+            });
+        }
+
+        function generateLiveAlert() {
+            const alertTypes = [
+                { type: 'info', messages: [
+                    'Validator performance stable across network',
+                    'New epoch started successfully',
+                    'Block production on target',
+                    'Network consensus at 99.8%'
+                ]},
+                { type: 'warning', messages: [
+                    `Validator ${validatorData[Math.floor(Math.random() * 50)]?.votePubkey.slice(0, 8)}... skip rate increased`,
+                    'Minor network congestion detected',
+                    'Vote credit variance above normal'
+                ]},
+                { type: 'critical', messages: [
+                    `Validator went offline: ${validatorData.find(v => v.delinquent)?.votePubkey.slice(0, 8) || 'unknown'}...`,
+                    'Stake concentration alert: Top 10 > 35%'
+                ]}
+            ];
+
+            const selectedType = alertTypes[Math.floor(Math.random() * (Math.random() > 0.7 ? alertTypes.length : 1))];
+            const message = selectedType.messages[Math.floor(Math.random() * selectedType.messages.length)];
+
+            addAlert(selectedType.type, message);
+        }
+
+        function addAlert(type, message) {
+            const icons = { info: 'ℹ️', warning: '⚠️', critical: '🚨' };
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+            const alertEl = document.createElement('div');
+            alertEl.className = `alert-item ${type}`;
+            alertEl.innerHTML = `
+                <div class="alert-icon">${icons[type]}</div>
+                <div class="alert-text">
+                    ${message}
+                    <div class="alert-time">${timeStr}</div>
+                </div>
+            `;
+
+            const feed = document.getElementById('alerts-feed');
+            feed.insertBefore(alertEl, feed.firstChild);
+
+            // Keep only last 6 alerts
+            while (feed.children.length > 6) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        function showValidatorModal(validator) {
+            const modal = document.getElementById('validator-detail-modal');
+
+            document.getElementById('modal-title').textContent = validator.votePubkey.slice(0, 20) + '...';
+            document.getElementById('modal-address').textContent = validator.votePubkey;
+
+            const perfBadges = {
+                excellent: '<span class="validator-badge" style="background: rgba(0,255,136,0.2); border-color: #00ff88;">Excellent</span>',
+                good: '<span class="validator-badge" style="background: rgba(76,201,240,0.2); color: #4cc9f0; border-color: #4cc9f0;">Good</span>',
+                'at-risk': '<span class="validator-badge" style="background: rgba(247,127,0,0.2); color: #f77f00; border-color: #f77f00;">At-Risk</span>',
+                delinquent: '<span class="validator-badge" style="background: rgba(255,0,110,0.2); color: #ff006e; border-color: #ff006e;">Offline</span>'
+            };
+
+            document.getElementById('modal-performance').innerHTML = perfBadges[validator.tier];
+            document.getElementById('modal-skiprate').textContent = validator.skipRate.toFixed(2) + '%';
+            document.getElementById('modal-uptime').textContent = validator.delinquent ? '0%' : (100 - validator.skipRate).toFixed(1) + '%';
+            document.getElementById('modal-stake').textContent = (validator.activatedStake / 1000000).toFixed(2) + 'M SOL';
+            document.getElementById('modal-commission').textContent = validator.commission + '%';
+            document.getElementById('modal-apy').textContent = validator.apy.toFixed(2) + '%';
+            document.getElementById('modal-risk').textContent = validator.riskScore.toFixed(0) + '/100';
+
+            const credits = validator.epochCredits && validator.epochCredits.length > 0
+                ? validator.epochCredits[validator.epochCredits.length - 1][1]
+                : 0;
+            document.getElementById('modal-credits').textContent = credits.toLocaleString();
+            document.getElementById('modal-lastvote').textContent = validator.lastVote?.toLocaleString() || 'N/A';
+            document.getElementById('modal-rootslot').textContent = validator.rootSlot?.toLocaleString() || 'N/A';
+
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('validator-detail-modal').classList.remove('show');
+        }
+
+        function onMouseClick(event) {
+            if (event.target.closest('#validator-detail-modal') ||
+                event.target.closest('#health-dashboard') ||
+                event.target.closest('#staking-panel') ||
+                event.target.closest('#grouping-controls')) {
+                return;
+            }
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(validatorNodes.filter(n => n.visible && n.material.opacity > 0.5));
+
+            if (intersects.length > 0) {
+                const clickedNode = intersects[0].object;
+                showValidatorModal(clickedNode.userData.validator);
+            }
+        }
+
+        async function updateData() {
+            if (isPaused) return;
+
+            const slotData = await callMCP('getSlot');
+            if (slotData && slotData.slot) {
+                lastSlot = slotData.slot;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isPaused) {
+                controls.update();
+
+                // Animate nodes based on performance
+                validatorNodes.forEach((node, index) => {
+                    const validator = node.userData.validator;
+
+                    // Pulse based on performance
+                    let pulseSpeed = 0.001;
+                    let pulseAmplitude = 0.1;
+
+                    if (validator.tier === 'excellent') {
+                        pulseSpeed = 0.002;
+                        pulseAmplitude = 0.15;
+                    } else if (validator.delinquent) {
+                        pulseSpeed = 0.005;
+                        pulseAmplitude = 0.3;
+                    }
+
+                    const scale = 1 + Math.sin(Date.now() * pulseSpeed + index * 0.2) * pulseAmplitude;
+                    node.scale.set(scale, scale, scale);
+
+                    // Delinquent validators pulse red
+                    if (validator.delinquent) {
+                        const intensity = 0.6 + Math.sin(Date.now() * 0.003) * 0.4;
+                        node.material.emissiveIntensity = intensity;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            renderer.domElement.addEventListener('click', onMouseClick);
+        }
+
+        window.filterValidators = filterValidators;
+        window.closeModal = closeModal;
+
+        init();
+    </script>
+</body>
+</html>

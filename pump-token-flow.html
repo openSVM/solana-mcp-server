@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump.fun Token Flow Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            background: #000;
+            color: #0f0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Terminal-style panels */
+        .panel {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #0f0;
+            padding: 15px;
+            font-family: 'SF Mono', monospace;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 25px;
+            background: linear-gradient(180deg, rgba(0, 255, 0, 0.1) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        #token-feed {
+            top: 20px;
+            left: 20px;
+            width: 420px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        #whale-tracker {
+            top: 20px;
+            right: 20px;
+            width: 380px;
+        }
+
+        #bonding-curve {
+            bottom: 20px;
+            left: 20px;
+            width: 380px;
+        }
+
+        #top-movers {
+            bottom: 20px;
+            right: 20px;
+            width: 380px;
+        }
+
+        .panel-title {
+            color: #0ff;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 8px;
+        }
+
+        .panel-title::before {
+            content: '> ';
+            color: #0f0;
+        }
+
+        /* Token feed */
+        .token-item {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #0f0;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 11px;
+            animation: glitch 0.3s ease;
+            position: relative;
+        }
+
+        @keyframes glitch {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        .token-item.new {
+            border-color: #ff0;
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+
+        .token-name {
+            color: #0ff;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .token-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+            color: #0f0;
+        }
+
+        .token-stat .label {
+            color: #888;
+        }
+
+        .token-stat .value {
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        .token-stat .value.up {
+            color: #0f0;
+        }
+
+        .token-stat .value.down {
+            color: #f00;
+        }
+
+        /* Whale alerts */
+        .whale-item {
+            background: rgba(255, 0, 110, 0.1);
+            border: 1px solid #f0f;
+            border-left: 4px solid #f0f;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 11px;
+            animation: pulse-whale 2s infinite;
+        }
+
+        @keyframes pulse-whale {
+            0%, 100% {
+                box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+            }
+        }
+
+        .whale-type {
+            color: #f0f;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .whale-type.buy::before {
+            content: '↑ ';
+            color: #0f0;
+        }
+
+        .whale-type.sell::before {
+            content: '↓ ';
+            color: #f00;
+        }
+
+        .whale-amount {
+            color: #ff0;
+            font-weight: bold;
+        }
+
+        /* Bonding curve */
+        .curve-progress {
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #0f0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0 0%, #0ff 100%);
+            transition: width 1s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-label {
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #888;
+        }
+
+        .migration-alert {
+            background: rgba(255, 255, 0, 0.1);
+            border: 2px solid #ff0;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+            color: #ff0;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Top movers */
+        .mover-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 6px 0;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #0f0;
+            font-size: 11px;
+        }
+
+        .mover-rank {
+            background: #0f0;
+            color: #000;
+            padding: 4px 8px;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .mover-info {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .mover-name {
+            color: #0ff;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .mover-volume {
+            color: #888;
+            font-size: 10px;
+        }
+
+        .mover-change {
+            font-weight: bold;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .mover-change.positive {
+            color: #0f0;
+        }
+
+        .mover-change.negative {
+            color: #f00;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f0;
+        }
+
+        /* Controls */
+        #controls {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #0f0;
+            padding: 20px;
+            z-index: 90;
+            text-align: center;
+        }
+
+        .control-btn {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #0ff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Network visualization */
+        .node {
+            cursor: pointer;
+        }
+
+        .node:hover {
+            filter: brightness(1.5);
+        }
+
+        /* Stats overlay */
+        #stats-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.98);
+            border: 3px solid #0ff;
+            padding: 30px;
+            z-index: 200;
+            min-width: 400px;
+            display: none;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.05);
+            border-left: 3px solid #0f0;
+        }
+
+        .stat-row .label {
+            color: #888;
+        }
+
+        .stat-row .value {
+            color: #0ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <!-- Token Creation Feed -->
+    <div class="panel" id="token-feed">
+        <div class="panel-title">🚀 New Token Launches</div>
+        <div id="token-list">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Whale Tracker -->
+    <div class="panel" id="whale-tracker">
+        <div class="panel-title">🐋 Whale Activity</div>
+        <div id="whale-list">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Bonding Curve -->
+    <div class="panel" id="bonding-curve">
+        <div class="panel-title">📈 Active Bonding Curves</div>
+        <div id="curve-list">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Top Movers -->
+    <div class="panel" id="top-movers">
+        <div class="panel-title">🔥 Top Movers (24h)</div>
+        <div id="movers-list">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button class="control-btn" onclick="togglePause()">Pause Feed</button>
+        <button class="control-btn" onclick="clearFeeds()">Clear All</button>
+        <button class="control-btn" onclick="window.location.href='/xr-analytics-pro.html'">Analytics</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        const UPDATE_INTERVAL = 3000;
+        const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'; // pump.fun program
+
+        let scene, camera, renderer, controls;
+        let isPaused = false;
+        let tokenCount = 0;
+        let whaleCount = 0;
+
+        // Mock data for demonstration
+        const mockTokens = [
+            { name: "$PEPE2", symbol: 'PEPE2', mcap: 125000, change: 234, volume: 450000, liquidity: 85 },
+            { name: "$WOJAK", symbol: 'WOJAK', mcap: 89000, change: 156, volume: 320000, liquidity: 72 },
+            { name: "$BONK2", symbol: 'BONK2', mcap: 245000, change: 89, volume: 680000, liquidity: 92 },
+            { name: "$SMOL", symbol: 'SMOL', mcap: 34000, change: 445, volume: 180000, liquidity: 45 },
+            { name: "$MOON", symbol: 'MOON', mcap: 567000, change: 67, volume: 890000, liquidity: 95 }
+        ];
+
+        const tokenNames = [
+            '$DOGE2', '$SHIB2', '$FLOKI2', '$ELON', '$TRUMP', '$BIDEN',
+            '$PEPE', '$WOJAK', '$CHAD', '$SIGMA', '$BASED', '$CRINGE',
+            '$MOON', '$LAMBO', '$WAGMI', '$NGMI', '$SER', '$GM'
+        ];
+
+        function init() {
+            // 3D background
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 50);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5;
+
+            createFlowNetwork();
+            animate();
+
+            // Start data simulation
+            setInterval(simulateNewToken, 5000);
+            setInterval(simulateWhaleActivity, 8000);
+            updateBondingCurves();
+            updateTopMovers();
+            setInterval(updateBondingCurves, 10000);
+            setInterval(updateTopMovers, 15000);
+
+            // Hide controls after 3 seconds
+            setTimeout(() => {
+                document.getElementById('controls').style.display = 'none';
+            }, 3000);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createFlowNetwork() {
+            // Create central pump.fun node
+            const centerGeometry = new THREE.OctahedronGeometry(3, 0);
+            const centerMaterial = new THREE.MeshPhongMaterial({
+                color: 0x00ff00,
+                emissive: 0x00ff00,
+                emissiveIntensity: 0.5,
+                wireframe: true
+            });
+            const centerNode = new THREE.Mesh(centerGeometry, centerMaterial);
+            scene.add(centerNode);
+
+            // Create token nodes in orbit
+            const nodeCount = 20;
+            for (let i = 0; i < nodeCount; i++) {
+                const angle = (i / nodeCount) * Math.PI * 2;
+                const radius = 15 + Math.random() * 10;
+                const height = (Math.random() - 0.5) * 10;
+
+                const geometry = new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 16, 16);
+                const material = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color().setHSL(Math.random(), 0.8, 0.6),
+                    emissive: new THREE.Color().setHSL(Math.random(), 0.8, 0.4),
+                    emissiveIntensity: 0.4
+                });
+
+                const node = new THREE.Mesh(geometry, material);
+                node.position.set(
+                    Math.cos(angle) * radius,
+                    height,
+                    Math.sin(angle) * radius
+                );
+
+                node.userData = {
+                    angle: angle,
+                    radius: radius,
+                    speed: 0.0005 + Math.random() * 0.001
+                };
+
+                scene.add(node);
+
+                // Connection line to center
+                const points = [];
+                points.push(centerNode.position);
+                points.push(node.position);
+
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineBasicMaterial({
+                    color: 0x00ff00,
+                    transparent: true,
+                    opacity: 0.2
+                });
+
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(line);
+            }
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0x00ff00, 2, 100);
+            pointLight1.position.set(20, 20, 20);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0xff00ff, 1.5, 100);
+            pointLight2.position.set(-20, -20, -20);
+            scene.add(pointLight2);
+        }
+
+        function simulateNewToken() {
+            if (isPaused) return;
+
+            const name = tokenNames[Math.floor(Math.random() * tokenNames.length)];
+            const mcap = Math.floor(Math.random() * 500000) + 10000;
+            const liquidity = Math.floor(Math.random() * 100);
+
+            const tokenEl = document.createElement('div');
+            tokenEl.className = 'token-item new';
+            tokenEl.innerHTML = `
+                <div class="token-name">${name}</div>
+                <div class="token-stat">
+                    <span class="label">Market Cap:</span>
+                    <span class="value">$${mcap.toLocaleString()}</span>
+                </div>
+                <div class="token-stat">
+                    <span class="label">Liquidity:</span>
+                    <span class="value">${liquidity}%</span>
+                </div>
+                <div class="token-stat">
+                    <span class="label">Created:</span>
+                    <span class="value">Just now</span>
+                </div>
+            `;
+
+            const list = document.getElementById('token-list');
+            list.insertBefore(tokenEl, list.firstChild);
+
+            // Remove 'new' class after animation
+            setTimeout(() => {
+                tokenEl.classList.remove('new');
+            }, 3000);
+
+            // Keep only last 10 tokens
+            while (list.children.length > 10) {
+                list.removeChild(list.lastChild);
+            }
+
+            tokenCount++;
+        }
+
+        function simulateWhaleActivity() {
+            if (isPaused) return;
+
+            const isBuy = Math.random() > 0.5;
+            const amount = (Math.random() * 10 + 1).toFixed(2);
+            const token = tokenNames[Math.floor(Math.random() * tokenNames.length)];
+
+            const whaleEl = document.createElement('div');
+            whaleEl.className = 'whale-item';
+            whaleEl.innerHTML = `
+                <div class="whale-type ${isBuy ? 'buy' : 'sell'}">
+                    ${isBuy ? 'WHALE BUY' : 'WHALE DUMP'}
+                </div>
+                <div class="token-stat">
+                    <span class="label">Token:</span>
+                    <span class="value">${token}</span>
+                </div>
+                <div class="token-stat">
+                    <span class="label">Amount:</span>
+                    <span class="whale-amount">${amount} SOL</span>
+                </div>
+                <div class="token-stat">
+                    <span class="label">Impact:</span>
+                    <span class="value ${isBuy ? 'up' : 'down'}">
+                        ${isBuy ? '+' : '-'}${(Math.random() * 50 + 10).toFixed(1)}%
+                    </span>
+                </div>
+            `;
+
+            const list = document.getElementById('whale-list');
+            list.insertBefore(whaleEl, list.firstChild);
+
+            // Keep only last 8 whale alerts
+            while (list.children.length > 8) {
+                list.removeChild(list.lastChild);
+            }
+
+            whaleCount++;
+        }
+
+        function updateBondingCurves() {
+            const curveList = document.getElementById('curve-list');
+            curveList.innerHTML = '';
+
+            // Show 3 active curves
+            for (let i = 0; i < 3; i++) {
+                const token = mockTokens[i];
+                const progress = token.liquidity;
+                const migrating = progress >= 90;
+
+                const curveEl = document.createElement('div');
+                curveEl.className = 'curve-progress';
+                curveEl.innerHTML = `
+                    <div class="token-name">${token.name}</div>
+                    ${migrating ? '<div class="migration-alert">⚡ MIGRATING TO RAYDIUM ⚡</div>' : ''}
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>Bonding Curve</span>
+                        <span>${progress}% Complete</span>
+                    </div>
+                    <div class="token-stat">
+                        <span class="label">Volume:</span>
+                        <span class="value">$${token.volume.toLocaleString()}</span>
+                    </div>
+                `;
+
+                curveList.appendChild(curveEl);
+            }
+        }
+
+        function updateTopMovers() {
+            const moversList = document.getElementById('movers-list');
+            moversList.innerHTML = '';
+
+            // Sort by change %
+            const sorted = [...mockTokens].sort((a, b) => b.change - a.change);
+
+            sorted.forEach((token, index) => {
+                const moverEl = document.createElement('div');
+                moverEl.className = 'mover-item';
+                moverEl.innerHTML = `
+                    <div class="mover-rank">#${index + 1}</div>
+                    <div class="mover-info">
+                        <div class="mover-name">${token.name}</div>
+                        <div class="mover-volume">Vol: $${(token.volume / 1000).toFixed(0)}K</div>
+                    </div>
+                    <div class="mover-change positive">+${token.change}%</div>
+                `;
+
+                moversList.appendChild(moverEl);
+
+                // Randomly update change values
+                mockTokens[index].change = Math.floor(Math.random() * 500) + 50;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isPaused) {
+                controls.update();
+
+                // Animate nodes
+                scene.children.forEach(child => {
+                    if (child.geometry?.type === 'SphereGeometry' && child.userData.angle !== undefined) {
+                        child.userData.angle += child.userData.speed;
+                        child.position.x = Math.cos(child.userData.angle) * child.userData.radius;
+                        child.position.z = Math.sin(child.userData.angle) * child.userData.radius;
+
+                        // Pulse effect
+                        const scale = 1 + Math.sin(Date.now() * 0.002 + child.userData.angle) * 0.2;
+                        child.scale.set(scale, scale, scale);
+                    }
+
+                    if (child.geometry?.type === 'OctahedronGeometry') {
+                        child.rotation.y += 0.01;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.togglePause = function() {
+            isPaused = !isPaused;
+            controls.autoRotate = !isPaused;
+        };
+
+        window.clearFeeds = function() {
+            document.getElementById('token-list').innerHTML = '';
+            document.getElementById('whale-list').innerHTML = '';
+            tokenCount = 0;
+            whaleCount = 0;
+        };
+
+        // Initialize
+        init();
+
+        // Initial population
+        setTimeout(() => {
+            simulateNewToken();
+            simulateNewToken();
+            simulateNewToken();
+        }, 1000);
+
+        setTimeout(() => {
+            simulateWhaleActivity();
+        }, 2000);
+    </script>
+</body>
+</html>

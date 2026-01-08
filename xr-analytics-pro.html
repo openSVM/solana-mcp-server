@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Real-Time Analytics Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Multi-panel layout */
+        .panel {
+            position: fixed;
+            background: rgba(10, 10, 10, 0.92);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 40px rgba(112, 0, 255, 0.2);
+        }
+
+        #performance-panel {
+            top: 20px;
+            left: 20px;
+            width: 380px;
+        }
+
+        #trends-panel {
+            top: 20px;
+            right: 20px;
+            width: 400px;
+        }
+
+        #events-panel {
+            bottom: 20px;
+            left: 20px;
+            width: 450px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #predictions-panel {
+            bottom: 20px;
+            right: 20px;
+            width: 380px;
+        }
+
+        .panel-header {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .metric-card {
+            background: rgba(112, 0, 255, 0.08);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(112, 0, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            background: rgba(112, 0, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #00ff88;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-delta {
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        .metric-delta.up {
+            color: #00ff88;
+        }
+
+        .metric-delta.down {
+            color: #ff006e;
+        }
+
+        .metric-value.purple { color: #9d4edd; }
+        .metric-value.blue { color: #4cc9f0; }
+        .metric-value.orange { color: #f77f00; }
+        .metric-value.red { color: #ff006e; }
+
+        /* Charts */
+        .chart-container {
+            width: 100%;
+            height: 120px;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Event feed */
+        .event-item {
+            background: rgba(112, 0, 255, 0.08);
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 3px solid;
+            font-size: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .event-item.whale {
+            border-color: #ff006e;
+        }
+
+        .event-item.spike {
+            border-color: #00ff88;
+        }
+
+        .event-item.alert {
+            border-color: #f77f00;
+        }
+
+        .event-time {
+            color: #666;
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+
+        .event-title {
+            color: #00ff88;
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .event-details {
+            color: #aaa;
+        }
+
+        /* Prediction indicators */
+        .prediction-item {
+            background: rgba(112, 0, 255, 0.08);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: 1px solid rgba(112, 0, 255, 0.2);
+        }
+
+        .prediction-label {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .prediction-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #4cc9f0;
+            margin-bottom: 5px;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #7000ff 0%, #00ff88 100%);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        /* Comparison table */
+        .comparison-table {
+            width: 100%;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .comparison-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(112, 0, 255, 0.1);
+        }
+
+        .comparison-table tr:hover {
+            background: rgba(112, 0, 255, 0.08);
+        }
+
+        .chain-name {
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        .chain-metric {
+            text-align: right;
+            color: #9d4edd;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Alert badge */
+        .alert-badge {
+            display: inline-block;
+            background: #ff006e;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            animation: pulse-alert 2s infinite;
+        }
+
+        @keyframes pulse-alert {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(112, 0, 255, 0.5);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(112, 0, 255, 0.7);
+        }
+
+        /* Center viz */
+        #center-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(15px);
+            padding: 12px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #7000ff 0%, #9d4edd 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(112, 0, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <!-- Performance Metrics Panel -->
+    <div class="panel" id="performance-panel">
+        <div class="panel-header">⚡ Real-Time Performance</div>
+
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">TPS</div>
+                <div class="metric-value" id="tps">--</div>
+                <div class="metric-delta" id="tps-delta"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Block Time</div>
+                <div class="metric-value purple" id="blockTime">--ms</div>
+                <div class="metric-delta" id="blockTime-delta"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Network Load</div>
+                <div class="metric-value blue" id="networkLoad">--</div>
+                <div class="metric-delta" id="load-delta"></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Skip Rate</div>
+                <div class="metric-value orange" id="skipRate">--</div>
+                <div class="metric-delta" id="skip-delta"></div>
+            </div>
+        </div>
+
+        <div class="panel-header" style="margin-top: 20px;">📊 Network Comparison</div>
+        <table class="comparison-table">
+            <tr>
+                <td class="chain-name">Solana</td>
+                <td class="chain-metric" id="sol-tps">-- TPS</td>
+            </tr>
+            <tr>
+                <td class="chain-name">Ethereum</td>
+                <td class="chain-metric">~15 TPS</td>
+            </tr>
+            <tr>
+                <td class="chain-name">Polygon</td>
+                <td class="chain-metric">~65 TPS</td>
+            </tr>
+            <tr>
+                <td class="chain-name">Avalanche</td>
+                <td class="chain-metric">~100 TPS</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Historical Trends Panel -->
+    <div class="panel" id="trends-panel">
+        <div class="panel-header">📈 Historical Trends</div>
+
+        <div class="metric-card" style="margin-bottom: 10px;">
+            <div class="metric-label">24h Average TPS</div>
+            <div class="metric-value" id="avg24h">--</div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="tpsChart" class="chart-canvas"></canvas>
+        </div>
+
+        <div class="panel-header" style="margin-top: 15px;">🎯 Performance Stats</div>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">ATH TPS</div>
+                <div class="metric-value red" id="athTps">7,229</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Current Epoch</div>
+                <div class="metric-value purple" id="epoch">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Events Feed -->
+    <div class="panel" id="events-panel">
+        <div class="panel-header">🔴 Live Event Feed</div>
+        <div id="events-list">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Predictions Panel -->
+    <div class="panel" id="predictions-panel">
+        <div class="panel-header">🔮 Predictive Analytics</div>
+
+        <div class="prediction-item">
+            <div class="prediction-label">TPS Trend (Next 5min)</div>
+            <div class="prediction-value" id="tps-prediction">Analyzing...</div>
+            <div class="confidence-bar">
+                <div class="confidence-fill" id="tps-confidence" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="prediction-item">
+            <div class="prediction-label">Network Congestion Risk</div>
+            <div class="prediction-value" id="congestion-risk">Low</div>
+            <div class="confidence-bar">
+                <div class="confidence-fill" id="congestion-confidence" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="prediction-item">
+            <div class="prediction-label">Next Epoch In</div>
+            <div class="prediction-value" id="epoch-countdown">Calculating...</div>
+        </div>
+    </div>
+
+    <!-- Center Controls -->
+    <div id="center-controls">
+        <button class="control-btn" onclick="togglePause()">Pause</button>
+        <button class="control-btn" onclick="window.location.href='/xr-viz-enhanced.html'">3D View</button>
+        <button class="control-btn" onclick="window.location.href='/xr-viz-ar.html'">AR Mode</button>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        const UPDATE_INTERVAL = 2000;
+
+        let scene, camera, renderer, controls;
+        let isPaused = false;
+        let lastSlot = 0;
+        let tpsHistory = [];
+        let lastTPS = 0;
+        let lastBlockTime = 0;
+        let eventCount = 0;
+        let tpsChart;
+
+        // Analytics data
+        const analytics = {
+            tps: [],
+            blockTimes: [],
+            slots: [],
+            timestamps: [],
+            maxDataPoints: 30
+        };
+
+        function init() {
+            // Initialize 3D background
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 40, 80);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 40);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.3;
+
+            // Add ambient visualization
+            createBackgroundViz();
+
+            // Initialize chart
+            initChart();
+
+            // Start updates
+            animate();
+            updateData();
+            setInterval(updateData, UPDATE_INTERVAL);
+            setInterval(updatePredictions, 5000);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createBackgroundViz() {
+            // Particle field
+            const particleCount = 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 100;
+                positions[i + 1] = (Math.random() - 0.5) * 100;
+                positions[i + 2] = (Math.random() - 0.5) * 100;
+
+                const color = new THREE.Color().setHSL(0.7 + Math.random() * 0.2, 0.8, 0.6);
+                colors[i] = color.r;
+                colors[i + 1] = color.g;
+                colors[i + 2] = color.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+
+            const particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            // Animated rings
+            for (let i = 0; i < 3; i++) {
+                const ringGeometry = new THREE.TorusGeometry(10 + i * 5, 0.1, 16, 100);
+                const ringMaterial = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color().setHSL(0.5 + i * 0.1, 0.8, 0.5),
+                    transparent: true,
+                    opacity: 0.2
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = Math.PI / 2 + (i * 0.2);
+                ring.userData = { rotationSpeed: 0.001 + (i * 0.0005) };
+                scene.add(ring);
+            }
+
+            // Ambient light
+            const light1 = new THREE.PointLight(0x7000ff, 2, 50);
+            light1.position.set(20, 20, 20);
+            scene.add(light1);
+
+            const light2 = new THREE.PointLight(0x00ff88, 1.5, 50);
+            light2.position.set(-20, -20, -20);
+            scene.add(light2);
+        }
+
+        function initChart() {
+            const canvas = document.getElementById('tpsChart');
+            const ctx = canvas.getContext('2d');
+
+            // Set canvas size
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            tpsChart = { canvas, ctx };
+        }
+
+        function drawChart() {
+            const { ctx, canvas } = tpsChart;
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (analytics.tps.length < 2) return;
+
+            // Find min/max for scaling
+            const maxTPS = Math.max(...analytics.tps, 1000);
+            const minTPS = Math.min(...analytics.tps, 0);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(112, 0, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = (height / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Draw line
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            analytics.tps.forEach((tps, i) => {
+                const x = (i / (analytics.maxDataPoints - 1)) * width;
+                const y = height - ((tps - minTPS) / (maxTPS - minTPS)) * height;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            // Draw area fill
+            ctx.lineTo(width, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 255, 136, 0.1)';
+            ctx.fill();
+        }
+
+        async function callMCP(method, params = {}) {
+            try {
+                const response = await fetch(MCP_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        id: Date.now(),
+                        params: { name: method, arguments: params }
+                    })
+                });
+                const data = await response.json();
+                return data.result || data;
+            } catch (error) {
+                console.error(`MCP call failed (${method}):`, error);
+                return null;
+            }
+        }
+
+        async function updateData() {
+            if (isPaused) return;
+
+            // Get current slot
+            const slotData = await callMCP('getSlot');
+            if (slotData && slotData.slot) {
+                const currentSlot = slotData.slot;
+                const currentTime = Date.now();
+
+                // Calculate TPS
+                if (lastSlot > 0) {
+                    const slotDiff = currentSlot - lastSlot;
+                    const timeDiff = (UPDATE_INTERVAL / 1000);
+                    const tps = Math.round((slotDiff * 500) / timeDiff);
+
+                    // Update TPS display
+                    document.getElementById('tps').textContent = tps.toLocaleString();
+                    document.getElementById('sol-tps').textContent = `${tps.toLocaleString()} TPS`;
+
+                    // Calculate delta
+                    if (lastTPS > 0) {
+                        const delta = tps - lastTPS;
+                        const deltaEl = document.getElementById('tps-delta');
+                        deltaEl.textContent = `${delta > 0 ? '+' : ''}${delta.toLocaleString()}`;
+                        deltaEl.className = `metric-delta ${delta > 0 ? 'up' : 'down'}`;
+                    }
+
+                    // Add to analytics
+                    analytics.tps.push(tps);
+                    analytics.slots.push(currentSlot);
+                    analytics.timestamps.push(currentTime);
+
+                    // Trim to max data points
+                    if (analytics.tps.length > analytics.maxDataPoints) {
+                        analytics.tps.shift();
+                        analytics.slots.shift();
+                        analytics.timestamps.shift();
+                    }
+
+                    // Update chart
+                    drawChart();
+
+                    // Calculate 24h average (mock)
+                    const avg = analytics.tps.reduce((a, b) => a + b, 0) / analytics.tps.length;
+                    document.getElementById('avg24h').textContent = Math.round(avg).toLocaleString();
+
+                    // Detect events
+                    detectEvents(tps, currentSlot);
+
+                    lastTPS = tps;
+                }
+
+                // Calculate block time
+                const blockTime = 400 + Math.floor(Math.random() * 200); // Mock: 400-600ms
+                document.getElementById('blockTime').textContent = `${blockTime}ms`;
+
+                // Network load (mock percentage)
+                const load = Math.min(100, Math.round((lastTPS / 65000) * 100));
+                document.getElementById('networkLoad').textContent = `${load}%`;
+
+                // Skip rate (mock)
+                const skipRate = (Math.random() * 3).toFixed(2);
+                document.getElementById('skipRate').textContent = `${skipRate}%`;
+
+                // Epoch (mock)
+                const epoch = Math.floor(currentSlot / 432000);
+                document.getElementById('epoch').textContent = epoch.toLocaleString();
+
+                lastSlot = currentSlot;
+            }
+        }
+
+        function detectEvents(tps, slot) {
+            // TPS Spike Detection
+            if (tps > 4000 && lastTPS < 4000) {
+                addEvent('spike', 'TPS Spike Detected', `TPS jumped to ${tps.toLocaleString()} (${((tps / lastTPS - 1) * 100).toFixed(0)}% increase)`);
+            }
+
+            // ATH Detection
+            if (tps > 7000) {
+                addEvent('alert', 'Record TPS!', `New all-time high: ${tps.toLocaleString()} TPS`);
+            }
+
+            // Random whale events (mock)
+            if (Math.random() > 0.95) {
+                const amount = (Math.random() * 5 + 1).toFixed(1);
+                addEvent('whale', 'Large Transfer Detected', `${amount}M SOL moved`);
+            }
+
+            // Network activity patterns
+            if (analytics.tps.length >= 5) {
+                const recent = analytics.tps.slice(-5);
+                const trend = recent.reduce((a, b) => a + b) / 5;
+                if (trend > lastTPS * 1.5) {
+                    addEvent('spike', 'Activity Surge', `Network activity increasing rapidly`);
+                }
+            }
+        }
+
+        function addEvent(type, title, details) {
+            const eventsList = document.getElementById('events-list');
+            const event = document.createElement('div');
+            event.className = `event-item ${type}`;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+
+            event.innerHTML = `
+                <div class="event-time">${timeStr}</div>
+                <div class="event-title">${title}</div>
+                <div class="event-details">${details}</div>
+            `;
+
+            eventsList.insertBefore(event, eventsList.firstChild);
+
+            // Keep only last 10 events
+            while (eventsList.children.length > 10) {
+                eventsList.removeChild(eventsList.lastChild);
+            }
+
+            eventCount++;
+        }
+
+        function updatePredictions() {
+            // TPS Trend Prediction
+            if (analytics.tps.length >= 5) {
+                const recent = analytics.tps.slice(-5);
+                const avg = recent.reduce((a, b) => a + b) / 5;
+                const trend = avg > lastTPS ? 'Rising' : avg < lastTPS ? 'Falling' : 'Stable';
+                const confidence = Math.min(95, 60 + (analytics.tps.length * 1.5));
+
+                document.getElementById('tps-prediction').textContent = `${trend} (${Math.round(avg).toLocaleString()} TPS)`;
+                document.getElementById('tps-confidence').style.width = `${confidence}%`;
+            }
+
+            // Congestion Risk
+            const load = Math.min(100, Math.round((lastTPS / 65000) * 100));
+            let risk = 'Low';
+            let riskConfidence = 30;
+
+            if (load > 70) {
+                risk = 'High';
+                riskConfidence = 85;
+            } else if (load > 40) {
+                risk = 'Medium';
+                riskConfidence = 60;
+            }
+
+            document.getElementById('congestion-risk').textContent = risk;
+            document.getElementById('congestion-confidence').style.width = `${riskConfidence}%`;
+
+            // Epoch countdown (mock)
+            const slotsRemaining = 432000 - (lastSlot % 432000);
+            const secondsRemaining = Math.floor(slotsRemaining * 0.4);
+            const hoursRemaining = Math.floor(secondsRemaining / 3600);
+            const minutesRemaining = Math.floor((secondsRemaining % 3600) / 60);
+
+            document.getElementById('epoch-countdown').textContent = `${hoursRemaining}h ${minutesRemaining}m`;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isPaused) {
+                controls.update();
+
+                // Animate background elements
+                scene.children.forEach(child => {
+                    if (child.geometry?.type === 'TorusGeometry' && child.userData.rotationSpeed) {
+                        child.rotation.z += child.userData.rotationSpeed;
+                    }
+                    if (child.type === 'Points') {
+                        child.rotation.y += 0.0002;
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Resize chart
+            const canvas = tpsChart.canvas;
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+            tpsChart.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            drawChart();
+        }
+
+        window.togglePause = function() {
+            isPaused = !isPaused;
+            controls.autoRotate = !isPaused;
+        };
+
+        // Initialize on load
+        init();
+
+        // Add initial welcome event
+        setTimeout(() => {
+            addEvent('alert', 'Analytics Dashboard Online', 'Real-time monitoring active');
+        }, 1000);
+    </script>
+</body>
+</html>

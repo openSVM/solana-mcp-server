@@ -22,8 +22,11 @@ pub struct SvmNetwork {
 /// Main configuration structure for the Solana MCP server
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
-    /// Primary RPC URL for Solana operations
+    /// Primary RPC URL for Solana operations (backwards compatibility)
     pub rpc_url: String,
+    /// Multiple RPC URLs for round-robin load balancing
+    #[serde(default)]
+    pub rpc_urls: Vec<String>,
     /// Commitment level for transactions (processed, confirmed, finalized)
     pub commitment: String,
     /// Protocol version for MCP communication
@@ -115,6 +118,7 @@ impl Config {
 
             Config {
                 rpc_url,
+                rpc_urls: Vec::new(),
                 commitment,
                 protocol_version,
                 svm_networks: HashMap::new(),
@@ -142,6 +146,12 @@ impl Config {
     pub fn validate(&self) -> Result<()> {
         // Validate main RPC URL
         validate_rpc_url(&self.rpc_url).context("Invalid main RPC URL")?;
+
+        // Validate all RPC URLs in the pool
+        for (index, url) in self.rpc_urls.iter().enumerate() {
+            validate_rpc_url(url)
+                .with_context(|| format!("Invalid RPC URL at index {index}: {url}"))?;
+        }
 
         // Validate commitment level
         validate_commitment(&self.commitment).context("Invalid commitment level")?;

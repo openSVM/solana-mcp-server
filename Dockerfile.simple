@@ -1,0 +1,19 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY target/release/solana-mcp-server /app/solana-mcp-server
+COPY config.json /app/config.json
+
+RUN useradd -m -u 65532 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 3000 8080
+
+ENV RUST_LOG=info
+ENTRYPOINT ["/app/solana-mcp-server"]
+CMD ["web", "--port", "3000"]

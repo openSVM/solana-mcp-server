@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana XR - Advanced Validator Analytics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #info-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(15px);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            max-width: 450px;
+            z-index: 100;
+            font-size: 14px;
+            box-shadow: 0 10px 40px rgba(112, 0, 255, 0.2);
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric {
+            background: rgba(112, 0, 255, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(112, 0, 255, 0.2);
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            color: #00ff88;
+            font-size: 24px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-value.purple { color: #9d4edd; }
+        .metric-value.blue { color: #4cc9f0; }
+        .metric-value.orange { color: #f77f00; }
+        .metric-value.red { color: #ff006e; }
+
+        #validator-detail-panel {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: 16px;
+            border: 2px solid rgba(0, 255, 136, 0.6);
+            max-width: 400px;
+            z-index: 150;
+            font-size: 13px;
+            box-shadow: 0 10px 60px rgba(0, 255, 136, 0.3);
+            display: none;
+        }
+
+        #validator-detail-panel.show {
+            display: block;
+            animation: slideInRight 0.3s ease;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateY(-50%) translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(-50%) translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .detail-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00ff88;
+            margin-bottom: 5px;
+        }
+
+        .detail-address {
+            font-size: 10px;
+            color: #888;
+            font-family: monospace;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .detail-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(112, 0, 255, 0.2);
+        }
+
+        .detail-stat:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #888;
+        }
+
+        .detail-value {
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        .detail-value.warning {
+            color: #f77f00;
+        }
+
+        .detail-value.danger {
+            color: #ff006e;
+        }
+
+        .performance-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .performance-badge.excellent {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+
+        .performance-badge.good {
+            background: rgba(76, 201, 240, 0.2);
+            color: #4cc9f0;
+            border: 1px solid #4cc9f0;
+        }
+
+        .performance-badge.poor {
+            background: rgba(247, 127, 0, 0.2);
+            color: #f77f00;
+            border: 1px solid #f77f00;
+        }
+
+        .performance-badge.delinquent {
+            background: rgba(255, 0, 110, 0.2);
+            color: #ff006e;
+            border: 1px solid #ff006e;
+        }
+
+        .close-detail {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-detail:hover {
+            color: #ff006e;
+        }
+
+        #validator-list {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(112, 0, 255, 0.2);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .validator-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(112, 0, 255, 0.05);
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .validator-item:hover {
+            background: rgba(112, 0, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .validator-rank {
+            background: #7000ff;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .validator-name {
+            flex: 1;
+            margin: 0 10px;
+            color: #00ff88;
+        }
+
+        .validator-stake {
+            color: #9d4edd;
+            font-weight: 600;
+        }
+
+        #layer-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(15px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            z-index: 100;
+        }
+
+        .layer-btn {
+            display: block;
+            width: 100%;
+            background: rgba(112, 0, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 8px 0;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .layer-btn:hover {
+            background: rgba(112, 0, 255, 0.3);
+            transform: translateX(3px);
+        }
+
+        .layer-btn.active {
+            background: linear-gradient(135deg, #7000ff 0%, #00ff88 100%);
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .layer-icon {
+            font-size: 20px;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(15px);
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 1px solid rgba(112, 0, 255, 0.4);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #7000ff 0%, #9d4edd 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(112, 0, 255, 0.4);
+        }
+
+        .control-btn.active {
+            background: linear-gradient(135deg, #00ff88 0%, #00d4aa 100%);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(112, 0, 255, 0.2);
+            border-top-color: #7000ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(112, 0, 255, 0.3);
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading Real Validator Data...</div>
+    </div>
+
+    <div id="info-panel">
+        <div class="panel-title">
+            <span>⚡</span>
+            <span>Live Validator Network</span>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-label">Current Slot</div>
+                <div class="metric-value" id="slot">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">TPS</div>
+                <div class="metric-value purple" id="tps">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Active Validators</div>
+                <div class="metric-value blue" id="validatorCount">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Total Stake</div>
+                <div class="metric-value orange" id="totalStake">--M SOL</div>
+            </div>
+        </div>
+
+        <div id="validator-list">
+            <div class="metric-label">Top Validators by Stake</div>
+            <div style="color: #888; font-size: 11px; margin-top: 10px;">Click any validator node to see details</div>
+        </div>
+    </div>
+
+    <div id="validator-detail-panel">
+        <button class="close-detail" onclick="closeValidatorDetail()">&times;</button>
+        <div class="detail-header" id="detail-name">--</div>
+        <div class="detail-address" id="detail-address">--</div>
+
+        <div class="detail-stat">
+            <span class="detail-label">Performance</span>
+            <span class="detail-value" id="detail-performance">--</span>
+        </div>
+        <div class="detail-stat">
+            <span class="detail-label">Activated Stake</span>
+            <span class="detail-value" id="detail-stake">--</span>
+        </div>
+        <div class="detail-stat">
+            <span class="detail-label">Commission</span>
+            <span class="detail-value" id="detail-commission">--</span>
+        </div>
+        <div class="detail-stat">
+            <span class="detail-label">Skip Rate</span>
+            <span class="detail-value" id="detail-skiprate">--</span>
+        </div>
+        <div class="detail-stat">
+            <span class="detail-label">Vote Credits</span>
+            <span class="detail-value" id="detail-credits">--</span>
+        </div>
+        <div class="detail-stat">
+            <span class="detail-label">Last Vote</span>
+            <span class="detail-value" id="detail-lastvote">--</span>
+        </div>
+        <div class="detail-stat">
+            <span class="detail-label">Version</span>
+            <span class="detail-value" id="detail-version">--</span>
+        </div>
+    </div>
+
+    <div id="layer-controls">
+        <button class="layer-btn active" onclick="toggleLayer('validators')" id="layer-validators">
+            <span class="layer-icon">⚡</span>
+            <span>Validator Sphere</span>
+        </button>
+        <button class="layer-btn" onclick="toggleStakeFlow()" id="flow-toggle">
+            <span class="layer-icon">🌊</span>
+            <span>Stake Flow Animation</span>
+        </button>
+        <button class="layer-btn" onclick="toggleVoteParticles()" id="vote-toggle">
+            <span class="layer-icon">✨</span>
+            <span>Vote Particles</span>
+        </button>
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button class="control-btn" onclick="resetView()">Reset View</button>
+        <button class="control-btn" onclick="window.location.href='/'">Home</button>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const MCP_ENDPOINT = window.location.hostname === 'localhost'
+            ? 'http://localhost:3000/api/mcp'
+            : 'https://solahaha.com/api/mcp';
+
+        const UPDATE_INTERVAL = 5000;
+
+        let scene, camera, renderer, controls;
+        let isPaused = false;
+        let lastSlot = 0;
+        let raycaster, mouse;
+
+        let validatorLayer, stakeFlowLayer, voteParticlesLayer;
+        let validatorNodes = [];
+        let validatorData = [];
+        let stakeFlowEnabled = false;
+        let voteParticlesEnabled = false;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 30, 80);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 25, 40);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 20;
+            controls.maxDistance = 80;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.3;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0x7000ff, 3, 80);
+            pointLight1.position.set(20, 20, 20);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0x00ff88, 2.5, 80);
+            pointLight2.position.set(-20, -15, -20);
+            scene.add(pointLight2);
+
+            // Initialize layers
+            validatorLayer = new THREE.Group();
+            scene.add(validatorLayer);
+
+            stakeFlowLayer = new THREE.Group();
+            stakeFlowLayer.visible = false;
+            scene.add(stakeFlowLayer);
+
+            voteParticlesLayer = new THREE.Group();
+            voteParticlesLayer.visible = false;
+            scene.add(voteParticlesLayer);
+
+            setupEventListeners();
+            animate();
+            loadValidatorData();
+
+            setInterval(updateData, UPDATE_INTERVAL);
+        }
+
+        async function callMCP(method, params = {}) {
+            try {
+                const response = await fetch(MCP_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'tools/call',
+                        id: Date.now(),
+                        params: { name: method, arguments: params }
+                    })
+                });
+                const data = await response.json();
+                return data.result || data;
+            } catch (error) {
+                console.error(`MCP call failed (${method}):`, error);
+                return null;
+            }
+        }
+
+        async function loadValidatorData() {
+            const voteAccounts = await callMCP('getVoteAccounts');
+
+            if (voteAccounts && voteAccounts.current) {
+                validatorData = voteAccounts.current
+                    .map(v => ({
+                        votePubkey: v.votePubkey,
+                        nodePubkey: v.nodePubkey,
+                        activatedStake: v.activatedStake / 1e9, // Convert lamports to SOL
+                        commission: v.commission,
+                        epochCredits: v.epochCredits,
+                        epochVoteAccount: v.epochVoteAccount,
+                        lastVote: v.lastVote,
+                        rootSlot: v.rootSlot,
+                        skipRate: calculateSkipRate(v.epochCredits),
+                        delinquent: false
+                    }))
+                    .sort((a, b) => b.activatedStake - a.activatedStake)
+                    .slice(0, 100); // Top 100 validators
+
+                // Add delinquent validators
+                if (voteAccounts.delinquent) {
+                    const delinquentValidators = voteAccounts.delinquent
+                        .slice(0, 20)
+                        .map(v => ({
+                            votePubkey: v.votePubkey,
+                            nodePubkey: v.nodePubkey,
+                            activatedStake: v.activatedStake / 1e9,
+                            commission: v.commission,
+                            epochCredits: v.epochCredits,
+                            epochVoteAccount: v.epochVoteAccount,
+                            lastVote: v.lastVote,
+                            rootSlot: v.rootSlot,
+                            skipRate: 100,
+                            delinquent: true
+                        }));
+
+                    validatorData = [...validatorData, ...delinquentValidators];
+                }
+
+                createValidatorLeaderboard();
+                updateValidatorList();
+                updateStats();
+
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function calculateSkipRate(epochCredits) {
+            if (!epochCredits || epochCredits.length === 0) return 0;
+
+            // Calculate skip rate from recent epoch credits
+            const recent = epochCredits.slice(-3);
+            const avgCredits = recent.reduce((sum, c) => sum + c[1], 0) / recent.length;
+            const expectedCredits = 400000; // Approximate expected credits per epoch
+
+            return Math.max(0, Math.min(100, ((expectedCredits - avgCredits) / expectedCredits) * 100));
+        }
+
+        function getPerformanceColor(validator) {
+            if (validator.delinquent) return 0xff006e; // Red
+            if (validator.skipRate > 20) return 0xf77f00; // Orange (poor)
+            if (validator.skipRate > 5) return 0x4cc9f0; // Blue (good)
+            return 0x00ff88; // Green (excellent)
+        }
+
+        function getPerformanceBadge(validator) {
+            if (validator.delinquent) return '<span class="performance-badge delinquent">Delinquent</span>';
+            if (validator.skipRate > 20) return '<span class="performance-badge poor">Poor</span>';
+            if (validator.skipRate > 5) return '<span class="performance-badge good">Good</span>';
+            return '<span class="performance-badge excellent">Excellent</span>';
+        }
+
+        function createValidatorLeaderboard() {
+            validatorLayer.clear();
+            validatorNodes = [];
+
+            // Group validators into rings based on stake
+            const totalStake = validatorData.reduce((sum, v) => sum + v.activatedStake, 0);
+            const ringsCount = 10;
+            const validatorsPerRing = Math.ceil(validatorData.length / ringsCount);
+
+            validatorData.forEach((validator, index) => {
+                const ringIndex = Math.floor(index / validatorsPerRing);
+                const positionInRing = index % validatorsPerRing;
+                const nodesInRing = Math.min(validatorsPerRing, validatorData.length - ringIndex * validatorsPerRing);
+
+                const ringRadius = 10 + (ringIndex * 3);
+                const angle = (positionInRing / nodesInRing) * Math.PI * 2;
+
+                const x = Math.cos(angle) * ringRadius;
+                const z = Math.sin(angle) * ringRadius;
+                const y = (Math.random() - 0.5) * 2; // Slight vertical variation
+
+                // Size based on stake
+                const stakePercent = validator.activatedStake / totalStake;
+                const size = 0.3 + (stakePercent * 200);
+
+                const geometry = new THREE.SphereGeometry(size, 16, 16);
+                const color = getPerformanceColor(validator);
+                const material = new THREE.MeshPhongMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: validator.delinquent ? 0.8 : 0.4,
+                    shininess: 100
+                });
+
+                const node = new THREE.Mesh(geometry, material);
+                node.position.set(x, y, z);
+                node.userData = {
+                    validator: validator,
+                    ringIndex: ringIndex,
+                    originalColor: color
+                };
+
+                validatorLayer.add(node);
+                validatorNodes.push(node);
+            });
+
+            createStakeFlows();
+            createVoteParticles();
+        }
+
+        function createStakeFlows() {
+            stakeFlowLayer.clear();
+
+            // Create flowing lines between validators showing stake delegation
+            for (let i = 0; i < Math.min(50, validatorNodes.length); i++) {
+                const sourceNode = validatorNodes[i];
+                const targetNode = validatorNodes[Math.floor(Math.random() * validatorNodes.length)];
+
+                const points = [];
+                points.push(sourceNode.position.clone());
+
+                // Add curve point
+                const mid = new THREE.Vector3()
+                    .addVectors(sourceNode.position, targetNode.position)
+                    .multiplyScalar(0.5);
+                mid.y += 5; // Arc upward
+                points.push(mid);
+
+                points.push(targetNode.position.clone());
+
+                const curve = new THREE.CatmullRomCurve3(points);
+                const tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.05, 8, false);
+                const tubeMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x7000ff,
+                    transparent: true,
+                    opacity: 0.3
+                });
+
+                const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+                tube.userData = { curve: curve, progress: Math.random() };
+                stakeFlowLayer.add(tube);
+
+                // Add flowing particle
+                const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00ff88,
+                    emissive: 0x00ff88,
+                    emissiveIntensity: 1
+                });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.userData = { curve: curve, progress: Math.random(), speed: 0.005 + Math.random() * 0.01 };
+                stakeFlowLayer.add(particle);
+            }
+        }
+
+        function createVoteParticles() {
+            voteParticlesLayer.clear();
+
+            // Create particles emanating from high-performing validators
+            validatorNodes.slice(0, 30).forEach(node => {
+                if (!node.userData.validator.delinquent) {
+                    for (let i = 0; i < 3; i++) {
+                        const particleGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+                        const particleMaterial = new THREE.MeshBasicMaterial({
+                            color: 0x00ff88,
+                            transparent: true,
+                            opacity: 0.8
+                        });
+                        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                        particle.position.copy(node.position);
+                        particle.userData = {
+                            velocity: new THREE.Vector3(
+                                (Math.random() - 0.5) * 0.2,
+                                Math.random() * 0.3,
+                                (Math.random() - 0.5) * 0.2
+                            ),
+                            life: 1.0
+                        };
+                        voteParticlesLayer.add(particle);
+                    }
+                }
+            });
+        }
+
+        function updateValidatorList() {
+            const listEl = document.getElementById('validator-list');
+            const titleHtml = '<div class="metric-label">Top Validators by Stake</div><div style="color: #888; font-size: 11px; margin: 5px 0 10px 0;">Click any validator node to see details</div>';
+            listEl.innerHTML = titleHtml;
+
+            validatorData.slice(0, 10).forEach((validator, index) => {
+                const item = document.createElement('div');
+                item.className = 'validator-item';
+                item.onclick = () => showValidatorDetail(validator);
+                item.innerHTML = `
+                    <div class="validator-rank">#${index + 1}</div>
+                    <div class="validator-name">${validator.votePubkey.slice(0, 8)}...</div>
+                    <div class="validator-stake">${(validator.activatedStake / 1000000).toFixed(1)}M SOL</div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function updateStats() {
+            const totalStake = validatorData.reduce((sum, v) => sum + v.activatedStake, 0);
+            document.getElementById('validatorCount').textContent = validatorData.filter(v => !v.delinquent).length.toLocaleString();
+            document.getElementById('totalStake').textContent = (totalStake / 1000000).toFixed(1) + 'M SOL';
+        }
+
+        async function updateData() {
+            if (isPaused) return;
+
+            const slotData = await callMCP('getSlot');
+            if (slotData && slotData.slot) {
+                const currentSlot = slotData.slot;
+                document.getElementById('slot').textContent = currentSlot.toLocaleString();
+
+                if (lastSlot > 0) {
+                    const slotDiff = currentSlot - lastSlot;
+                    const tps = Math.round((slotDiff * 500) / (UPDATE_INTERVAL / 1000));
+                    document.getElementById('tps').textContent = tps.toLocaleString();
+                }
+                lastSlot = currentSlot;
+            }
+        }
+
+        function showValidatorDetail(validator) {
+            const panel = document.getElementById('validator-detail-panel');
+
+            document.getElementById('detail-name').textContent = validator.votePubkey.slice(0, 16) + '...';
+            document.getElementById('detail-address').textContent = validator.votePubkey;
+            document.getElementById('detail-performance').innerHTML = getPerformanceBadge(validator);
+            document.getElementById('detail-stake').textContent = (validator.activatedStake / 1000000).toFixed(2) + 'M SOL';
+            document.getElementById('detail-commission').textContent = validator.commission + '%';
+
+            const skipRateEl = document.getElementById('detail-skiprate');
+            skipRateEl.textContent = validator.skipRate.toFixed(2) + '%';
+            skipRateEl.className = 'detail-value';
+            if (validator.skipRate > 20) skipRateEl.classList.add('danger');
+            else if (validator.skipRate > 5) skipRateEl.classList.add('warning');
+
+            const credits = validator.epochCredits && validator.epochCredits.length > 0
+                ? validator.epochCredits[validator.epochCredits.length - 1][1]
+                : 0;
+            document.getElementById('detail-credits').textContent = credits.toLocaleString();
+            document.getElementById('detail-lastvote').textContent = validator.lastVote?.toLocaleString() || 'N/A';
+            document.getElementById('detail-version').textContent = '1.18.x'; // Would need version from RPC
+
+            panel.classList.add('show');
+        }
+
+        function closeValidatorDetail() {
+            document.getElementById('validator-detail-panel').classList.remove('show');
+        }
+
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(validatorNodes);
+
+            if (intersects.length > 0) {
+                const clickedNode = intersects[0].object;
+                showValidatorDetail(clickedNode.userData.validator);
+            }
+        }
+
+        function toggleStakeFlow() {
+            stakeFlowEnabled = !stakeFlowEnabled;
+            stakeFlowLayer.visible = stakeFlowEnabled;
+
+            const btn = document.getElementById('flow-toggle');
+            btn.classList.toggle('active', stakeFlowEnabled);
+        }
+
+        function toggleVoteParticles() {
+            voteParticlesEnabled = !voteParticlesEnabled;
+            voteParticlesLayer.visible = voteParticlesEnabled;
+
+            const btn = document.getElementById('vote-toggle');
+            btn.classList.toggle('active', voteParticlesEnabled);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isPaused) {
+                controls.update();
+
+                // Animate validator nodes
+                validatorLayer.children.forEach((child, index) => {
+                    const scale = 1 + Math.sin(Date.now() * 0.001 + index * 0.1) * 0.15;
+                    child.scale.set(scale, scale, scale);
+
+                    // Pulse delinquent validators
+                    if (child.userData.validator?.delinquent) {
+                        const pulse = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+                        child.material.emissiveIntensity = 0.5 + pulse * 0.5;
+                    }
+                });
+
+                // Animate stake flow particles
+                if (stakeFlowEnabled) {
+                    stakeFlowLayer.children.forEach(child => {
+                        if (child.userData.curve && child.userData.speed) {
+                            child.userData.progress += child.userData.speed;
+                            if (child.userData.progress > 1) child.userData.progress = 0;
+
+                            const point = child.userData.curve.getPoint(child.userData.progress);
+                            child.position.copy(point);
+                        }
+                    });
+                }
+
+                // Animate vote particles
+                if (voteParticlesEnabled) {
+                    voteParticlesLayer.children.forEach(child => {
+                        if (child.userData.velocity) {
+                            child.position.add(child.userData.velocity);
+                            child.userData.life -= 0.01;
+                            child.material.opacity = child.userData.life;
+
+                            if (child.userData.life <= 0) {
+                                // Reset particle
+                                const sourceNode = validatorNodes[Math.floor(Math.random() * Math.min(30, validatorNodes.length))];
+                                child.position.copy(sourceNode.position);
+                                child.userData.life = 1.0;
+                                child.userData.velocity = new THREE.Vector3(
+                                    (Math.random() - 0.5) * 0.2,
+                                    Math.random() * 0.3,
+                                    (Math.random() - 0.5) * 0.2
+                                );
+                            }
+                        }
+                    });
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            renderer.domElement.addEventListener('click', onMouseClick);
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = isPaused ? 'Resume' : 'Pause';
+            btn.classList.toggle('active');
+            controls.autoRotate = !isPaused;
+        }
+
+        function resetView() {
+            camera.position.set(0, 25, 40);
+            controls.reset();
+        }
+
+        function toggleLayer() {
+            // Placeholder for future layers
+        }
+
+        window.toggleLayer = toggleLayer;
+        window.togglePause = togglePause;
+        window.resetView = resetView;
+        window.closeValidatorDetail = closeValidatorDetail;
+        window.toggleStakeFlow = toggleStakeFlow;
+        window.toggleVoteParticles = toggleVoteParticles;
+
+        init();
+    </script>
+</body>
+</html>
