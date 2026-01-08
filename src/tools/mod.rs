@@ -1790,6 +1790,20 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
             }),
         },
         ToolDefinition {
+            name: "securityScanSbpfBinary".to_string(),
+            description: Some("Perform comprehensive security scan on sBPF program to detect vulnerabilities and risks".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "programBinary": {
+                        "type": "string",
+                        "description": "Base64-encoded sBPF program binary (ELF format)"
+                    }
+                },
+                "required": ["programBinary"]
+            }),
+        },
+        ToolDefinition {
             name: "getSbpfReadme".to_string(),
             description: Some("Get README documentation for sBPF testing tools".to_string()),
             input_schema: serde_json::json!({
@@ -2509,6 +2523,20 @@ pub async fn handle_tools_call(
             deployer.prepare_deployment(binary).await
                 .map(|response| serde_json::to_value(response).unwrap())
                 .map_err(|e| anyhow::anyhow!("Devnet deployment preparation failed: {}", e))
+        }
+        "securityScanSbpfBinary" => {
+            let binary_b64 = arguments
+                .get("programBinary")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing programBinary parameter"))?;
+
+            let binary = base64::engine::general_purpose::STANDARD
+                .decode(binary_b64)
+                .map_err(|e| anyhow::anyhow!("Invalid base64: {}", e))?;
+
+            crate::sbpf::SecurityScanner::scan(&binary)
+                .map(|result| serde_json::to_value(result).unwrap())
+                .map_err(|e| anyhow::anyhow!("Security scan failed: {}", e))
         }
         "getSbpfReadme" => {
             Ok(serde_json::json!({

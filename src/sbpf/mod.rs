@@ -6,6 +6,7 @@
 pub mod binary_validator;
 pub mod devnet_deployer;
 pub mod errors;
+pub mod security_scanner;
 pub mod test_executor;
 pub mod types;
 pub mod vm_wrapper;
@@ -14,6 +15,7 @@ pub mod vm_wrapper;
 pub use binary_validator::BinaryValidator;
 pub use devnet_deployer::DevnetDeployer;
 pub use errors::SbpfError;
+pub use security_scanner::{SecurityScanResult, SecurityScanner, Severity, Vulnerability};
 pub use test_executor::TestExecutor;
 pub use types::*;
 pub use vm_wrapper::SbpfVmWrapper;
