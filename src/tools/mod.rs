@@ -1771,6 +1771,42 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 "required": ["programBinary"]
             }),
         },
+        ToolDefinition {
+            name: "getSbpfReadme".to_string(),
+            description: Some("Get README documentation for sBPF testing tools".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
+        ToolDefinition {
+            name: "getSbpfTutorial".to_string(),
+            description: Some("Get step-by-step tutorial for testing sBPF programs".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Tutorial topic: 'quickstart', 'validation', 'execution', or 'examples'",
+                        "enum": ["quickstart", "validation", "execution", "examples"]
+                    }
+                }
+            }),
+        },
+        ToolDefinition {
+            name: "getSbpfExamples".to_string(),
+            description: Some("Get code examples for sBPF testing".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "language": {
+                        "type": "string",
+                        "description": "Programming language: 'curl', 'javascript', 'python', or 'rust'",
+                        "enum": ["curl", "javascript", "python", "rust"]
+                    }
+                }
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -2427,6 +2463,232 @@ pub async fn handle_tools_call(
             vm.deploy_program(binary).await
                 .map(|response| serde_json::to_value(response).unwrap())
                 .map_err(|e| anyhow::anyhow!("Deployment failed: {}", e))
+        }
+        "getSbpfReadme" => {
+            Ok(serde_json::json!({
+                "title": "sBPF Testing Tools - README",
+                "description": "Local testing for Solana programs using liteSVM",
+                "overview": "The sBPF testing tools allow you to validate and test Solana programs locally without deploying to devnet/testnet/mainnet. This speeds up development cycles and reduces costs.",
+                "features": [
+                    "Binary validation - Check ELF format and architecture",
+                    "Local deployment - Deploy programs to liteSVM",
+                    "Program execution - Test with mock accounts and instruction data",
+                    "No network required - Everything runs locally",
+                    "Fast iteration - Test changes immediately"
+                ],
+                "tools": {
+                    "validateSbpfBinary": "Validates program binary format and structure",
+                    "deploySbpfProgramLocal": "Deploys program to local VM and returns program ID",
+                    "testSbpfProgram": "Executes program with test accounts and captures logs"
+                },
+                "requirements": {
+                    "binary_format": "ELF format with eBPF architecture (0x107)",
+                    "encoding": "Base64-encoded binary data",
+                    "size_limits": "64 bytes minimum, 512MB maximum"
+                },
+                "getting_started": "Use getSbpfTutorial with topic='quickstart' for step-by-step guide"
+            }))
+        }
+        "getSbpfTutorial" => {
+            let topic = arguments
+                .get("topic")
+                .and_then(|v| v.as_str())
+                .unwrap_or("quickstart");
+
+            let tutorial = match topic {
+                "quickstart" => serde_json::json!({
+                    "title": "sBPF Testing - Quick Start",
+                    "steps": [
+                        {
+                            "step": 1,
+                            "title": "Compile your Solana program",
+                            "description": "Use cargo build-sbf to compile your program to eBPF",
+                            "command": "cargo build-sbf",
+                            "output": "Binary will be in target/deploy/<program_name>.so"
+                        },
+                        {
+                            "step": 2,
+                            "title": "Encode binary to base64",
+                            "description": "Convert the .so file to base64 for API transmission",
+                            "command": "base64 -w 0 target/deploy/<program_name>.so > program.b64"
+                        },
+                        {
+                            "step": 3,
+                            "title": "Validate the binary",
+                            "description": "Check that your program is properly formatted",
+                            "tool": "validateSbpfBinary",
+                            "example": {
+                                "jsonrpc": "2.0",
+                                "method": "tools/call",
+                                "params": {
+                                    "name": "validateSbpfBinary",
+                                    "arguments": {
+                                        "programBinary": "<base64-encoded-binary>"
+                                    }
+                                },
+                                "id": 1
+                            }
+                        },
+                        {
+                            "step": 4,
+                            "title": "Deploy to local VM",
+                            "description": "Get a program ID for testing",
+                            "tool": "deploySbpfProgramLocal",
+                            "note": "Returns a program ID that can be used in tests"
+                        },
+                        {
+                            "step": 5,
+                            "title": "Test program execution",
+                            "description": "Run your program with test accounts",
+                            "tool": "testSbpfProgram",
+                            "note": "Provide accounts, instruction data, and signers"
+                        }
+                    ],
+                    "next": "Use topic='validation' or 'execution' for detailed guides"
+                }),
+                "validation" => serde_json::json!({
+                    "title": "Binary Validation Guide",
+                    "description": "Understanding sBPF binary validation",
+                    "what_is_validated": [
+                        "ELF magic number (0x7F 0x45 0x4C 0x46)",
+                        "Architecture type (0x107 for eBPF)",
+                        "Binary size (64 bytes to 512MB)",
+                        "Section presence (.text required)",
+                        "ELF structure integrity"
+                    ],
+                    "common_errors": {
+                        "NotElfFile": "Binary doesn't start with ELF magic number",
+                        "NotBpfArchitecture": "Wrong architecture - must be eBPF (0x107)",
+                        "BinaryTooSmall": "Binary is less than 64 bytes",
+                        "BinaryTooLarge": "Binary exceeds 512MB limit",
+                        "InvalidBinary": "ELF structure is malformed"
+                    },
+                    "success_output": {
+                        "architecture": "BPF",
+                        "entrypoint": "0x168",
+                        "sections": [".text", ".rodata", ".data.rel.ro"],
+                        "size_bytes": 21376
+                    },
+                    "tips": [
+                        "Compile with: cargo build-sbf",
+                        "Use release builds for accurate size",
+                        "Check for .text section in output"
+                    ]
+                }),
+                "execution" => serde_json::json!({
+                    "title": "Program Execution Guide",
+                    "description": "Testing sBPF programs with testSbpfProgram",
+                    "parameters": {
+                        "programBinary": {
+                            "type": "string",
+                            "required": true,
+                            "description": "Base64-encoded eBPF binary"
+                        },
+                        "accounts": {
+                            "type": "array",
+                            "required": false,
+                            "description": "Array of account specifications",
+                            "fields": {
+                                "pubkey": "Account public key (base58)",
+                                "lamports": "Initial SOL balance",
+                                "data": "Base64-encoded account data",
+                                "owner": "Program that owns the account",
+                                "executable": "Whether account is executable",
+                                "isSigner": "Whether account signed transaction",
+                                "isWritable": "Whether account can be modified"
+                            }
+                        },
+                        "instructionData": {
+                            "type": "string",
+                            "required": false,
+                            "description": "Base64-encoded instruction data"
+                        }
+                    },
+                    "response": {
+                        "success": "Boolean indicating execution success",
+                        "return_value": "Program return value (if any)",
+                        "compute_units": "Compute units consumed",
+                        "logs": "Array of program log messages",
+                        "account_changes": "Changes to account states"
+                    },
+                    "example_account": {
+                        "pubkey": "11111111111111111111111111111111",
+                        "lamports": 1000000,
+                        "data": "SGVsbG8=",
+                        "owner": "11111111111111111111111111111111",
+                        "executable": false,
+                        "isSigner": true,
+                        "isWritable": true
+                    }
+                }),
+                "examples" => serde_json::json!({
+                    "title": "Code Examples",
+                    "description": "See getSbpfExamples tool for language-specific examples",
+                    "available_languages": ["curl", "javascript", "python", "rust"],
+                    "usage": "Call getSbpfExamples with language parameter"
+                }),
+                _ => serde_json::json!({
+                    "error": "Unknown topic",
+                    "available_topics": ["quickstart", "validation", "execution", "examples"]
+                })
+            };
+
+            Ok(tutorial)
+        }
+        "getSbpfExamples" => {
+            let language = arguments
+                .get("language")
+                .and_then(|v| v.as_str())
+                .unwrap_or("curl");
+
+            let examples = match language {
+                "curl" => serde_json::json!({
+                    "language": "bash",
+                    "examples": [
+                        {
+                            "title": "Validate Binary",
+                            "code": "curl -X POST https://solahaha.com/api/mcp \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"jsonrpc\": \"2.0\",\n    \"method\": \"tools/call\",\n    \"params\": {\n      \"name\": \"validateSbpfBinary\",\n      \"arguments\": {\n        \"programBinary\": \"'$(base64 -w 0 program.so)'\"\n      }\n    },\n    \"id\": 1\n  }'"
+                        },
+                        {
+                            "title": "Test Program",
+                            "code": "curl -X POST https://solahaha.com/api/mcp \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"jsonrpc\": \"2.0\",\n    \"method\": \"tools/call\",\n    \"params\": {\n      \"name\": \"testSbpfProgram\",\n      \"arguments\": {\n        \"programBinary\": \"<base64>\",\n        \"accounts\": [{\n          \"pubkey\": \"11111111111111111111111111111111\",\n          \"lamports\": 1000000,\n          \"isSigner\": true,\n          \"isWritable\": true\n        }],\n        \"instructionData\": \"'$(echo -n \"test\" | base64)'\"\n      }\n    },\n    \"id\": 1\n  }'"
+                        }
+                    ]
+                }),
+                "javascript" => serde_json::json!({
+                    "language": "javascript",
+                    "examples": [
+                        {
+                            "title": "Validate Binary (Node.js)",
+                            "code": "const fs = require('fs');\nconst fetch = require('node-fetch');\n\nconst binary = fs.readFileSync('program.so');\nconst base64Binary = binary.toString('base64');\n\nconst response = await fetch('https://solahaha.com/api/mcp', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    jsonrpc: '2.0',\n    method: 'tools/call',\n    params: {\n      name: 'validateSbpfBinary',\n      arguments: { programBinary: base64Binary }\n    },\n    id: 1\n  })\n});\n\nconst result = await response.json();\nconsole.log(result);"
+                        }
+                    ]
+                }),
+                "python" => serde_json::json!({
+                    "language": "python",
+                    "examples": [
+                        {
+                            "title": "Validate and Test Program",
+                            "code": "import base64\nimport requests\n\n# Read and encode binary\nwith open('program.so', 'rb') as f:\n    binary = base64.b64encode(f.read()).decode('utf-8')\n\n# Validate\nresponse = requests.post('https://solahaha.com/api/mcp', json={\n    'jsonrpc': '2.0',\n    'method': 'tools/call',\n    'params': {\n        'name': 'validateSbpfBinary',\n        'arguments': {'programBinary': binary}\n    },\n    'id': 1\n})\n\nprint('Validation:', response.json())\n\n# Test execution\ntest_response = requests.post('https://solahaha.com/api/mcp', json={\n    'jsonrpc': '2.0',\n    'method': 'tools/call',\n    'params': {\n        'name': 'testSbpfProgram',\n        'arguments': {\n            'programBinary': binary,\n            'accounts': [{\n                'pubkey': '11111111111111111111111111111111',\n                'lamports': 1000000,\n                'isSigner': True,\n                'isWritable': True\n            }],\n            'instructionData': base64.b64encode(b'test').decode('utf-8')\n        }\n    },\n    'id': 2\n})\n\nprint('Test result:', test_response.json())"
+                        }
+                    ]
+                }),
+                "rust" => serde_json::json!({
+                    "language": "rust",
+                    "examples": [
+                        {
+                            "title": "Test Program with reqwest",
+                            "code": "use base64::Engine;\nuse serde_json::json;\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let binary = std::fs::read(\"program.so\")?;\n    let base64_binary = base64::engine::general_purpose::STANDARD.encode(&binary);\n\n    let client = reqwest::Client::new();\n    let response = client\n        .post(\"https://solahaha.com/api/mcp\")\n        .json(&json!({\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"tools/call\",\n            \"params\": {\n                \"name\": \"validateSbpfBinary\",\n                \"arguments\": {\n                    \"programBinary\": base64_binary\n                }\n            },\n            \"id\": 1\n        }))\n        .send()\n        .await?;\n\n    let result: serde_json::Value = response.json().await?;\n    println!(\"Result: {}\", serde_json::to_string_pretty(&result)?);\n    \n    Ok(())\n}"
+                        }
+                    ]
+                }),
+                _ => serde_json::json!({
+                    "error": "Unknown language",
+                    "available_languages": ["curl", "javascript", "python", "rust"]
+                })
+            };
+
+            Ok(examples)
         }
         _ => {
             return Ok(create_error_response(

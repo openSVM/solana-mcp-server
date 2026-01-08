@@ -4,7 +4,8 @@ use goblin::elf::Elf;
 
 const MAX_BINARY_SIZE: usize = 512 * 1024 * 1024; // 512MB
 const MIN_BINARY_SIZE: usize = 64;
-const BPF_MACHINE_TYPE: u16 = 0xF7; // eBPF
+const BPF_MACHINE_TYPE: u16 = 0x107; // eBPF (Solana uses extended BPF)
+const BPF_CLASSIC_MACHINE_TYPE: u16 = 0xF7; // Classic BPF
 
 pub struct BinaryValidator;
 
@@ -41,8 +42,10 @@ impl BinaryValidator {
             }
         };
 
-        // 4. Verify BPF architecture
-        if elf.header.e_machine != BPF_MACHINE_TYPE {
+        // 4. Verify BPF architecture (accept both eBPF and classic BPF)
+        if elf.header.e_machine != BPF_MACHINE_TYPE
+            && elf.header.e_machine != BPF_CLASSIC_MACHINE_TYPE
+        {
             return Err(SbpfError::NotBpfArchitecture(elf.header.e_machine));
         }
 
