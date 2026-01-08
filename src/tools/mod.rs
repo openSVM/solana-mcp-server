@@ -1807,6 +1807,14 @@ pub async fn handle_tools_list(id: Option<Value>, _state: &ServerState) -> Resul
                 }
             }),
         },
+        ToolDefinition {
+            name: "getSbpfFaq".to_string(),
+            description: Some("Get frequently asked questions and troubleshooting for sBPF testing".to_string()),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        },
     ];
 
     let tools_len = tools.len();
@@ -2689,6 +2697,73 @@ pub async fn handle_tools_call(
             };
 
             Ok(examples)
+        }
+        "getSbpfFaq" => {
+            Ok(serde_json::json!({
+                "title": "sBPF Testing - FAQ & Troubleshooting",
+                "questions": [
+                    {
+                        "q": "Why does my program validation fail?",
+                        "a": "Common causes:\n1. Not compiled with cargo build-sbf\n2. Wrong architecture (must be eBPF 0x107)\n3. Binary too small (<64 bytes) or too large (>512MB)\n4. Corrupted or incomplete file\n\nSolution: Ensure you compile with 'cargo build-sbf' and the binary is complete."
+                    },
+                    {
+                        "q": "Why does program execution fail with 'InvalidProgramForExecution'?",
+                        "a": "This is a known limitation of liteSVM v0.9. While the binary validates correctly (ELF format, eBPF architecture), liteSVM has stricter runtime requirements that some programs don't meet.\n\nValidation works for:\n- Checking binary format\n- Analyzing sections\n- Extracting metadata\n\nFull execution support is limited. Use validation and deployment tools for binary analysis. For full execution testing, deploy to devnet/testnet.\n\nFuture versions may support more program types."
+                    },
+                    {
+                        "q": "What's the difference between the three core tools?",
+                        "a": "validateSbpfBinary: Just checks if the binary is valid (format, architecture, sections). No execution, just analysis.\n\ndeploySbpfProgramLocal: Loads the program into liteSVM and returns a program ID. Validates + deploys.\n\ntestSbpfProgram: Attempts full execution with mock accounts. Validates + deploys + executes. May fail due to liteSVM limitations."
+                    },
+                    {
+                        "q": "How do I encode my binary to base64?",
+                        "a": "Linux/Mac: base64 -w 0 program.so > program.b64\n\nWindows: certutil -encode program.so program.b64.tmp && findstr /v CERTIFICATE program.b64.tmp > program.b64\n\nPython: base64.b64encode(open('program.so', 'rb').read()).decode('utf-8')\n\nNode.js: fs.readFileSync('program.so').toString('base64')"
+                    },
+                    {
+                        "q": "What binary format is required?",
+                        "a": "Requirements:\n- ELF format (starts with 0x7F 0x45 0x4C 0x46)\n- eBPF architecture (machine type 0x107 or 0xF7)\n- Size: 64 bytes to 512MB\n- Should have .text section\n- Must be compiled with cargo build-sbf\n\nThe .so file from target/deploy/ after cargo build-sbf is correct."
+                    },
+                    {
+                        "q": "Can I test Anchor programs?",
+                        "a": "Yes for validation! Anchor programs compile to eBPF and can be validated.\n\nValidation: ✅ Works - checks format and structure\nExecution: ⚠️ Limited - liteSVM may not support all Anchor features\n\nBest use: Validate Anchor binaries to check format and size before deploying to network."
+                    },
+                    {
+                        "q": "Why is my account data not changing?",
+                        "a": "If execution succeeds but accounts don't change:\n1. Check isWritable is true for accounts that should change\n2. Verify the program logic actually modifies the accounts\n3. Check compute units consumed - if 0, program may not have run\n4. Review program logs for errors\n\nNote: Due to liteSVM limitations, some state changes may not be captured correctly."
+                    },
+                    {
+                        "q": "What's the best workflow for development?",
+                        "a": "Recommended workflow:\n\n1. Write your Solana program\n2. cargo build-sbf\n3. Validate with validateSbpfBinary ← Quick format check\n4. Test locally if possible (may hit limitations)\n5. Deploy to devnet for full testing\n6. Repeat: modify → compile → validate → deploy\n\nUse validation to catch format errors before network deployment."
+                    },
+                    {
+                        "q": "How much does testing cost?",
+                        "a": "FREE! All sBPF testing is completely free:\n- No SOL required\n- No network fees\n- No RPC costs\n- Unlimited validations\n- No rate limits currently\n\nThis is why it's great for rapid iteration during development."
+                    },
+                    {
+                        "q": "What are the limitations?",
+                        "a": "Current limitations:\n\n1. Execution Support: liteSVM v0.9 has limited program execution support. Validation always works, execution may fail.\n\n2. No CPI: Cross-program invocations not fully supported\n\n3. No Syscalls: Some Solana syscalls may not work\n\n4. Limited State: Fresh VM each time, no persistent state\n\n5. Simplified Runtime: Not identical to real Solana runtime\n\nBest for: Binary validation, format checking, quick smoke tests\nNot for: Comprehensive integration testing, CPI testing, production validation"
+                    },
+                    {
+                        "q": "How do I get help?",
+                        "a": "Resources:\n1. getSbpfReadme - Overview and features\n2. getSbpfTutorial - Step-by-step guides\n3. getSbpfExamples - Working code samples\n4. getSbpfFaq - This FAQ (troubleshooting)\n\nGitHub: https://github.com/openSVM/solana-mcp-server/issues\nAPI: https://solahaha.com/api/mcp"
+                    }
+                ],
+                "tips": [
+                    "Always compile with cargo build-sbf, not regular cargo build",
+                    "Validation is fast and free - use it before every deployment",
+                    "If execution fails, use validation to at least check format",
+                    "Base64 encode without line breaks (use -w 0 or -A flags)",
+                    "Check the .text section exists in validation output",
+                    "Deploy to devnet for comprehensive testing"
+                ],
+                "common_errors": {
+                    "NotElfFile": "Binary doesn't start with ELF magic bytes. Wrong file?",
+                    "NotBpfArchitecture": "Compiled for wrong architecture. Use cargo build-sbf",
+                    "BinaryTooSmall": "File incomplete or wrong file selected",
+                    "InvalidBinary": "ELF structure corrupted. Recompile program",
+                    "Base64Error": "Binary not properly base64 encoded",
+                    "InvalidProgramForExecution": "liteSVM limitation - validation works, execution limited"
+                }
+            }))
         }
         _ => {
             return Ok(create_error_response(
